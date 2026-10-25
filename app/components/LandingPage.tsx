@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { signIn } from "next-auth/react";
+import Stepper, { Step } from "./Stepper";
 import {
   Sparkles,
   ArrowRight,
@@ -19,20 +20,22 @@ import {
   LogIn,
   UserPlus,
   Loader2,
+  Check,
 } from "lucide-react";
 
 interface LandingPageProps {
   onOpenLogin: () => void;
   onOpenSignup: () => void;
-  onExploreDemo: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenLogin,
   onOpenSignup,
-  onExploreDemo,
 }) => {
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [stepperName, setStepperName] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
+  const [selectedEventType, setSelectedEventType] = useState("Corporate Summit");
 
   const handleGoogleSignIn = async () => {
     try {
@@ -78,15 +81,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <a href="#how-it-works" className="hover:text-[#10B981] transition-colors">
               How It Works
             </a>
-            <a href="#preview" className="hover:text-[#10B981] transition-colors">
-              Aesthetic Showcase
+            <a href="#stepper" className="hover:text-[#10B981] transition-colors">
+              Interactive Stepper
             </a>
-            <button
-              onClick={onExploreDemo}
-              className="text-[#10B981] hover:text-[#059669] transition-colors cursor-pointer"
-            >
-              Live Demo
-            </button>
           </nav>
 
           {/* Unauthenticated User Auth Buttons */}
@@ -123,12 +120,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </button>
 
             <button
-              onClick={onExploreDemo}
+              onClick={onOpenSignup}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#10B981] text-white text-xs sm:text-sm font-semibold hover:bg-[#059669] transition-all cursor-pointer shadow-sm shadow-[#10B981]/30"
-              id="landing-demo-btn"
+              id="landing-signup-btn"
             >
-              <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:inline">Try Demo</span>
+              <UserPlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Get Started</span>
             </button>
           </div>
         </div>
@@ -203,18 +200,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
 
-            <button
-              onClick={onExploreDemo}
+            <a
+              href="#stepper"
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-[#FFFFFF] text-[#2D3748] border border-[#E2ECE5] text-sm font-bold hover:border-[#10B981] hover:bg-[#F4F7F5] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-[#10B981]" />
-              <span>Explore Live Interactive Demo</span>
-            </button>
+              <span>Interactive Setup Stepper</span>
+            </a>
           </div>
 
           <div className="pt-2 flex items-center justify-center gap-6 text-xs text-[#718096]">
             <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-[#10B981]" /> No credit card required
+              <CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Google OAuth Single Sign-On
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Instant GenAI blueprint
@@ -226,116 +223,215 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
-      {/* 3. Live Dashboard Interactive Preview Showcase (Addressing the 3 visual feedback focal points) */}
-      <section id="preview" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-        <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 border border-[#E2ECE5] shadow-lg relative overflow-hidden space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E2ECE5]">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#718096]">
-                Interactive Workspace Showcase
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#2D3748]">
-                Clear Visual Feedback Across Every Dimension
-              </h2>
-            </div>
-            <button
-              onClick={onExploreDemo}
-              className="px-4 py-2 rounded-xl bg-[#E6F7F0] border border-[#A7F3D0] text-xs font-semibold text-[#059669] hover:bg-[#A7F3D0]/60 flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
-            >
-              <span>Launch Full Workspace</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+      {/* 3. React Bits Stepper Component Integration (Replaces demo content) */}
+      <section id="stepper" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full scroll-mt-20">
+        <div className="text-center max-w-2xl mx-auto mb-8 space-y-2">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+            <Sparkles className="w-3.5 h-3.5" /> React Bits &bull; Interactive Stepper
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#2D3748]">
+            Configure Your Event Workspace in 4 Easy Steps
+          </h2>
+          <p className="text-xs sm:text-sm text-[#718096]">
+            Walk through the serene onboarding flow powered by the fluid, animated Stepper component.
+          </p>
+        </div>
 
-          {/* 3 Feature Metric Cards Preview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Card 1: Completed Tasks Feedback */}
-            <div className="bg-[#F4F7F5] rounded-2xl p-5 border border-[#E2ECE5] space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
-                    <CheckCircle2 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#718096]">
-                      Completed Tasks
-                    </h4>
-                    <p className="text-base font-bold text-[#2D3748]">
-                      Clear Mint Visual Feedback
-                    </p>
+        <div className="flex justify-center w-full">
+          <Stepper
+            initialStep={1}
+            onStepChange={step => console.log("Stepper step changed to:", step)}
+            onFinalStepCompleted={() => {
+              console.log("All steps completed!");
+              handleGoogleSignIn();
+            }}
+            backButtonText="Back"
+            nextButtonText="Continue"
+            completeButtonText="Place order & Launch"
+            orientation="vertical"
+            width={640}
+            theme="light"
+            accentColor="#10B981"
+            radius={24}
+            className="border border-[#E2ECE5] shadow-lg bg-[#FFFFFF]/90"
+          >
+            {/* Step 1: Welcome */}
+            <Step title="Welcome">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3748]">Welcome aboard</h3>
+                  <p className="text-xs sm:text-sm text-[#718096]">
+                    Set up your workspace in a few quick steps.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <label className="text-xs font-semibold text-[#2D3748]">
+                    Select Event Vision
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { name: "Corporate Summit", icon: "🏢", desc: "Keynotes & networking" },
+                      { name: "Tech Launch", icon: "🚀", desc: "Interactive demos" },
+                      { name: "Serene Gala", icon: "✨", desc: "Dinner & banquet" },
+                      { name: "Private Retreat", icon: "🌿", desc: "Leadership summit" },
+                    ].map(item => (
+                      <button
+                        key={item.name}
+                        type="button"
+                        onClick={() => setSelectedEventType(item.name)}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          selectedEventType === item.name
+                            ? "border-[#10B981] bg-[#E6F7F0]/60 shadow-xs"
+                            : "border-[#E2ECE5] bg-white hover:bg-[#F4F7F5]"
+                        }`}
+                      >
+                        <div className="text-lg mb-1">{item.icon}</div>
+                        <p className="text-xs font-bold text-[#2D3748]">{item.name}</p>
+                        <p className="text-[11px] text-[#718096]">{item.desc}</p>
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0]">
-                  14/18 Done
-                </span>
               </div>
-              <p className="text-xs text-[#718096] leading-relaxed">
-                Check off milestones with satisfying emerald checkmarks, instant progress ring updates, and zero cognitive clutter.
-              </p>
-              <div className="w-full h-2.5 bg-[#FFFFFF] rounded-full overflow-hidden border border-[#E2ECE5]">
-                <div className="w-[78%] h-full bg-[#10B981] rounded-full" />
-              </div>
-            </div>
+            </Step>
 
-            {/* Card 2: Budget Progress Bar */}
-            <div className="bg-[#F4F7F5] rounded-2xl p-5 border border-[#E2ECE5] space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
-                    <DollarSign className="w-5 h-5" />
-                  </div>
+            {/* Step 2: Plan */}
+            <Step title="Plan">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3748]">Choose a plan</h3>
+                  <p className="text-xs sm:text-sm text-[#718096]">
+                    You can change this at any time.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {[
+                    {
+                      name: "Starter AI Blueprint",
+                      tag: "Free Trial",
+                      desc: "Core budgeting, milestone schedules, and basic vendor directory.",
+                    },
+                    {
+                      name: "Professional Suite",
+                      tag: "Recommended",
+                      desc: "Unlimited AI generations, Kordena Copilot, budget alert triggers.",
+                    },
+                    {
+                      name: "Enterprise Architecture",
+                      tag: "Multi-Team",
+                      desc: "Custom vendor contracts, dedicated concierge, and real-time sync.",
+                    },
+                  ].map(p => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => setSelectedPlan(p.name)}
+                      className={`w-full p-3 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${
+                        selectedPlan === p.name
+                          ? "border-[#10B981] bg-[#E6F7F0]/60 shadow-xs"
+                          : "border-[#E2ECE5] bg-white hover:bg-[#F4F7F5]"
+                      }`}
+                    >
+                      <div className="pr-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-[#2D3748]">{p.name}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E6F7F0] text-[#059669]">
+                            {p.tag}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#718096] mt-0.5">{p.desc}</p>
+                      </div>
+                      {selectedPlan === p.name && (
+                        <Check className="w-4 h-4 text-[#10B981] shrink-0 mt-0.5" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Step>
+
+            {/* Step 3: Profile */}
+            <Step title="Profile">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3748]">What should we call you?</h3>
+                  <p className="text-xs sm:text-sm text-[#718096]">
+                    Provide your name or event organization handle.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-1">
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#718096]">
-                      Budget Progress
-                    </h4>
-                    <p className="text-base font-bold text-[#2D3748]">
-                      Real-Time Progress Bar
-                    </p>
+                    <label className="block text-xs font-semibold text-[#2D3748] mb-1.5">
+                      Your Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Your name"
+                      value={stepperName}
+                      onChange={e => setStepperName(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl bg-white border border-[#E2ECE5] focus:outline-none focus:border-[#10B981] text-xs sm:text-sm text-[#2D3748] shadow-xs"
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs text-[#718096]">
+                    💡 <em>Tip:</em> Once your workspace opens, you can prompt Kordena Copilot anytime to auto-generate timelines, vendor matches, and budgets.
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0]">
-                  $37.8k / $45k
-                </span>
               </div>
-              <p className="text-xs text-[#718096] leading-relaxed">
-                Dynamic visual indicator displaying spent allocation vs. safety cushion, preventing unexpected budget overruns.
-              </p>
-              <div className="w-full h-2.5 bg-[#FFFFFF] rounded-full overflow-hidden border border-[#E2ECE5]">
-                <div className="w-[84%] h-full bg-gradient-to-r from-[#34D399] to-[#10B981] rounded-full" />
-              </div>
-            </div>
+            </Step>
 
-            {/* Card 3: Calendar Alerts */}
-            <div className="bg-[#F4F7F5] rounded-2xl p-5 border border-[#E2ECE5] space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
-                    <Bell className="w-5 h-5" />
+            {/* Step 4: Review */}
+            <Step title="Review">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3748]">Looking good</h3>
+                  <p className="text-xs sm:text-sm text-[#718096]">
+                    Complete setup to open your workspace.
+                  </p>
+                </div>
+
+                <div className="bg-[#F4F7F5] p-4 rounded-2xl border border-[#E2ECE5] space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718096]">Planner Handle:</span>
+                    <strong className="text-[#2D3748]">{stepperName || "Lead Architect"}</strong>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#718096]">
-                      Calendar Alerts
-                    </h4>
-                    <p className="text-base font-bold text-[#2D3748]">
-                      Predictive Deadlines
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718096]">Event Vision:</span>
+                    <strong className="text-[#2D3748]">{selectedEventType}</strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718096]">Workspace Tier:</span>
+                    <strong className="text-[#10B981]">{selectedPlan}</strong>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-[#E2ECE5]">
+                    <span className="text-[#718096]">Authentication:</span>
+                    <span className="font-semibold text-[#2D3748] flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#10B981]" /> Google OAuth 2.0
+                    </span>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0]">
-                  T-3 Days
-                </span>
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={googleLoading}
+                    className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-bold text-xs shadow-md shadow-[#10B981]/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  >
+                    {googleLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    <span>Complete Setup with Google SSO</span>
+                  </button>
+                </div>
               </div>
-              <p className="text-xs text-[#718096] leading-relaxed">
-                Automated alerts for final catering headcounts, insurance certificates, and spatial audio dry runs.
-              </p>
-              <div className="p-2.5 rounded-xl bg-[#FFFFFF] border border-[#E2ECE5] flex items-center gap-2 text-xs">
-                <span className="w-2 h-2 rounded-full bg-[#10B981] emerald-pulse" />
-                <span className="font-semibold text-[#2D3748] truncate">
-                  Final Dietary Lock with Chef Danielle
-                </span>
-              </div>
-            </div>
-          </div>
+            </Step>
+          </Stepper>
         </div>
       </section>
 
@@ -359,11 +455,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="w-10 h-10 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
               <Wand2 className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-[#2D3748]">
-              Prompt-to-Blueprint GenAI
-            </h3>
-            <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-              Type any concept—from a 180-guest botanical summit to an intimate Napa vineyard wedding—and Kordena generates a complete operational blueprint in seconds.
+            <h3 className="text-base font-bold text-[#2D3748]">Prompt-to-Event Synthesis</h3>
+            <p className="text-xs text-[#718096] leading-relaxed">
+              Describe your occasion in natural language and receive a comprehensive blueprint complete with timelines, cost projections, and supplier recommendations.
             </p>
           </div>
 
@@ -372,11 +466,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="w-10 h-10 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
               <DollarSign className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-[#2D3748]">
-              60-30-10 Smart Budget Ledger
-            </h3>
-            <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-              Automatically segments your expenditure across venue, culinary hospitality, spatial design, and emergency reserve with live progress meter feedback.
+            <h3 className="text-base font-bold text-[#2D3748]">Dynamic Budget Intelligence</h3>
+            <p className="text-xs text-[#718096] leading-relaxed">
+              Prevent surprise expenses with real-time budget distribution, spent-vs-allocated ratios, and automated safety cushion calculations.
             </p>
           </div>
 
@@ -385,130 +477,79 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="w-10 h-10 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
               <Users className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-[#2D3748]">
-              AI Vendor Matchmaker
-            </h3>
-            <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-              Vets and pairs partners based on your aesthetic vibe, capacity, and budget tier, complete with pre-drafted inquiry messages ready to send.
-            </p>
-          </div>
-
-          {/* Feature 4 */}
-          <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-7 border border-[#E2ECE5] shadow-xs space-y-3 hover:border-[#10B981]/50 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
-              <Calendar className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-[#2D3748]">
-              Day-of Run-of-Show
-            </h3>
-            <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-              Minute-by-minute operational sequence mapping responsibilities, vendor arrivals, keynote cues, and guest transitions seamlessly.
-            </p>
-          </div>
-
-          {/* Feature 5 */}
-          <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-7 border border-[#E2ECE5] shadow-xs space-y-3 hover:border-[#10B981]/50 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
-              <Bot className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-[#2D3748]">
-              Kordena AI Copilot Assistant
-            </h3>
-            <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-              On-demand intelligent advisor to rebalance budgets, draft personalized attendee invitations, and resolve acoustic or culinary questions.
-            </p>
-          </div>
-
-          {/* Feature 6 */}
-          <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-7 border border-[#E2ECE5] shadow-xs space-y-3 hover:border-[#10B981]/50 transition-all">
-            <div className="w-10 h-10 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981]">
-              <Layers className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-[#2D3748]">
-              One-Click Executive Brief Export
-            </h3>
-            <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-              Export clean, printable markdown summaries formatted for corporate executive committees, wedding parties, and venue operators.
+            <h3 className="text-base font-bold text-[#2D3748]">AI Supplier Matchmaker</h3>
+            <p className="text-xs text-[#718096] leading-relaxed">
+              Discover verified caterers, audio-visual masters, and scenic designers scored specifically against your vibe and budget.
             </p>
           </div>
         </div>
       </section>
 
-      {/* 5. How It Works Workflow (3 Steps) */}
-      <section id="how-it-works" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
-        <div className="bg-[#FFFFFF] rounded-3xl p-8 sm:p-12 border border-[#E2ECE5] shadow-xs space-y-10">
-          <div className="text-center max-w-xl mx-auto space-y-2">
+      {/* 5. How It Works Section */}
+      <section id="how-it-works" className="bg-[#FFFFFF] border-y border-[#E2ECE5] py-16 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
             <span className="text-xs font-bold uppercase tracking-wider text-[#10B981]">
-              Serene Workflow
+              Simple Three-Step Journey
             </span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-[#2D3748]">
-              From Concept to Execution in 3 Steps
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#2D3748]">
+              From Raw Concept to Flawless Execution
             </h2>
+            <p className="text-xs sm:text-sm text-[#718096]">
+              A structured workflow designed to preserve mental peace at every milestone.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
-            <div className="space-y-3 text-center sm:text-left">
-              <div className="w-10 h-10 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] text-[#10B981] font-bold text-base flex items-center justify-center">
-                1
-              </div>
-              <h4 className="text-base font-bold text-[#2D3748]">
-                Describe Your Event Vision
-              </h4>
-              <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-                Provide guest count, budget range, and vibe. Kordena accepts natural language prompts and quick presets.
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="relative space-y-3 p-5 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5]">
+              <span className="w-8 h-8 rounded-full bg-[#10B981] text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                01
+              </span>
+              <h4 className="text-base font-bold text-[#2D3748]">Seed Your Vision</h4>
+              <p className="text-xs text-[#718096] leading-relaxed">
+                Enter your event archetype, target guest count, date, and atmosphere parameters into Kordena&apos;s GenAI generator.
               </p>
             </div>
 
-            <div className="space-y-3 text-center sm:text-left">
-              <div className="w-10 h-10 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] text-[#10B981] font-bold text-base flex items-center justify-center">
-                2
-              </div>
-              <h4 className="text-base font-bold text-[#2D3748]">
-                GenAI Synthesizes the Master Plan
-              </h4>
-              <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-                The neural planner balances budget categories, schedules milestone calendar alerts, and matches curated vendors.
+            <div className="relative space-y-3 p-5 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5]">
+              <span className="w-8 h-8 rounded-full bg-[#10B981] text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                02
+              </span>
+              <h4 className="text-base font-bold text-[#2D3748]">Refine with Copilot</h4>
+              <p className="text-xs text-[#718096] leading-relaxed">
+                Consult the embedded Kordena Copilot to adjust schedules, reallocate budget categories, and fine-tune team responsibilities.
               </p>
             </div>
 
-            <div className="space-y-3 text-center sm:text-left">
-              <div className="w-10 h-10 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] text-[#10B981] font-bold text-base flex items-center justify-center">
-                3
-              </div>
-              <h4 className="text-base font-bold text-[#2D3748]">
-                Orchestrate with Serene Focus
-              </h4>
-              <p className="text-xs sm:text-sm text-[#718096] leading-relaxed">
-                Track checklist execution with clear emerald feedback, manage day-of run-of-show, and consult your copilot anytime.
+            <div className="relative space-y-3 p-5 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5]">
+              <span className="w-8 h-8 rounded-full bg-[#10B981] text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                03
+              </span>
+              <h4 className="text-base font-bold text-[#2D3748]">Export & Orchestrate</h4>
+              <p className="text-xs text-[#718096] leading-relaxed">
+                Download a polished executive brief in PDF, CSV, or Markdown format, ready to share with stakeholders and vendors.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 6. Testimonial / Social Proof */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
-        <div className="bg-[#E6F7F0]/40 rounded-3xl p-8 sm:p-10 border border-[#A7F3D0] flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl">
-            <div className="flex items-center gap-1 text-amber-500">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-              ))}
-            </div>
-            <p className="text-sm sm:text-base font-medium text-[#2D3748] italic leading-relaxed">
-              &ldquo;Kordena brought an incredible sense of clarity and serenity to our 200-person tech symposium. The Fresh Sage interface and real-time budget feedback saved us countless hours of spreadsheet friction.&rdquo;
-            </p>
-            <p className="text-xs text-[#718096] font-semibold">
-              — Julian Montgomery, Executive Director at Apex Horizons
-            </p>
+      {/* 6. Testimonial Quote */}
+      <section className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-br from-[#FFFFFF] to-[#E6F7F0]/40 border border-[#E2ECE5] shadow-xs space-y-6">
+          <div className="flex justify-center gap-1 text-[#10B981]">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-4 h-4 fill-current" />
+            ))}
           </div>
 
-          <button
-            onClick={onOpenSignup}
-            className="px-6 py-3 rounded-2xl bg-[#10B981] text-white text-xs sm:text-sm font-bold hover:bg-[#059669] transition-all cursor-pointer shadow-md shadow-[#10B981]/25 shrink-0"
-          >
-            Create Your First Event Free
-          </button>
+          <p className="text-sm sm:text-base font-medium text-[#2D3748] italic max-w-2xl mx-auto leading-relaxed">
+            &ldquo;Kordena brought an immense sense of serenity to our flagship international summit. The GenAI-synthesized schedule and budget bars gave our team instant clarity and absolute peace of mind.&rdquo;
+          </p>
+
+          <p className="text-xs text-[#718096] font-semibold">
+            — Julian Montgomery, Executive Director at Apex Horizons
+          </p>
         </div>
       </section>
 
@@ -550,14 +591,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </svg>
             )}
             <span>{googleLoading ? "Starting Sign In..." : "Continue with Google"}</span>
-          </button>
-
-          <button
-            onClick={onExploreDemo}
-            className="w-full sm:w-auto px-7 py-3.5 rounded-2xl bg-[#FFFFFF] text-[#2D3748] border border-[#E2ECE5] text-sm font-bold hover:border-[#10B981] hover:bg-[#F4F7F5] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-2"
-          >
-            <Sparkles className="w-4 h-4 text-[#10B981]" />
-            <span>Explore Demo Workspace</span>
           </button>
         </div>
       </section>

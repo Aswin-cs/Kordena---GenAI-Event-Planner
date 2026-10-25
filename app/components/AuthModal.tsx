@@ -2,24 +2,22 @@
 
 import React, { useState } from "react";
 import { signIn } from "next-auth/react";
-import { Sparkles, ShieldCheck, CheckCircle2, X, Loader2, ArrowRight, AlertCircle, PlayCircle } from "lucide-react";
+import { Sparkles, ShieldCheck, X, Loader2, ArrowRight, AlertCircle } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
   initialMode?: "login" | "signup";
   onClose: () => void;
-  onSuccess: (user: { name: string; email: string; image?: string }) => void;
+  onSuccess?: (user: { name: string; email: string; image?: string }) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   initialMode = "login",
   onClose,
-  onSuccess,
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDemoAccount, setSelectedDemoAccount] = useState<string>("elena.vance@gmail.com");
 
   if (!isOpen) return null;
 
@@ -34,20 +32,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setError("Unable to initiate Google sign-in. Please verify your connection.");
       setLoading(false);
     }
-  };
-
-  // Instant Demo Sign-In (for quick testing without OAuth redirect)
-  const handleDemoSignIn = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      const isElena = selectedDemoAccount.startsWith("elena");
-      onSuccess({
-        name: isElena ? "Elena Vance" : "Sarath (Event Lead)",
-        email: selectedDemoAccount,
-      });
-      onClose();
-    }, 300);
   };
 
   return (
@@ -134,75 +118,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </>
             )}
           </button>
-
-          {/* Quick Demo Option for local preview / developer testing */}
-          <div className="pt-2">
-            <div className="flex items-center gap-2 my-2">
-              <div className="flex-1 h-px bg-[#E2ECE5]" />
-              <span className="text-[10px] uppercase font-bold text-[#718096] tracking-wider">
-                Or Instant Demo Preview
-              </span>
-              <div className="flex-1 h-px bg-[#E2ECE5]" />
-            </div>
-
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() => setSelectedDemoAccount("elena.vance@gmail.com")}
-                className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between text-xs transition-all cursor-pointer ${
-                  selectedDemoAccount === "elena.vance@gmail.com"
-                    ? "border-[#10B981] bg-[#E6F7F0]/50"
-                    : "border-[#E2ECE5] bg-[#FFFFFF] hover:bg-[#F4F7F5]"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-[#10B981] text-white flex items-center justify-center font-bold text-[10px]">
-                    E
-                  </div>
-                  <div>
-                    <span className="font-semibold text-[#2D3748]">Elena Vance</span>
-                    <span className="text-[10px] text-[#718096] ml-2">(elena.vance@gmail.com)</span>
-                  </div>
-                </div>
-                {selectedDemoAccount === "elena.vance@gmail.com" && (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedDemoAccount("sarath.eventplanner@gmail.com")}
-                className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between text-xs transition-all cursor-pointer ${
-                  selectedDemoAccount === "sarath.eventplanner@gmail.com"
-                    ? "border-[#10B981] bg-[#E6F7F0]/50"
-                    : "border-[#E2ECE5] bg-[#FFFFFF] hover:bg-[#F4F7F5]"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-[10px]">
-                    S
-                  </div>
-                  <div>
-                    <span className="font-semibold text-[#2D3748]">Sarath (Event Lead)</span>
-                    <span className="text-[10px] text-[#718096] ml-2">(sarath.eventplanner@gmail.com)</span>
-                  </div>
-                </div>
-                {selectedDemoAccount === "sarath.eventplanner@gmail.com" && (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDemoSignIn}
-                disabled={loading}
-                className="w-full mt-2 py-2 px-3 rounded-xl bg-[#F4F7F5] hover:bg-[#E2ECE5] text-[#2D3748] font-semibold text-xs border border-[#E2ECE5] transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <PlayCircle className="w-3.5 h-3.5 text-[#10B981]" />
-                <span>Launch Selected Demo Account</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Security & Terms Footer */}

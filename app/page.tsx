@@ -34,19 +34,11 @@ import {
   Loader2,
   AlertCircle,
   X,
-  ShieldCheck,
 } from "lucide-react";
 
 export default function Home() {
   // 1. NextAuth Session Hook
   const { data: session, status } = useSession();
-
-  // Local demo fallback state for preview testing
-  const [demoUser, setDemoUser] = useState<{
-    name: string;
-    email: string;
-    image?: string;
-  } | null>(null);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
@@ -60,7 +52,7 @@ export default function Home() {
       if (errorParam) {
         if (errorParam === "OAuthSignin" || errorParam === "OAuthCallback") {
           setAuthNotice(
-            "Google sign-in was cancelled or encountered an OAuth handshake issue. You can try again or use Instant Demo Mode."
+            "Google sign-in was cancelled or encountered an OAuth handshake issue. Please try signing in again."
           );
         } else {
           setAuthNotice(`NextAuth status: ${errorParam}`);
@@ -81,16 +73,16 @@ export default function Home() {
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
 
-  // Determine active authenticated user (NextAuth session takes priority)
+  // Active authenticated user from NextAuth session
   const activeUser = session?.user
     ? {
         name: session.user.name || "Event Planner",
         email: session.user.email || "",
         image: session.user.image || undefined,
       }
-    : demoUser;
+    : null;
 
-  const isAuthenticated = status === "authenticated" || !!demoUser;
+  const isAuthenticated = status === "authenticated";
 
   // Active event plan
   const activeEvent = events.find((e) => e.id === activeEventId) || events[0];
@@ -107,13 +99,7 @@ export default function Home() {
     setActiveTab("overview");
   };
 
-  const handleAuthSuccess = (u: { name: string; email: string; image?: string }) => {
-    setDemoUser(u);
-    setAuthModalOpen(false);
-  };
-
   const handleLogout = async () => {
-    setDemoUser(null);
     if (session) {
       await signOut({ callbackUrl: "/" });
     }
@@ -139,7 +125,7 @@ export default function Home() {
     );
   }
 
-  // 2. UNAUTHENTICATED: Rich introductory landing page with NextAuth Google SSO & Demo options
+  // 2. UNAUTHENTICATED: Rich introductory landing page with NextAuth Google SSO & Stepper Component
   if (!isAuthenticated) {
     return (
       <>
@@ -168,19 +154,12 @@ export default function Home() {
             setAuthMode("signup");
             setAuthModalOpen(true);
           }}
-          onExploreDemo={() => {
-            setDemoUser({
-              name: "Elena Vance",
-              email: "elena.vance@gmail.com",
-            });
-          }}
         />
 
         <AuthModal
           isOpen={authModalOpen}
           initialMode={authMode}
           onClose={() => setAuthModalOpen(false)}
-          onSuccess={handleAuthSuccess}
         />
       </>
     );
@@ -189,26 +168,6 @@ export default function Home() {
   // 3. AUTHENTICATED: Full Kordena GenAI Event Planner Workspace
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F7F5] text-[#2D3748]">
-      {/* Demo Mode Notice Banner if running under local guest demo */}
-      {!session && demoUser && (
-        <div className="bg-[#E6F7F0] border-b border-[#A7F3D0] px-4 py-2 text-xs text-[#059669] flex items-center justify-between">
-          <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[#10B981]" />
-              <span>
-                <strong>Demo Mode Active:</strong> You are exploring as <em>{demoUser.name}</em>. Sign in with Google anytime to save your blueprints to the cloud.
-              </span>
-            </div>
-            <button
-              onClick={() => signIn("google", { callbackUrl: "/" })}
-              className="px-2.5 py-1 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-[11px] font-bold transition-colors cursor-pointer"
-            >
-              Sign In with Google
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* 1. Header Navigation with NextAuth user info & controls */}
       <Navbar
         events={events}

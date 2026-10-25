@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #F4F7F5;
+  --foreground: #2D3748;
+  --surface: #FFFFFF;
+  --accent: #10B981;
+  --accent-hover: #059669;
+  --accent-light: #E6F7F0;
+  --accent-border: #A7F3D0;
+  --border-subtle: #E2ECE5;
+  --text-muted: #718096;
+  --text-heading: #1A202C;
+  --sage-tint: #F4F7F5;
+  --sage-badge: #EBF3EE;
+  --sage-card-shadow: 0 4px 20px -2px rgba(45, 55, 72, 0.05), 0 2px 6px -1px rgba(45, 55, 72, 0.03);
+  --sage-card-hover: 0 10px 25px -4px rgba(16, 185, 129, 0.1), 0 4px 10px -2px rgba(45, 55, 72, 0.04);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F4F7F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Pulse glow for accent alerts */
+@keyframes emerald-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+}
+
+.emerald-pulse {
+  animation: emerald-pulse 2s infinite;
+}
+
+/* Smooth progress bar transitions */
+.progress-fill {
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus styles matching accent */
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #10B981;
+  outline-offset: 2px;
 }

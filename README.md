@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kordena — GenAI Event Planner
 
-## Getting Started
+> **Serene, Balanced & Focused Event Architecture**
 
-First, run the development server:
+Kordena is an intelligent event planning application powered by Generative AI. It transforms natural language event concepts into structured, executable event blueprints—complete with milestone timelines, 60-30-10 budget allocations, predictive calendar alerts, and verified vendor matchmaker shortlists.
+
+---
+
+## 🎨 Color System & Visual Aesthetics
+
+Kordena implements the **Fresh Sage & Mint** palette designed for calm, distraction-free coordination:
+
+* **Background (60%)**: `#F4F7F5` (Subtle Sage Tint)
+* **Surface & Cards (30%)**: `#FFFFFF` with `#2D3748` (Slate Gray Text)
+* **Accent & Feedback (10%)**: `#10B981` (Emerald / Mint Green)
+  * **Completed Tasks**: Distinct mint checkmarks and circular progress feedback
+  * **Budget Progress Bar**: Dynamic visual utilization meter and cushion indicator
+  * **Calendar Alerts**: Imminent deadline countdown tags (`T-3 Days`) and alert pulses
+
+---
+
+## 🚀 Key Capabilities
+
+1. **Introductory Landing Page for Unauthenticated Users**:
+   * Elegant hero presentation and product showcase.
+   * **Log In** & **Sign Up Free** authentication modal.
+   * **"Explore Live Interactive Demo"** for instant guest workspace evaluation.
+
+2. **GenAI Prompt-to-Event Blueprint Engine**:
+   * Turn any event vision into an operational plan in seconds.
+   * Pre-configured presets: Botanical Garden Wedding, Tech Summit & Gala, Executive Wellness Retreat, Fresh Sage Soirée.
+
+3. **60-30-10 Smart Budget Ledger**:
+   * Real-time expenditure tracking with clear emerald progress indicators.
+   * Interactive line item management and financial buffer calculations.
+
+4. **Predictive Calendar Alerts & Day-of Schedule**:
+   * Automated deadline alerts for headcounts, contracts, and rehearsals.
+   * Chronological run-of-show timeline with assigned operational leads.
+
+5. **AI Vendor Matchmaker**:
+   * Match scores aligned with the event's theme and budget bracket.
+   * One-click AI inquiry email generation.
+
+6. **Kordena AI Copilot Assistant**:
+   * Real-time conversational advisor for speech drafts, seating arrangements, and budget optimization.
+
+---
+
+## 💻 Tech Stack
+
+* **Framework**: Next.js 16 (App Router)
+* **Language**: TypeScript
+* **Styling**: Tailwind CSS v4 with custom Sage & Mint design tokens
+* **Icons**: Lucide React
+* **AI Engine**: Google GenAI (`@google/genai`) with intelligent fallback reasoning
+
+---
+
+## 🛠️ Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Start the dev server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open [http://localhost:3000](http://localhost:3000) to view Kordena.

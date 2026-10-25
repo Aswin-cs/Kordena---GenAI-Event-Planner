@@ -10,8 +10,6 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = () => {
-  const [name, setName] = useState("");
-
   const handleFinalStep = () => {
     console.log("All steps completed!");
     signIn("google", { callbackUrl: "/" });
@@ -49,18 +47,6 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
               <p className="text-sm text-[#718096]">
                 You can change this at any time.
               </p>
-            </div>
-          </Step>
-
-          <Step title="Profile">
-            <div className="space-y-3 py-1">
-              <h3 className="text-xl font-bold text-[#2D3748]">What should we call you?</h3>
-              <input
-                placeholder="Your name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
-              />
             </div>
           </Step>
 

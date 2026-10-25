@@ -35,7 +35,6 @@ export default function Home() {
   const [eventBudget, setEventBudget] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
-  const [organizerName, setOrganizerName] = useState("");
   const [isCompleted, setIsCompleted] = useState(false);
 
   // Check URL query parameters for NextAuth status/errors on load
@@ -68,13 +67,6 @@ export default function Home() {
       }
     : null;
 
-  // Pre-fill organizer name once user session is loaded
-  useEffect(() => {
-    if (activeUser?.name && !organizerName) {
-      setOrganizerName(activeUser.name);
-    }
-  }, [activeUser, organizerName]);
-
   const isAuthenticated = status === "authenticated";
 
   // Active event plan
@@ -87,7 +79,7 @@ export default function Home() {
       eventBudget,
       eventDate,
       selectedPlan,
-      organizerName,
+      organizer: activeUser?.name,
     });
     setIsCompleted(true);
 
@@ -414,38 +406,7 @@ export default function Home() {
               </div>
             </Step>
 
-            {/* Step 3: Profile */}
-            <Step title="Profile">
-              <div className="space-y-4 py-1">
-                <div>
-                  <h3 className="text-lg font-bold text-[#2D3748]">What should we call you?</h3>
-                  <p className="text-xs sm:text-sm text-[#718096]">
-                    Confirm your organizer name or entity handle.
-                  </p>
-                </div>
-
-                <div className="space-y-3 pt-1">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#2D3748] mb-1">
-                      Organizer Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Your name"
-                      value={organizerName}
-                      onChange={(e) => setOrganizerName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
-                    />
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs text-[#718096]">
-                    👤 Connected as: <strong className="text-[#2D3748]">{activeUser?.email}</strong>
-                  </div>
-                </div>
-              </div>
-            </Step>
-
-            {/* Step 4: Review */}
+            {/* Step 3: Review */}
             <Step title="Review">
               <div className="space-y-4 py-1">
                 <div>
@@ -480,7 +441,7 @@ export default function Home() {
                   </div>
                   <div className="flex items-center justify-between pt-1.5 border-t border-[#E2ECE5]">
                     <span className="text-[#718096]">Lead Organizer:</span>
-                    <strong className="text-[#2D3748]">{organizerName || activeUser?.name || "Planner"}</strong>
+                    <strong className="text-[#2D3748]">{activeUser?.name || "Planner"}</strong>
                   </div>
                 </div>
               </div>

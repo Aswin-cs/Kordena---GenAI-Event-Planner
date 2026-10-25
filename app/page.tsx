@@ -1,40 +1,25 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSession, signOut, signIn } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { LandingPage } from "./components/LandingPage";
 import { AuthModal } from "./components/AuthModal";
-import { Navbar } from "./components/Navbar";
-import { MetricCards } from "./components/MetricCards";
-import { OverviewSection } from "./components/OverviewSection";
-import { BudgetSection } from "./components/BudgetSection";
-import { TasksSection } from "./components/TasksSection";
-import { TimelineSection } from "./components/TimelineSection";
-import { VendorsSection } from "./components/VendorsSection";
-import { HeroGenerator } from "./components/HeroGenerator";
-import { AiAssistantModal } from "./components/AiAssistantModal";
-import { ExportModal } from "./components/ExportModal";
 import { initialEvents } from "./mockData";
 import {
   EventPlan,
-  BudgetItem,
-  TaskItem,
-  CalendarAlert,
-  TimelineScheduleItem,
-  Vendor,
 } from "./types";
 import {
-  LayoutDashboard,
-  DollarSign,
-  CheckSquare,
-  Calendar,
-  Users,
   Sparkles,
-  Wand2,
   Loader2,
   AlertCircle,
   X,
+  LogOut,
+  Calendar as CalendarIcon,
+  DollarSign,
+  Tag,
+  CheckCircle2,
 } from "lucide-react";
+import Stepper, { Step } from "./components/Stepper";
 
 export default function Home() {
   // 1. NextAuth Session Hook
@@ -43,6 +28,15 @@ export default function Home() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [authNotice, setAuthNotice] = useState<string | null>(null);
+
+  // Stepper input states requested by user
+  const [eventName, setEventName] = useState("");
+  const [eventType, setEventType] = useState("Conference");
+  const [eventBudget, setEventBudget] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
+  const [organizerName, setOrganizerName] = useState("");
+  const [isCompleted, setIsCompleted] = useState(false);
 
   // Check URL query parameters for NextAuth status/errors on load
   useEffect(() => {
@@ -64,14 +58,6 @@ export default function Home() {
   // Workspace state
   const [events, setEvents] = useState<EventPlan[]>(initialEvents);
   const [activeEventId, setActiveEventId] = useState<string>(initialEvents[0].id);
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "budget" | "tasks" | "timeline" | "vendors"
-  >("overview");
-
-  // Modals state
-  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-  const [isExportOpen, setIsExportOpen] = useState(false);
 
   // Active authenticated user from NextAuth session
   const activeUser = session?.user
@@ -82,21 +68,41 @@ export default function Home() {
       }
     : null;
 
+  // Pre-fill organizer name once user session is loaded
+  useEffect(() => {
+    if (activeUser?.name && !organizerName) {
+      setOrganizerName(activeUser.name);
+    }
+  }, [activeUser, organizerName]);
+
   const isAuthenticated = status === "authenticated";
 
   // Active event plan
   const activeEvent = events.find((e) => e.id === activeEventId) || events[0];
 
-  const updateActiveEvent = (updates: Partial<EventPlan>) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === activeEvent.id ? { ...e, ...updates } : e))
-    );
-  };
+  const handleFinalStepCompleted = () => {
+    console.log("Event setup completed:", {
+      eventName,
+      eventType,
+      eventBudget,
+      eventDate,
+      selectedPlan,
+      organizerName,
+    });
+    setIsCompleted(true);
 
-  const handlePlanGenerated = (newPlan: EventPlan) => {
-    setEvents((prev) => [newPlan, ...prev]);
-    setActiveEventId(newPlan.id);
-    setActiveTab("overview");
+    if (eventName.trim()) {
+      const newPlan: EventPlan = {
+        ...activeEvent,
+        id: `event-${Date.now()}`,
+        title: eventName,
+        eventType: eventType,
+        date: eventDate || new Date().toISOString().split("T")[0],
+        totalBudget: Number(eventBudget) || 25000,
+      };
+      setEvents((prev) => [newPlan, ...prev]);
+      setActiveEventId(newPlan.id);
+    }
   };
 
   const handleLogout = async () => {
@@ -125,7 +131,7 @@ export default function Home() {
     );
   }
 
-  // 2. UNAUTHENTICATED: Rich introductory landing page with NextAuth Google SSO & Stepper Component
+  // 2. UNAUTHENTICATED: Splash page with Stepper & NextAuth Google SSO
   if (!isAuthenticated) {
     return (
       <>
@@ -165,255 +171,323 @@ export default function Home() {
     );
   }
 
-  // 3. AUTHENTICATED: Full Kordena GenAI Event Planner Workspace
+  // 3. AUTHENTICATED: Simple Navbar with Profile Picture + Custom Event Stepper
   return (
     <div className="min-h-screen flex flex-col bg-[#F4F7F5] text-[#2D3748]">
-      {/* 1. Header Navigation with NextAuth user info & controls */}
-      <Navbar
-        events={events}
-        activeEvent={activeEvent}
-        user={activeUser}
-        onLogout={handleLogout}
-        onSelectEvent={(ev) => setActiveEventId(ev.id)}
-        onOpenGenerator={() => setIsGeneratorOpen(true)}
-        onOpenAssistant={() => setIsAssistantOpen(true)}
-        onOpenExport={() => setIsExportOpen(true)}
-      />
-
-      {/* Main Workspace Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-        {/* Quick GenAI Prompt Inception Strip */}
-        <div className="bg-[#FFFFFF] rounded-2xl p-3.5 sm:p-4 border border-[#E2ECE5] shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="w-8 h-8 rounded-xl bg-[#E6F7F0] flex items-center justify-center text-[#10B981] shrink-0">
-              <Sparkles className="w-4 h-4" />
+      {/* Simple Authenticated Navbar */}
+      <header className="sticky top-0 z-40 w-full bg-[#FFFFFF]/90 backdrop-blur-md border-b border-[#E2ECE5] shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          {/* Brand */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#10B981] to-[#34D399] flex items-center justify-center text-white shadow-xs shadow-[#10B981]/25">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <div className="text-xs">
-              <span className="font-bold text-[#2D3748]">GenAI Event Studio: </span>
-              <span className="text-[#718096]">
-                Design or synthesize any event vision into an actionable sage & mint blueprint
-              </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold tracking-tight text-[#2D3748]">
+                  Kordena
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                  Event Studio
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          {/* User Profile & Logout */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5]">
+              {activeUser?.image ? (
+                <img
+                  src={activeUser.image}
+                  alt={activeUser.name || "User Avatar"}
+                  referrerPolicy="no-referrer"
+                  className="w-8 h-8 rounded-full object-cover border border-[#A7F3D0] shadow-2xs"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#10B981] text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                  {activeUser?.name ? activeUser.name[0].toUpperCase() : "U"}
+                </div>
+              )}
+              <div className="text-left hidden sm:block">
+                <p className="text-xs font-bold text-[#2D3748] leading-tight">
+                  {activeUser?.name || "Active Planner"}
+                </p>
+                <p className="text-[11px] text-[#718096] leading-tight">
+                  {activeUser?.email || "planner@kordena.ai"}
+                </p>
+              </div>
+            </div>
+
             <button
-              onClick={() => setIsGeneratorOpen(true)}
-              className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-[#E6F7F0] hover:bg-[#A7F3D0]/60 text-[#059669] border border-[#A7F3D0] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              id="prompt-to-event-btn"
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+              title="Sign Out"
             >
-              <Wand2 className="w-3.5 h-3.5" /> Prompt-to-Event
-            </button>
-            <button
-              onClick={() => setIsAssistantOpen(true)}
-              className="hidden sm:flex px-3.5 py-1.5 rounded-xl bg-[#F4F7F5] hover:bg-[#E2ECE5] text-[#2D3748] border border-[#E2ECE5] text-xs font-semibold items-center gap-1.5 transition-all cursor-pointer"
-              id="consult-copilot-strip-btn"
-            >
-              Consult Copilot
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
+      </header>
 
-        {/* 2. Three Visual Feedback Metric Cards (Tasks, Budget Bar, Calendar Alerts) */}
-        <MetricCards
-          event={activeEvent}
-          onNavigateTab={(tab) => setActiveTab(tab)}
-        />
+      {/* Main Content: Stepper Centerpiece */}
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
+        <div className="w-full max-w-[640px] flex flex-col items-center">
+          {/* Header Title */}
+          <div className="text-center mb-6 space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2D3748] tracking-tight">
+              Create Your Event Blueprint
+            </h1>
+            <p className="text-xs sm:text-sm text-[#718096]">
+              Input your event parameters to configure your AI architecture.
+            </p>
+          </div>
 
-        {/* 3. Navigation Tabs Bar */}
-        <div className="bg-[#FFFFFF] rounded-2xl p-1.5 border border-[#E2ECE5] shadow-xs flex items-center gap-1 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "overview"
-                ? "bg-[#10B981] text-white shadow-xs"
-                : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
-            }`}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            <span>Blueprint Overview</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("budget")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "budget"
-                ? "bg-[#10B981] text-white shadow-xs"
-                : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
-            }`}
-          >
-            <DollarSign className="w-4 h-4" />
-            <span>Budget Progress</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeTab === "budget"
-                  ? "bg-white/20 text-white"
-                  : "bg-[#E6F7F0] text-[#10B981]"
-              }`}
-            >
-              ${activeEvent.budget.reduce((a, b) => a + b.spent, 0).toLocaleString()}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("tasks")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "tasks"
-                ? "bg-[#10B981] text-white shadow-xs"
-                : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
-            }`}
-          >
-            <CheckSquare className="w-4 h-4" />
-            <span>Checklist & Tasks</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeTab === "tasks"
-                  ? "bg-white/20 text-white"
-                  : "bg-[#E6F7F0] text-[#10B981]"
-              }`}
-            >
-              {activeEvent.tasks.filter((t) => t.completed).length}/{activeEvent.tasks.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("timeline")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "timeline"
-                ? "bg-[#10B981] text-white shadow-xs"
-                : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Calendar Alerts</span>
-            {activeEvent.alerts.filter((a) => !a.completed).length > 0 && (
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  activeTab === "timeline" ? "bg-white" : "bg-[#10B981] emerald-pulse"
-                }`}
-              />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("vendors")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === "vendors"
-                ? "bg-[#10B981] text-white shadow-xs"
-                : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>AI Matchmaker</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeTab === "vendors"
-                  ? "bg-white/20 text-white"
-                  : "bg-[#E6F7F0] text-[#10B981]"
-              }`}
-            >
-              {activeEvent.vendors.length}
-            </span>
-          </button>
-        </div>
-
-        {/* 4. Tab Content Panel */}
-        <div className="transition-all duration-150">
-          {activeTab === "overview" && (
-            <OverviewSection
-              event={activeEvent}
-              onNavigateTab={(tab) => setActiveTab(tab)}
-              onOpenAssistant={() => setIsAssistantOpen(true)}
-            />
+          {isCompleted && (
+            <div className="w-full mb-6 p-4 rounded-2xl bg-[#E6F7F0] border border-[#A7F3D0] text-[#059669] flex items-center justify-between text-xs animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                <span>
+                  Blueprint for <strong>{eventName || "your event"}</strong> successfully configured!
+                </span>
+              </div>
+              <button
+                onClick={() => setIsCompleted(false)}
+                className="text-[11px] underline font-bold hover:text-[#2D3748] cursor-pointer"
+              >
+                Edit Again
+              </button>
+            </div>
           )}
 
-          {activeTab === "budget" && (
-            <BudgetSection
-              event={activeEvent}
-              onUpdateBudget={(newBudget: BudgetItem[]) =>
-                updateActiveEvent({ budget: newBudget })
-              }
-              onOpenAssistant={() => setIsAssistantOpen(true)}
-            />
-          )}
+          <Stepper
+            initialStep={1}
+            onStepChange={(step) => console.log("Stepper step changed to:", step)}
+            onFinalStepCompleted={handleFinalStepCompleted}
+            backButtonText="Back"
+            nextButtonText="Continue"
+            orientation="vertical"
+            width={640}
+            completeButtonText="Place order"
+            theme="light"
+            accentColor="#10B981"
+            radius={24}
+            className="border border-[#E2ECE5] shadow-xl bg-white/95"
+          >
+            {/* Step 1: Event Details Input (Event Name, Event Type, Budget, Date) */}
+            <Step title="Event Info">
+              <div className="space-y-4 py-1">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3748]">Event Parameters</h3>
+                  <p className="text-xs sm:text-sm text-[#718096]">
+                    Enter the name, type, budget, and date for your event.
+                  </p>
+                </div>
 
-          {activeTab === "tasks" && (
-            <TasksSection
-              event={activeEvent}
-              onUpdateTasks={(newTasks: TaskItem[]) =>
-                updateActiveEvent({ tasks: newTasks })
-              }
-              onOpenAssistant={() => setIsAssistantOpen(true)}
-            />
-          )}
+                <div className="space-y-3 pt-1">
+                  {/* 1. Event Name */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2D3748] mb-1">
+                      Event Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Annual Global Tech Summit 2026"
+                      value={eventName}
+                      onChange={(e) => setEventName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
+                      required
+                    />
+                  </div>
 
-          {activeTab === "timeline" && (
-            <TimelineSection
-              event={activeEvent}
-              onUpdateAlerts={(newAlerts: CalendarAlert[]) =>
-                updateActiveEvent({ alerts: newAlerts })
-              }
-              onUpdateSchedule={(newSchedule: TimelineScheduleItem[]) =>
-                updateActiveEvent({ schedule: newSchedule })
-              }
-            />
-          )}
+                  {/* 2. Event Type */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2D3748] mb-1">
+                      Event Type <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={eventType}
+                      onChange={(e) => setEventType(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors cursor-pointer"
+                    >
+                      <option value="Conference">Conference / Summit</option>
+                      <option value="Wedding">Wedding & Reception</option>
+                      <option value="Product Launch">Product Launch</option>
+                      <option value="Gala">Gala & Charity Dinner</option>
+                      <option value="Networking">Networking & Mixer</option>
+                      <option value="Retreat">Corporate Leadership Retreat</option>
+                      <option value="Exhibition">Exhibition / Trade Show</option>
+                    </select>
+                  </div>
 
-          {activeTab === "vendors" && (
-            <VendorsSection
-              event={activeEvent}
-              onUpdateVendors={(newVendors: Vendor[]) =>
-                updateActiveEvent({ vendors: newVendors })
-              }
-              onOpenAssistant={() => setIsAssistantOpen(true)}
-            />
-          )}
+                  {/* 3. Budget */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2D3748] mb-1">
+                      Estimated Budget ($) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#718096] text-xs font-bold">
+                        $
+                      </span>
+                      <input
+                        type="number"
+                        placeholder="e.g. 50000"
+                        value={eventBudget}
+                        onChange={(e) => setEventBudget(e.target.value)}
+                        className="w-full pl-7 pr-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
+                        min="0"
+                        step="500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. Date of the Event */}
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2D3748] mb-1">
+                      Date of the Event <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={eventDate}
+                      onChange={(e) => setEventDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            </Step>
+
+            {/* Step 2: Plan Selection */}
+            <Step title="Plan">
+              <div className="space-y-4 py-1">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3748]">Choose a plan</h3>
+                  <p className="text-xs sm:text-sm text-[#718096]">
+                    You can change this at any time.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {[
+                    {
+                      name: "Starter AI Blueprint",
+                      tag: "Free Trial",
+                      desc: "Core budgeting, milestone schedules, and basic vendor checklist.",
+                    },
+                    {
+                      name: "Professional Suite",
+                      tag: "Recommended",
+                      desc: "Full generative synthesis, Kordena Copilot, and budget alerts.",
+                    },
+                    {
+                      name: "Enterprise Architecture",
+                      tag: "Multi-Team",
+                      desc: "Custom vendor contracts, multi-day schedules, and dedicated support.",
+                    },
+                  ].map((p) => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => setSelectedPlan(p.name)}
+                      className={`w-full p-3 rounded-xl border text-left flex items-start justify-between transition-all cursor-pointer ${
+                        selectedPlan === p.name
+                          ? "border-[#10B981] bg-[#E6F7F0]/60 shadow-xs"
+                          : "border-[#E2ECE5] bg-white hover:bg-[#F4F7F5]"
+                      }`}
+                    >
+                      <div className="pr-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-[#2D3748]">{p.name}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E6F7F0] text-[#059669]">
+                            {p.tag}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#718096] mt-0.5">{p.desc}</p>
+                      </div>
+                      {selectedPlan === p.name && (
+                        <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0 mt-0.5" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Step>
+
+            {/* Step 3: Profile */}
+            <Step title="Profile">
+              <div className="space-y-4 py-1">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3748]">What should we call you?</h3>
+                  <p className="text-xs sm:text-sm text-[#718096]">
+                    Confirm your organizer name or entity handle.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2D3748] mb-1">
+                      Organizer Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Your name"
+                      value={organizerName}
+                      onChange={(e) => setOrganizerName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs text-[#718096]">
+                    👤 Connected as: <strong className="text-[#2D3748]">{activeUser?.email}</strong>
+                  </div>
+                </div>
+              </div>
+            </Step>
+
+            {/* Step 4: Review */}
+            <Step title="Review">
+              <div className="space-y-4 py-1">
+                <div>
+                  <h3 className="text-lg font-bold text-[#2D3748]">Looking good</h3>
+                  <p className="text-xs sm:text-sm text-[#718096]">
+                    Complete setup to open your workspace.
+                  </p>
+                </div>
+
+                <div className="bg-[#F4F7F5] p-4 rounded-2xl border border-[#E2ECE5] space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718096]">Event Name:</span>
+                    <strong className="text-[#2D3748]">{eventName || "Untitled Event"}</strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718096]">Event Type:</span>
+                    <strong className="text-[#2D3748]">{eventType}</strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718096]">Estimated Budget:</span>
+                    <strong className="text-[#10B981]">
+                      {eventBudget ? `$${Number(eventBudget).toLocaleString()}` : "Not specified"}
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718096]">Event Date:</span>
+                    <strong className="text-[#2D3748]">{eventDate || "Date TBD"}</strong>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#718096]">Selected Plan:</span>
+                    <strong className="text-[#2D3748]">{selectedPlan}</strong>
+                  </div>
+                  <div className="flex items-center justify-between pt-1.5 border-t border-[#E2ECE5]">
+                    <span className="text-[#718096]">Lead Organizer:</span>
+                    <strong className="text-[#2D3748]">{organizerName || activeUser?.name || "Planner"}</strong>
+                  </div>
+                </div>
+              </div>
+            </Step>
+          </Stepper>
         </div>
       </main>
-
-      {/* Footer with Theme Palette Statement */}
-      <footer className="mt-12 border-t border-[#E2ECE5] bg-[#FFFFFF] py-6 text-center text-xs text-[#718096]">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-[#2D3748]">Kordena</span>
-            <span>— GenAI Event Architecture</span>
-          </div>
-
-          <div className="flex items-center gap-3 text-[11px]">
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#F4F7F5] border border-[#CBD5E1]" />
-              60% Subtle Sage Tint (#F4F7F5)
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#FFFFFF] border border-[#CBD5E1]" />
-              30% White Surfaces & Slate Gray (#2D3748)
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]" />
-              10% Emerald Mint Accent (#10B981)
-            </span>
-          </div>
-        </div>
-      </footer>
-
-      {/* Modals */}
-      <HeroGenerator
-        isOpen={isGeneratorOpen}
-        onClose={() => setIsGeneratorOpen(false)}
-        onPlanGenerated={handlePlanGenerated}
-      />
-
-      <AiAssistantModal
-        isOpen={isAssistantOpen}
-        onClose={() => setIsAssistantOpen(false)}
-        event={activeEvent}
-      />
-
-      <ExportModal
-        isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        event={activeEvent}
-      />
     </div>
   );
 }

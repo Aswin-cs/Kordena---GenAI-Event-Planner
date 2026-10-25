@@ -60,11 +60,24 @@ Kordena implements the **Fresh Sage & Mint** palette designed for calm, distract
 ## 🛠️ Development
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 npm install
 
-# Start the dev server
+# 2. Configure environment variables
+cp .env.example .env.local
+
+# 3. Start the dev server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view Kordena.
+
+### Environment Variables (.env.example)
+
+* `MONGODB_URI`: MongoDB connection string (Atlas or local `mongodb://127.0.0.1:27017/kordena_event_planner`).
+* `GOOGLE_CLIENT_ID`: Google OAuth 2.0 Client ID for user sign-in.
+* `GOOGLE_CLIENT_SECRET`: Google OAuth 2.0 Client Secret.
+* `NEXTAUTH_URL`: Canonical site URL (e.g. `http://localhost:3000`).
+* `NEXTAUTH_SECRET`: Random 32+ character string for token encryption.
+* `GEMINI_API_KEY`: Google Gemini API key for GenAI event planning features.
+

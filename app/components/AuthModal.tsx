@@ -51,14 +51,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleGuestDemo = () => {
-    onSuccess({
-      name: "Guest Planner",
-      email: "demo@kordena.ai",
-    });
-    onClose();
-  };
-
   return (
     <div className="fixed inset-0 z-50 bg-[#2D3748]/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-[#FFFFFF] rounded-3xl max-w-md w-full border border-[#E2ECE5] shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in duration-150 relative">
@@ -189,29 +181,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
           </button>
 
-          {/* Divider */}
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#E2ECE5]" />
-            </div>
-            <div className="relative flex justify-center text-[11px] uppercase">
-              <span className="bg-[#FFFFFF] px-2 text-[#718096] font-semibold">
-                Or explore without sign in
-              </span>
-            </div>
           </div>
-
-          {/* Guest Demo Option */}
-          <button
-            type="button"
-            onClick={handleGuestDemo}
-            disabled={loading}
-            className="w-full py-2.5 rounded-xl bg-[#E6F7F0] border border-[#A7F3D0] text-xs font-semibold text-[#059669] hover:bg-[#A7F3D0]/60 transition-all cursor-pointer flex items-center justify-center gap-2"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#10B981]" />
-            Continue with Live Interactive Demo
-          </button>
-        </div>
 
         {/* Security & Terms Footer */}
         <div className="mt-5 pt-4 border-t border-[#E2ECE5]/70 text-center space-y-1">

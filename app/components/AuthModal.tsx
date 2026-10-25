@@ -28,27 +28,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       ? "Elena Vance"
       : "Google Event Creator";
 
-    try {
-      // Save or update user in MongoDB database using Mongoose model
-      await fetch("/api/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: userName,
-          email: selectedGoogleAccount,
-          googleId: `google_oauth_${Date.now()}`,
-        }),
-      });
-    } catch (err) {
-      console.warn("User sync notice:", err);
-    } finally {
+    // Simulate OAuth handshake delay and complete sign in
+    setTimeout(() => {
       setLoading(false);
       onSuccess({
         name: userName,
         email: selectedGoogleAccount,
       });
       onClose();
-    }
+    }, 600);
   };
 
   return (

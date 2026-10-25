@@ -1,22 +1,43 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { AuthModal } from "./components/AuthModal";
 import { LogOut, Sparkles } from "lucide-react";
 
 export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const { data: session, status } = useSession();
+  const [localUser, setLocalUser] = useState<{ name: string; email: string } | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
+  // Sync NextAuth session with local state
+  useEffect(() => {
+    if (session?.user?.email) {
+      setLocalUser({
+        name: session.user.name || "Event Planner",
+        email: session.user.email,
+      });
+    }
+  }, [session]);
+
+  const activeUser = session?.user
+    ? {
+        name: session.user.name || "Event Planner",
+        email: session.user.email || "",
+      }
+    : localUser;
+
+  const isAuthenticated = status === "authenticated" || !!localUser;
+
   const handleAuthSuccess = (authenticatedUser: { name: string; email: string }) => {
-    setUser(authenticatedUser);
-    setIsAuthenticated(true);
+    setLocalUser(authenticatedUser);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUser(null);
+  const handleLogout = async () => {
+    setLocalUser(null);
+    if (session) {
+      await signOut({ redirect: false });
+    }
   };
 
   // 1. UNAUTHORIZED USER: Plain blank page with title "Hi" & Google OAuth only (no demo/mockup)
@@ -93,10 +114,10 @@ export default function Home() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs">
             <div className="w-6 h-6 rounded-full bg-[#10B981] text-white flex items-center justify-center font-bold text-xs">
-              {user?.name ? user.name[0].toUpperCase() : "U"}
+              {activeUser?.name ? activeUser.name[0].toUpperCase() : "U"}
             </div>
-            <span className="font-semibold text-[#2D3748] hidden sm:inline">{user?.name}</span>
-            <span className="text-[#718096] text-[11px] hidden md:inline">({user?.email})</span>
+            <span className="font-semibold text-[#2D3748] hidden sm:inline">{activeUser?.name}</span>
+            <span className="text-[#718096] text-[11px] hidden md:inline">({activeUser?.email})</span>
           </div>
 
           <button
@@ -116,7 +137,7 @@ export default function Home() {
             Hi
           </h1>
           <p className="text-sm text-[#718096]">
-            Welcome back, <strong className="text-[#2D3748]">{user?.name || "Event Planner"}</strong>.
+            Welcome back, <strong className="text-[#2D3748]">{activeUser?.name || "Event Planner"}</strong>.
           </p>
         </div>
       </main>

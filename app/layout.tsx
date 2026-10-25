@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   },
 };
 
+import AuthProvider from "./components/AuthProvider";
+
 export default function RootLayout({
   children,
 }: {
@@ -18,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="min-h-full flex flex-col bg-[#F4F7F5] text-[#2D3748] antialiased selection:bg-[#10B981]/20 selection:text-[#10B981]">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

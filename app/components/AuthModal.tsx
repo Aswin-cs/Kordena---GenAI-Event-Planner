@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sparkles, ShieldCheck, CheckCircle2, X, Loader2, ArrowRight } from "lucide-react";
+import { signIn } from "next-auth/react";
+import { Sparkles, ShieldCheck, CheckCircle2, X, Loader2, ArrowRight, AlertCircle, PlayCircle } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;
   initialMode?: "login" | "signup";
   onClose: () => void;
-  onSuccess: (user: { name: string; email: string }) => void;
+  onSuccess: (user: { name: string; email: string; image?: string }) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -17,26 +18,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSuccess,
 }) => {
   const [loading, setLoading] = useState(false);
-  const [selectedGoogleAccount, setSelectedGoogleAccount] = useState<string>("elena.vance@gmail.com");
+  const [error, setError] = useState<string | null>(null);
+  const [selectedDemoAccount, setSelectedDemoAccount] = useState<string>("elena.vance@gmail.com");
 
   if (!isOpen) return null;
 
+  // Real NextAuth Google Sign-In
   const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await signIn("google", { callbackUrl: "/" });
+    } catch (err) {
+      console.error("NextAuth signIn error:", err);
+      setError("Unable to initiate Google sign-in. Please verify your connection.");
+      setLoading(false);
+    }
+  };
+
+  // Instant Demo Sign-In (for quick testing without OAuth redirect)
+  const handleDemoSignIn = () => {
     setLoading(true);
-
-    const userName = selectedGoogleAccount.startsWith("elena")
-      ? "Elena Vance"
-      : "Google Event Creator";
-
-    // Simulate OAuth handshake delay and complete sign in
     setTimeout(() => {
       setLoading(false);
+      const isElena = selectedDemoAccount.startsWith("elena");
       onSuccess({
-        name: userName,
-        email: selectedGoogleAccount,
+        name: isElena ? "Elena Vance" : "Sarath (Event Lead)",
+        email: selectedDemoAccount,
       });
       onClose();
-    }, 600);
+    }, 300);
   };
 
   return (
@@ -47,6 +58,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           onClick={onClose}
           disabled={loading}
           className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#F4F7F5] text-[#718096] hover:text-[#2D3748] hover:bg-[#E2ECE5] flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
+          aria-label="Close auth dialog"
         >
           <X className="w-4 h-4" />
         </button>
@@ -60,76 +72,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {initialMode === "signup" ? "Get Started with Kordena" : "Sign in to Kordena"}
           </h3>
           <p className="text-xs text-[#718096]">
-            Serene & focused event planning powered by Generative AI
+            Serene & focused event planning powered by Generative AI & NextAuth
           </p>
         </div>
 
-        {/* Google OAuth Only Section */}
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Google OAuth Section */}
         <div className="space-y-4">
           <div className="p-4 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] text-center space-y-1">
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0]">
-              <ShieldCheck className="w-3.5 h-3.5" /> Single Sign-On Only
+              <ShieldCheck className="w-3.5 h-3.5" /> NextAuth Google SSO
             </span>
             <p className="text-xs text-[#2D3748] font-medium pt-1">
-              Authentication is exclusively handled through Google OAuth 2.0 for security and simplicity.
+              Secure single sign-on with Google OAuth 2.0 and encrypted session cookies.
             </p>
           </div>
 
-          {/* Quick Google Account Switcher / Preview */}
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#718096] mb-1.5">
-              Select Google Account
-            </label>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setSelectedGoogleAccount("elena.vance@gmail.com")}
-                className={`w-full p-3 rounded-xl border text-left flex items-center justify-between text-xs transition-all cursor-pointer ${
-                  selectedGoogleAccount === "elena.vance@gmail.com"
-                    ? "border-[#10B981] bg-[#E6F7F0]/40 shadow-xs"
-                    : "border-[#E2ECE5] bg-[#FFFFFF] hover:bg-[#F4F7F5]"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#10B981] text-white flex items-center justify-center font-bold text-xs">
-                    E
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#2D3748]">Elena Vance</p>
-                    <p className="text-[11px] text-[#718096]">elena.vance@gmail.com</p>
-                  </div>
-                </div>
-                {selectedGoogleAccount === "elena.vance@gmail.com" && (
-                  <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedGoogleAccount("sarath.eventplanner@gmail.com")}
-                className={`w-full p-3 rounded-xl border text-left flex items-center justify-between text-xs transition-all cursor-pointer ${
-                  selectedGoogleAccount === "sarath.eventplanner@gmail.com"
-                    ? "border-[#10B981] bg-[#E6F7F0]/40 shadow-xs"
-                    : "border-[#E2ECE5] bg-[#FFFFFF] hover:bg-[#F4F7F5]"
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-xs">
-                    S
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#2D3748]">Sarath (Event Lead)</p>
-                    <p className="text-[11px] text-[#718096]">sarath.eventplanner@gmail.com</p>
-                  </div>
-                </div>
-                {selectedGoogleAccount === "sarath.eventplanner@gmail.com" && (
-                  <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* PRIMARY GOOGLE OAUTH BUTTON */}
+          {/* PRIMARY GOOGLE OAUTH BUTTON (Calls NextAuth) */}
           <button
             type="button"
             onClick={handleGoogleSignIn}
@@ -140,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin text-[#10B981]" />
-                <span>Authorizing with Google...</span>
+                <span>Connecting to Google...</span>
               </>
             ) : (
               <>
@@ -169,7 +135,75 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
           </button>
 
+          {/* Quick Demo Option for local preview / developer testing */}
+          <div className="pt-2">
+            <div className="flex items-center gap-2 my-2">
+              <div className="flex-1 h-px bg-[#E2ECE5]" />
+              <span className="text-[10px] uppercase font-bold text-[#718096] tracking-wider">
+                Or Instant Demo Preview
+              </span>
+              <div className="flex-1 h-px bg-[#E2ECE5]" />
+            </div>
+
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedDemoAccount("elena.vance@gmail.com")}
+                className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between text-xs transition-all cursor-pointer ${
+                  selectedDemoAccount === "elena.vance@gmail.com"
+                    ? "border-[#10B981] bg-[#E6F7F0]/50"
+                    : "border-[#E2ECE5] bg-[#FFFFFF] hover:bg-[#F4F7F5]"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-[#10B981] text-white flex items-center justify-center font-bold text-[10px]">
+                    E
+                  </div>
+                  <div>
+                    <span className="font-semibold text-[#2D3748]">Elena Vance</span>
+                    <span className="text-[10px] text-[#718096] ml-2">(elena.vance@gmail.com)</span>
+                  </div>
+                </div>
+                {selectedDemoAccount === "elena.vance@gmail.com" && (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedDemoAccount("sarath.eventplanner@gmail.com")}
+                className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between text-xs transition-all cursor-pointer ${
+                  selectedDemoAccount === "sarath.eventplanner@gmail.com"
+                    ? "border-[#10B981] bg-[#E6F7F0]/50"
+                    : "border-[#E2ECE5] bg-[#FFFFFF] hover:bg-[#F4F7F5]"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-[10px]">
+                    S
+                  </div>
+                  <div>
+                    <span className="font-semibold text-[#2D3748]">Sarath (Event Lead)</span>
+                    <span className="text-[10px] text-[#718096] ml-2">(sarath.eventplanner@gmail.com)</span>
+                  </div>
+                </div>
+                {selectedDemoAccount === "sarath.eventplanner@gmail.com" && (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDemoSignIn}
+                disabled={loading}
+                className="w-full mt-2 py-2 px-3 rounded-xl bg-[#F4F7F5] hover:bg-[#E2ECE5] text-[#2D3748] font-semibold text-xs border border-[#E2ECE5] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <PlayCircle className="w-3.5 h-3.5 text-[#10B981]" />
+                <span>Launch Selected Demo Account</span>
+              </button>
+            </div>
           </div>
+        </div>
 
         {/* Security & Terms Footer */}
         <div className="mt-5 pt-4 border-t border-[#E2ECE5]/70 text-center space-y-1">

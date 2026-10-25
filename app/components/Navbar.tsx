@@ -7,7 +7,7 @@ import { EventPlan } from "../types";
 interface NavbarProps {
   events: EventPlan[];
   activeEvent: EventPlan;
-  user?: { name: string; email: string } | null;
+  user?: { name?: string | null; email?: string | null; image?: string | null } | null;
   onLogout: () => void;
   onSelectEvent: (event: EventPlan) => void;
   onOpenGenerator: () => void;
@@ -149,23 +149,51 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="User Account Menu"
               id="user-profile-menu-btn"
             >
-              <div className="w-8 h-8 rounded-lg bg-[#E6F7F0] border border-[#A7F3D0] text-[#059669] flex items-center justify-center font-bold text-xs">
-                {user?.name ? user.name[0].toUpperCase() : "U"}
-              </div>
+              {user?.image ? (
+                <img
+                  src={user.image}
+                  alt={user.name || "User Avatar"}
+                  referrerPolicy="no-referrer"
+                  className="w-8 h-8 rounded-lg object-cover border border-[#A7F3D0] shadow-2xs"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-[#E6F7F0] border border-[#A7F3D0] text-[#059669] flex items-center justify-center font-bold text-xs">
+                  {user?.name ? user.name[0].toUpperCase() : "U"}
+                </div>
+              )}
               <ChevronDown className="w-3.5 h-3.5 text-[#718096] hidden sm:block" />
             </button>
 
             {userMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#FFFFFF] border border-[#E2ECE5] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-4 py-2 border-b border-[#E2ECE5]/60">
-                  <p className="text-xs font-bold text-[#2D3748] truncate">
-                    {user?.name || "Active Planner"}
-                  </p>
-                  <p className="text-[11px] text-[#718096] truncate">
-                    {user?.email || "planner@kordena.ai"}
-                  </p>
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#FFFFFF] border border-[#E2ECE5] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="px-4 py-2.5 border-b border-[#E2ECE5]/60">
+                  <div className="flex items-center gap-2.5 mb-1.5">
+                    {user?.image ? (
+                      <img
+                        src={user.image}
+                        alt={user.name || "User"}
+                        referrerPolicy="no-referrer"
+                        className="w-9 h-9 rounded-full object-cover border border-[#A7F3D0]"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-[#E6F7F0] border border-[#A7F3D0] text-[#059669] flex items-center justify-center font-bold text-xs">
+                        {user?.name ? user.name[0].toUpperCase() : "U"}
+                      </div>
+                    )}
+                    <div className="truncate">
+                      <p className="text-xs font-bold text-[#2D3748] truncate">
+                        {user?.name || "Active Planner"}
+                      </p>
+                      <p className="text-[11px] text-[#718096] truncate">
+                        {user?.email || "planner@kordena.ai"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" /> Connected via NextAuth
+                  </span>
                 </div>
-                <div className="p-1">
+                <div className="p-1.5">
                   <button
                     onClick={() => {
                       setUserMenuOpen(false);
@@ -173,7 +201,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }}
                     className="w-full text-left px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
                   >
-                    <LogOut className="w-3.5 h-3.5" /> Log Out / Landing Page
+                    <LogOut className="w-3.5 h-3.5" /> Sign Out
                   </button>
                 </div>
               </div>

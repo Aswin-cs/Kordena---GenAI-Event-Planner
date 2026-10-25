@@ -1,45 +1,60 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
-const UserStatusSchema = new Schema({
+export type EventType = "Birthday" | "Wedding" | "Conference" | "Corporate" | "Other";
+
+export interface IUserStatus extends Document {
+  userId: Types.ObjectId;
+  eventName: string;
+  eventType: EventType;
+  budget: number;
+  guestCount: number;
+  endDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const UserStatusSchema = new Schema<IUserStatus>(
+  {
     userId: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-        required: true
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "userId is required"],
     },
     eventName: {
-        type: String,
-        required: true,
+      type: String,
+      required: [true, "eventName is required"],
+      trim: true,
     },
     eventType: {
-        type: String,
-        required: true,
-        enum: ["Birthday", "Wedding", "Conference", "Corporate", "Other"]
+      type: String,
+      required: [true, "eventType is required"],
+      enum: {
+        values: ["Birthday", "Wedding", "Conference", "Corporate", "Other"],
+        message: "{VALUE} is not a supported event type",
+      },
     },
     budget: {
-        type: Number,
-        required: true,
+      type: Number,
+      required: [true, "budget is required"],
+      min: [0, "budget cannot be negative"],
     },
     guestCount: {
-        type: Number,
-        required: true,
+      type: Number,
+      required: [true, "guestCount is required"],
+      min: [1, "guestCount must be at least 1"],
     },
     endDate: {
-        type: Date,
-        required: true,
+      type: Date,
+      required: [true, "endDate is required"],
     },
-    createdAt: {
-        type: Date,
-        default: Date.now,
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now,
-    },
+  },
+  {
+    timestamps: true, // Automatically manages createdAt and updatedAt on create & update
+  }
+);
 
-})
-
-const UserStatus =
-    mongoose.models.UserStatus || mongoose.model("UserStatus", UserStatusSchema);
+const UserStatus: Model<IUserStatus> =
+  mongoose.models.UserStatus ||
+  mongoose.model<IUserStatus>("UserStatus", UserStatusSchema);
 
 export default UserStatus;
-

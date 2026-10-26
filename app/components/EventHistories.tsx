@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { EventPlan } from "../types";
-import MagicBento from "./MagicBento";
+import MagicBento, { MagicBentoItem } from "./MagicBento";
 import {
   History,
   Calendar as CalendarIcon,
@@ -78,7 +78,7 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
   };
 
   // Convert filtered events to MagicBento items with interactive card content
-  const bentoItems = useMemo(() => {
+  const bentoItems: MagicBentoItem[] = useMemo(() => {
     return filteredEvents.map((event) => {
       const isActive = activeEventId === event.id;
 

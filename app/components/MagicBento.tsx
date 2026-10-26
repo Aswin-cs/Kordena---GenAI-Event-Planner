@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   FigmaIcon,
@@ -18,7 +18,7 @@ import './MagicBento.css';
 
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
-const THEMES = {
+const THEMES: Record<'dark' | 'light', Record<string, string | number>> = {
   dark: {
     '--mb-surface': 'linear-gradient(180deg, #1a1820 0%, #121116 100%)',
     '--mb-edge': 'rgba(255, 255, 255, 0.07)',
@@ -67,14 +67,59 @@ const THEMES = {
   }
 };
 
-const INK = { dark: [244, 244, 245], light: [24, 24, 27] };
+const INK: Record<'dark' | 'light', [number, number, number]> = {
+  dark: [244, 244, 245],
+  light: [24, 24, 27]
+};
 const MIN_CELL = 150;
 const MIN_PAIR = 200;
 const STAGGER = 80;
 const TILT = 6;
 const MAGNET = 6;
 
-const DEFAULT_ITEMS = [
+export interface MagicBentoItem {
+  id?: string | number;
+  title?: string;
+  description?: string;
+  label?: string;
+  icon?: React.ReactNode;
+  image?: string;
+  visual?: string | React.ReactNode;
+  content?: React.ReactNode;
+  href?: string;
+  target?: string;
+  rel?: string;
+  colSpan?: number;
+  rowSpan?: number;
+  onClick?: (event?: React.MouseEvent) => void;
+  [key: string]: any;
+}
+
+export interface MagicBentoProps {
+  items?: MagicBentoItem[];
+  columns?: number;
+  rowHeight?: number;
+  gap?: number;
+  radius?: number;
+  theme?: 'dark' | 'light';
+  glowColor?: string;
+  textAutoHide?: boolean;
+  enableBorderGlow?: boolean;
+  enableSpotlight?: boolean;
+  spotlightRadius?: number;
+  enableStars?: boolean;
+  particleCount?: number;
+  enableTilt?: boolean;
+  enableMagnetism?: boolean;
+  clickEffect?: boolean;
+  intro?: boolean;
+  disableAnimations?: boolean;
+  onItemClick?: (item: MagicBentoItem, index: number) => void;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+const DEFAULT_ITEMS: MagicBentoItem[] = [
   { title: 'Analytics', description: 'Track user behavior', visual: 'analytics' },
   { title: 'Dashboard', description: 'Centralized data view', visual: 'dashboard' },
   {
@@ -89,33 +134,37 @@ const DEFAULT_ITEMS = [
   { title: 'Security', description: 'Enterprise-grade protection', visual: 'security' }
 ];
 
-const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const vars = values => values;
+const vars = (values: Record<string, any>) => values as any;
 
-const parseRgb = value => {
+const parseRgb = (value?: string): [number, number, number] | null => {
   if (!value) return null;
   const text = String(value).trim();
   const hex = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(text);
   if (hex) {
     const full = hex[1].length === 3 ? hex[1].replace(/./g, digit => digit + digit) : hex[1];
-    return [0, 2, 4].map(index => parseInt(full.slice(index, index + 2), 16));
+    return [0, 2, 4].map(index => parseInt(full.slice(index, index + 2), 16)) as [number, number, number];
   }
   const numbers = text.match(/[\d.]+/g);
   if (numbers && numbers.length >= 3 && /^(rgba?\(|[\d.\s,]+$)/i.test(text)) {
-    return numbers.slice(0, 3).map(channel => clamp(Math.round(parseFloat(channel)), 0, 255));
+    return numbers.slice(0, 3).map(channel => clamp(Math.round(parseFloat(channel)), 0, 255)) as [
+      number,
+      number,
+      number
+    ];
   }
   return null;
 };
 
-const inkFor = rgb => {
+const inkFor = (rgb: [number, number, number]) => {
   const [r, g, b] = rgb.map(channel => channel / 255);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55 ? '#121016' : '#ffffff';
 };
 
 const CHART = [3.1, 3.8, 3.5, 4.9, 4.4, 5.8, 5.3, 6.9, 6.5, 8.2, 9.4, 12.4];
 
-const curve = (values, width, height) => {
+const curve = (values: number[], width: number, height: number) => {
   const top = 6;
   const bottom = 2;
   const low = Math.min(...values) * 0.7;
@@ -125,7 +174,7 @@ const curve = (values, width, height) => {
     top + (1 - (value - low) / (high - low)) * (height - top - bottom)
   ]);
   const count = points.length;
-  const slopes = [];
+  const slopes: number[] = [];
   for (let i = 0; i < count - 1; i++) {
     slopes.push((points[i + 1][1] - points[i][1]) / (points[i + 1][0] - points[i][0]));
   }
@@ -150,7 +199,7 @@ const curve = (values, width, height) => {
     }
   }
   let line = `M${points[0][0].toFixed(2)},${points[0][1].toFixed(2)}`;
-  const samples = [];
+  const samples: number[][] = [];
   for (let i = 0; i < count - 1; i++) {
     const [x0, y0] = points[i];
     const [x1, y1] = points[i + 1];
@@ -172,7 +221,7 @@ const curve = (values, width, height) => {
   return { line, area, samples };
 };
 
-const sampleAt = (samples, x) => {
+const sampleAt = (samples: number[][], x: number) => {
   let index = 1;
   while (index < samples.length - 1 && samples[index][0] < x) index++;
   const [x0, y0] = samples[index - 1];
@@ -182,13 +231,13 @@ const sampleAt = (samples, x) => {
 };
 
 const AnalyticsVisual = () => {
-  const chartRef = useRef(null);
-  const plotRef = useRef(null);
-  const scrubRef = useRef(null);
-  const dotRef = useRef(null);
-  const valueRef = useRef(null);
-  const noteRef = useRef(null);
-  const [size, setSize] = useState(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  const scrubRef = useRef<HTMLSpanElement>(null);
+  const dotRef = useRef<HTMLSpanElement>(null);
+  const valueRef = useRef<HTMLSpanElement>(null);
+  const noteRef = useRef<HTMLSpanElement>(null);
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
 
   useIsomorphicLayoutEffect(() => {
     const plot = plotRef.current;
@@ -210,7 +259,7 @@ const AnalyticsVisual = () => {
     [size]
   );
 
-  const scrub = event => {
+  const scrub = (event: React.PointerEvent<HTMLDivElement>) => {
     const plot = plotRef.current;
     const chart = chartRef.current;
     const line = scrubRef.current;
@@ -428,7 +477,7 @@ const SecurityVisual = () => (
   </div>
 );
 
-const VISUALS = {
+const VISUALS: Record<string, React.FC> = {
   analytics: AnalyticsVisual,
   dashboard: DashboardVisual,
   collaboration: CollaborationVisual,
@@ -459,14 +508,14 @@ const FLOW = new Set([
   'magic-bento-fade'
 ]);
 
-const finite = animation => {
+const finite = (animation: Animation) => {
   const timing = animation.effect?.getTiming?.();
   return timing ? timing.iterations !== Infinity : false;
 };
 
-const nameOf = animation => animation.animationName || '';
+const nameOf = (animation: Animation) => (animation as any).animationName || '';
 
-const MagicBento = ({
+export const MagicBento: React.FC<MagicBentoProps> = ({
   items = DEFAULT_ITEMS,
   columns = 4,
   rowHeight = 200,
@@ -489,11 +538,11 @@ const MagicBento = ({
   className = '',
   style
 }) => {
-  const rootRef = useRef(null);
-  const cellRefs = useRef([]);
-  const cardRefs = useRef([]);
-  const starRefs = useRef([]);
-  const engineRef = useRef(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const cardRefs = useRef<(HTMLElement | null)[]>([]);
+  const starRefs = useRef<(HTMLCanvasElement | null)[]>([]);
+  const engineRef = useRef<{ sync: () => void } | null>(null);
   const [cols, setCols] = useState(Math.max(1, Math.round(columns)));
 
   const palette = theme === 'dark' ? 'dark' : 'light';
@@ -532,10 +581,10 @@ const MagicBento = ({
 
     const pointer = { x: -1e5, y: -1e5, inside: false, down: -1 };
     const light = { x: -1e5, y: -1e5, near: 0, ready: false };
-    const states = [];
+    const states: any[] = [];
     const wave = { x: 0, y: 0, t: -1, duration: 1.1, reach: 800 };
-    let rects = [];
-    let bounds = null;
+    let rects: (DOMRect | null)[] = [];
+    let bounds: DOMRect | null = null;
     let dirty = true;
     let raf = 0;
     let last = 0;
@@ -543,9 +592,9 @@ const MagicBento = ({
     let entered = !playIntro;
     let settleTimer = 0;
     let introTimer = 0;
-    const lastFlow = [];
+    const lastFlow: number[] = [];
 
-    const stateFor = index => {
+    const stateFor = (index: number) => {
       if (!states[index]) {
         states[index] = {
           hot: 0,
@@ -568,7 +617,7 @@ const MagicBento = ({
       return states[index];
     };
 
-    const write = (element, state, name, value) => {
+    const write = (element: HTMLElement, state: any, name: string, value: string) => {
       if (state.written[name] === value) return;
       state.written[name] = value;
       element.style.setProperty(name, value);
@@ -591,7 +640,7 @@ const MagicBento = ({
       });
     };
 
-    const seed = (index, rect) => {
+    const seed = (index: number, rect: DOMRect) => {
       const count = settingsRef.current.particleCount;
       const state = stateFor(index);
       if (state.particles && state.particles.length === count) return state.particles;
@@ -607,7 +656,15 @@ const MagicBento = ({
       return state.particles;
     };
 
-    const drawStars = (index, rect, state, lx, ly, dt, now) => {
+    const drawStars = (
+      index: number,
+      rect: DOMRect,
+      state: any,
+      lx: number,
+      ly: number,
+      dt: number,
+      now: number
+    ) => {
       const canvas = starRefs.current[index];
       if (!canvas) return;
       const context = canvas.getContext('2d');
@@ -643,7 +700,7 @@ const MagicBento = ({
       }
     };
 
-    const replay = (card, filter) => {
+    const replay = (card: HTMLElement, filter: Set<string>) => {
       if (!motion || !card.getAnimations) return;
       for (const animation of card.getAnimations({ subtree: true })) {
         if (!filter.has(nameOf(animation)) || !finite(animation)) continue;
@@ -654,7 +711,7 @@ const MagicBento = ({
       }
     };
 
-    const startWave = (x, y, duration) => {
+    const startWave = (x: number, y: number, duration: number) => {
       if (!motion || !bounds) return;
       wave.x = x;
       wave.y = y;
@@ -669,7 +726,7 @@ const MagicBento = ({
         ) + 140;
     };
 
-    const frame = now => {
+    const frame = (now: number) => {
       raf = 0;
       const dt = Math.min(0.05, (now - last) / 1000 || 0);
       last = now;
@@ -817,27 +874,27 @@ const MagicBento = ({
       raf = requestAnimationFrame(frame);
     };
 
-    const cardIndex = target => {
+    const cardIndex = (target: EventTarget | null) => {
       if (!(target instanceof Element)) return -1;
       const card = target.closest('.magic-bento__card');
       return card instanceof HTMLElement ? cardRefs.current.indexOf(card) : -1;
     };
 
-    const onPointerMove = event => {
+    const onPointerMove = (event: PointerEvent) => {
       pointer.x = event.clientX;
       pointer.y = event.clientY;
       pointer.inside = true;
       wake();
     };
 
-    const onPointerOut = event => {
+    const onPointerOut = (event: PointerEvent) => {
       if (event.relatedTarget) return;
       pointer.inside = false;
       pointer.down = -1;
       wake();
     };
 
-    const onPointerDown = event => {
+    const onPointerDown = (event: PointerEvent) => {
       pointer.x = event.clientX;
       pointer.y = event.clientY;
       pointer.inside = true;
@@ -851,7 +908,7 @@ const MagicBento = ({
       wake();
     };
 
-    const activate = (index, x, y) => {
+    const activate = (index: number, x: number, y: number) => {
       const s = settingsRef.current;
       const card = cardRefs.current[index];
       if (!card) return;
@@ -864,7 +921,7 @@ const MagicBento = ({
       wake();
     };
 
-    const onClick = event => {
+    const onClick = (event: MouseEvent) => {
       const index = cardIndex(event.target);
       const card = cardRefs.current[index];
       if (!card) return;
@@ -874,7 +931,7 @@ const MagicBento = ({
       } else activate(index, event.clientX, event.clientY);
     };
 
-    const onKeyDown = event => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       const card = cardRefs.current[cardIndex(event.target)];
       if (!card || event.target !== card || card.tagName === 'A') return;
@@ -890,7 +947,7 @@ const MagicBento = ({
     const resizeObserver = new ResizeObserver(() => {
       const s = settingsRef.current;
       const width = root.clientWidth;
-      const cell = count => (width - s.gap * (count - 1)) / count;
+      const cell = (count: number) => (width - s.gap * (count - 1)) / count;
       const next = cell(s.columns) >= MIN_CELL ? s.columns : s.columns >= 2 && cell(2) >= MIN_PAIR ? 2 : 1;
       setCols(next);
       dirty = true;
@@ -920,7 +977,7 @@ const MagicBento = ({
       wake();
     };
 
-    let gate = null;
+    let gate: IntersectionObserver | null = null;
     if (playIntro && typeof IntersectionObserver !== 'undefined') {
       gate = new IntersectionObserver(
         (entries, observer) => {
@@ -959,7 +1016,7 @@ const MagicBento = ({
     window.addEventListener('pointercancel', release, { passive: true });
     window.addEventListener('scroll', onScroll, { passive: true, capture: true });
     window.addEventListener('resize', onScroll, { passive: true });
-    document.removeEventListener('pointerout', onPointerOut);
+    document.addEventListener('pointerout', onPointerOut as any);
     root.addEventListener('click', onClick);
     root.addEventListener('keydown', onKeyDown);
 
@@ -990,7 +1047,7 @@ const MagicBento = ({
       window.removeEventListener('pointercancel', release);
       window.removeEventListener('scroll', onScroll, { capture: true });
       window.removeEventListener('resize', onScroll);
-      document.removeEventListener('pointerout', onPointerOut);
+      document.removeEventListener('pointerout', onPointerOut as any);
       root.removeEventListener('click', onClick);
       root.removeEventListener('keydown', onKeyDown);
       engineRef.current = null;
@@ -1040,12 +1097,12 @@ const MagicBento = ({
         const Visual = typeof entry.visual === 'string' ? VISUALS[entry.visual] : null;
         const visual = Visual ? <Visual /> : typeof entry.visual === 'string' ? null : entry.visual;
         const clickable = Boolean(entry.href || entry.onClick || onItemClick);
-        const handleClick = event => {
+        const handleClick = (event: React.MouseEvent) => {
           entry.onClick?.(event);
           onItemClick?.(entry, index);
         };
         const cardProps = {
-          ref: element => {
+          ref: (element: HTMLElement | null) => {
             cardRefs.current[index] = element;
           },
           className: 'magic-bento__card',
@@ -1108,7 +1165,7 @@ const MagicBento = ({
             }}
           >
             {entry.href ? (
-              <a {...cardProps} href={entry.href} target={entry.target} rel={entry.rel}>
+              <a {...(cardProps as any)} href={entry.href} target={entry.target} rel={entry.rel}>
                 {body}
               </a>
             ) : (

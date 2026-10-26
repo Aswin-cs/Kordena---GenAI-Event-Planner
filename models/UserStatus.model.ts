@@ -20,6 +20,10 @@ export interface IUserStatus extends Document {
   guestCount: number;
   endDate: Date;
   selectedPlan?: string;
+  decorations?: string[];
+  arrangements?: string[];
+  requirements?: string[];
+  aiSummary?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,6 +77,22 @@ const UserStatusSchema = new Schema<IUserStatus>(
     endDate: {
       type: Date,
       required: [true, "endDate is required"],
+    },
+    decorations: {
+      type: [String],
+      default: [],
+    },
+    arrangements: {
+      type: [String],
+      default: [],
+    },
+    requirements: {
+      type: [String],
+      default: [],
+    },
+    aiSummary: {
+      type: String,
+      default: "",
     },
   },
   {

@@ -59,6 +59,10 @@ export async function POST(request: Request) {
       endDate,
       eventDate,
       selectedPlan,
+      decorations,
+      arrangements,
+      requirements,
+      aiSummary,
       userId: explicitUserId,
     } = body;
 
@@ -139,6 +143,10 @@ export async function POST(request: Request) {
       guestCount: resolvedGuestCount,
       endDate: parsedDate,
       selectedPlan: selectedPlan || "Professional Suite",
+      decorations: Array.isArray(decorations) ? decorations : [],
+      arrangements: Array.isArray(arrangements) ? arrangements : [],
+      requirements: Array.isArray(requirements) ? requirements : [],
+      aiSummary: typeof aiSummary === "string" ? aiSummary : "",
     });
 
     return NextResponse.json(

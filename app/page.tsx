@@ -22,6 +22,30 @@ import {
 } from "lucide-react";
 import Stepper, { Step } from "./components/Stepper";
 import { EventCalendarView } from "./components/EventCalendarView";
+import { EventHistories } from "./components/EventHistories";
+
+function parseDateForInput(dateStr?: string): string {
+  if (!dateStr) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split("T")[0];
+  }
+  return "";
+}
+
+function normalizeEventType(typeStr?: string): string {
+  if (!typeStr) return "Conference";
+  const lower = typeStr.toLowerCase();
+  if (lower.includes("wedding")) return "Wedding";
+  if (lower.includes("summit") || lower.includes("tech") || lower.includes("conference")) return "Conference";
+  if (lower.includes("retreat")) return "Retreat";
+  if (lower.includes("gala") || lower.includes("charity")) return "Gala";
+  if (lower.includes("launch")) return "Product Launch";
+  if (lower.includes("network")) return "Networking";
+  if (lower.includes("exhibition") || lower.includes("trade")) return "Exhibition";
+  return "Conference";
+}
 
 export default function Home() {
   // 1. NextAuth Session Hook
@@ -107,6 +131,7 @@ export default function Home() {
         ...activeEvent,
         id: `event-${Date.now()}`,
         title: eventName,
+        tagline: `${eventType} architected with Kordena GenAI`,
         eventType: eventType,
         date: eventDate || new Date().toISOString().split("T")[0],
         totalBudget: Number(eventBudget) || 25000,
@@ -114,6 +139,32 @@ export default function Home() {
       setEvents((prev) => [newPlan, ...prev]);
       setActiveEventId(newPlan.id);
     }
+  };
+
+  const handleSelectEventFromHistory = (ev: EventPlan) => {
+    setActiveEventId(ev.id);
+    setEventName(ev.title);
+    setEventType(normalizeEventType(ev.eventType));
+    setEventBudget(ev.totalBudget ? String(ev.totalBudget) : "");
+    setEventDate(parseDateForInput(ev.date));
+    setIsCompleted(false);
+    setStepperKey((prev) => prev + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleOpenCalendarFromHistory = (ev: EventPlan) => {
+    setActiveEventId(ev.id);
+    setEventName(ev.title);
+    setEventType(normalizeEventType(ev.eventType));
+    setEventBudget(ev.totalBudget ? String(ev.totalBudget) : "");
+    setEventDate(parseDateForInput(ev.date) || ev.date);
+    setIsCompleted(true);
+    setViewMode("calendar");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteEventFromHistory = (eventId: string) => {
+    setEvents((prev) => prev.filter((ev) => ev.id !== eventId));
   };
 
   const handleLogout = async () => {
@@ -289,10 +340,10 @@ export default function Home() {
       {viewMode === "calendar" ? (
         <main className="flex-1 p-3 sm:p-6 lg:p-8">
           <EventCalendarView
-            eventName={eventName || "Annual Global Tech Summit 2026"}
-            eventType={eventType}
-            eventBudget={eventBudget || "50000"}
-            eventDate={eventDate || new Date().toISOString().split("T")[0]}
+            eventName={eventName || activeEvent?.title || "Annual Global Tech Summit 2026"}
+            eventType={eventType || activeEvent?.eventType || "Conference"}
+            eventBudget={eventBudget || String(activeEvent?.totalBudget || 50000)}
+            eventDate={eventDate || parseDateForInput(activeEvent?.date) || new Date().toISOString().split("T")[0]}
             selectedPlan={selectedPlan}
             organizerName={activeUser?.name}
             onBackToStepper={() => setViewMode("stepper")}
@@ -300,8 +351,8 @@ export default function Home() {
           />
         </main>
       ) : (
-        <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
-          <div className="w-full max-w-[640px] flex flex-col items-center">
+        <main className="flex-1 flex flex-col items-center justify-start p-4 sm:p-8">
+          <div className="w-full max-w-4xl flex flex-col items-center">
             {/* Header Title */}
             <div className="text-center mb-6 space-y-1">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2D3748] tracking-tight">
@@ -524,6 +575,18 @@ export default function Home() {
                 </div>
               </Step>
             </Stepper>
+
+            {/* Event Histories Section under Blueprint Stepper */}
+            <div className="w-full">
+              <EventHistories
+                events={events}
+                activeEventId={activeEventId}
+                onSelectEvent={handleSelectEventFromHistory}
+                onOpenCalendar={handleOpenCalendarFromHistory}
+                onDeleteEvent={handleDeleteEventFromHistory}
+                onStartNewEvent={handleStartNewEvent}
+              />
+            </div>
           </div>
         </main>
       )}

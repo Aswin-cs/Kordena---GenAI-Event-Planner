@@ -4,7 +4,33 @@ import React, { useState } from "react";
 import { signIn } from "next-auth/react";
 import Stepper, { Step } from "./Stepper";
 import { EventCalendarView } from "./EventCalendarView";
+import { EventHistories } from "./EventHistories";
+import { initialEvents } from "../mockData";
+import { EventPlan } from "../types";
 import { Sparkles, CheckCircle2, ArrowRight, Plus } from "lucide-react";
+
+function parseDateForInput(dateStr?: string): string {
+  if (!dateStr) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split("T")[0];
+  }
+  return "";
+}
+
+function normalizeEventType(typeStr?: string): string {
+  if (!typeStr) return "Conference";
+  const lower = typeStr.toLowerCase();
+  if (lower.includes("wedding")) return "Wedding";
+  if (lower.includes("summit") || lower.includes("tech") || lower.includes("conference")) return "Conference";
+  if (lower.includes("retreat")) return "Retreat";
+  if (lower.includes("gala") || lower.includes("charity")) return "Gala";
+  if (lower.includes("launch")) return "Product Launch";
+  if (lower.includes("network")) return "Networking";
+  if (lower.includes("exhibition") || lower.includes("trade")) return "Exhibition";
+  return "Conference";
+}
 
 interface LandingPageProps {
   onOpenLogin?: () => void;
@@ -20,6 +46,10 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
   const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
   const [stepperKey, setStepperKey] = useState(0);
 
+  // Events history state
+  const [events, setEvents] = useState<EventPlan[]>(initialEvents);
+  const [activeEventId, setActiveEventId] = useState<string>(initialEvents[0].id);
+
   // Redirect state to Calendar UI
   const [showCalendar, setShowCalendar] = useState(false);
 
@@ -33,6 +63,30 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
     setShowCalendar(false);
   };
 
+  const handleSelectEventFromHistory = (ev: EventPlan) => {
+    setActiveEventId(ev.id);
+    setEventName(ev.title);
+    setEventType(normalizeEventType(ev.eventType));
+    setEventBudget(ev.totalBudget ? String(ev.totalBudget) : "");
+    setEventDate(parseDateForInput(ev.date));
+    setStepperKey((prev) => prev + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleOpenCalendarFromHistory = (ev: EventPlan) => {
+    setActiveEventId(ev.id);
+    setEventName(ev.title);
+    setEventType(normalizeEventType(ev.eventType));
+    setEventBudget(ev.totalBudget ? String(ev.totalBudget) : "");
+    setEventDate(parseDateForInput(ev.date) || ev.date);
+    setShowCalendar(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteEventFromHistory = (eventId: string) => {
+    setEvents((prev) => prev.filter((ev) => ev.id !== eventId));
+  };
+
   const handleFinalStep = () => {
     console.log("Stepper completed on landing page:", {
       eventName,
@@ -41,6 +95,20 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
       eventDate,
       selectedPlan,
     });
+    if (eventName.trim()) {
+      const activeEv = events.find((e) => e.id === activeEventId) || events[0];
+      const newPlan: EventPlan = {
+        ...activeEv,
+        id: `event-${Date.now()}`,
+        title: eventName,
+        tagline: `${eventType} architected with Kordena GenAI`,
+        eventType: eventType,
+        date: eventDate || new Date().toISOString().split("T")[0],
+        totalBudget: Number(eventBudget) || 25000,
+      };
+      setEvents((prev) => [newPlan, ...prev]);
+      setActiveEventId(newPlan.id);
+    }
     // Redirect to the Calendar UI as requested
     setShowCalendar(true);
   };
@@ -141,8 +209,8 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-[640px] flex flex-col items-center">
+      <div className="flex-1 flex flex-col items-center justify-start p-4 sm:p-6">
+        <div className="w-full max-w-4xl flex flex-col items-center">
           {/* Title */}
           <div className="text-center mb-6 space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0] mb-2">
@@ -357,6 +425,18 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
           >
             Already have an account? <span className="underline font-semibold">Sign in with Google</span>
           </button>
+        </div>
+
+        {/* Event Histories Section under Blueprint Stepper */}
+        <div className="w-full">
+          <EventHistories
+            events={events}
+            activeEventId={activeEventId}
+            onSelectEvent={handleSelectEventFromHistory}
+            onOpenCalendar={handleOpenCalendarFromHistory}
+            onDeleteEvent={handleDeleteEventFromHistory}
+            onStartNewEvent={handleStartNewEvent}
+          />
         </div>
       </div>
     </div>

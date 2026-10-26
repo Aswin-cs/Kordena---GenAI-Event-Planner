@@ -53,6 +53,7 @@ interface EventCalendarViewProps {
   selectedPlan: string;
   organizerName?: string;
   onBackToStepper: () => void;
+  onNewEvent?: () => void;
 }
 
 export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
@@ -63,6 +64,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   selectedPlan,
   organizerName,
   onBackToStepper,
+  onNewEvent,
 }) => {
   const [currentView, setCurrentView] = useState<View>("month");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
@@ -81,6 +83,14 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     const fallback = new Date(eventDate);
     return isNaN(fallback.getTime()) ? new Date() : fallback;
   }, [eventDate]);
+
+  // Controlled date state so Next, Back, and Today buttons work properly
+  const [currentDate, setCurrentDate] = useState<Date>(parsedEventDate);
+
+  // Sync internal calendar date if parsedEventDate changes
+  React.useEffect(() => {
+    setCurrentDate(parsedEventDate);
+  }, [parsedEventDate]);
 
   // Build calendar events list (Main event + related AI milestones)
   const eventsList: CalendarEventItem[] = useMemo(() => {
@@ -178,7 +188,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-in fade-in duration-300">
       {/* Top Bar with Back Button & Event Summary Pill */}
       <div className="bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-4">
+        <div className="flex items-start sm:items-center gap-3">
           <button
             onClick={onBackToStepper}
             className="p-2.5 rounded-2xl bg-[#F4F7F5] hover:bg-[#E2ECE5] text-[#2D3748] border border-[#E2ECE5] transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs group"
@@ -187,6 +197,17 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             <ArrowLeft className="w-4 h-4 text-[#718096] group-hover:-translate-x-0.5 transition-transform" />
             <span className="text-xs font-semibold hidden sm:inline">Back to Stepper</span>
           </button>
+
+          {onNewEvent && (
+            <button
+              onClick={onNewEvent}
+              className="p-2.5 px-3.5 rounded-2xl bg-[#10B981] hover:bg-[#059669] text-white transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs shadow-[#10B981]/25 font-bold text-xs"
+              title="Create New Event"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>New Event</span>
+            </button>
+          )}
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -247,13 +268,24 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#E6F7F0] text-[#059669] font-medium border border-[#A7F3D0]">
               <span className="w-2 h-2 rounded-full bg-[#10B981]" /> Main Event
             </span>
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#F4F7F5] text-[#718096] font-medium border border-[#E2ECE5]">
               <span className="w-2 h-2 rounded-full bg-[#718096]" /> Milestones
             </span>
+            {onNewEvent && (
+              <button
+                type="button"
+                onClick={onNewEvent}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-bold text-xs transition-all shadow-xs shadow-[#10B981]/20 cursor-pointer sm:ml-1"
+                title="Create New Event"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>New Event</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -264,7 +296,8 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             events={eventsList}
             startAccessor="start"
             endAccessor="end"
-            defaultDate={parsedEventDate}
+            date={currentDate}
+            onNavigate={(newDate) => setCurrentDate(newDate)}
             view={currentView}
             onView={(view) => setCurrentView(view)}
             eventPropGetter={eventPropGetter}

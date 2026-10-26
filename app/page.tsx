@@ -18,6 +18,7 @@ import {
   DollarSign,
   Tag,
   CheckCircle2,
+  Plus,
 } from "lucide-react";
 import Stepper, { Step } from "./components/Stepper";
 import { EventCalendarView } from "./components/EventCalendarView";
@@ -40,6 +41,18 @@ export default function Home() {
   const [eventDate, setEventDate] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
   const [isCompleted, setIsCompleted] = useState(false);
+  const [stepperKey, setStepperKey] = useState(0);
+
+  const handleStartNewEvent = () => {
+    setEventName("");
+    setEventType("Conference");
+    setEventBudget("");
+    setEventDate("");
+    setSelectedPlan("Professional Suite");
+    setIsCompleted(false);
+    setStepperKey((prev) => prev + 1);
+    setViewMode("stepper");
+  };
 
   // Check URL query parameters for NextAuth status/errors on load
   useEffect(() => {
@@ -192,34 +205,46 @@ export default function Home() {
             </div>
           </div>
 
-          {/* View Mode Switcher (Stepper Blueprint vs Calendar UI) */}
-          <div className="flex items-center gap-1 bg-[#F4F7F5] p-1 rounded-2xl border border-[#E2ECE5]">
-            <button
-              type="button"
-              onClick={() => setViewMode("stepper")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "stepper"
-                  ? "bg-white text-[#2D3748] shadow-xs border border-[#E2ECE5]"
-                  : "text-[#718096] hover:text-[#2D3748]"
-              }`}
-            >
-              <span>Blueprint Stepper</span>
-            </button>
+          {/* View Mode Switcher + New Event Button */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-[#F4F7F5] p-1 rounded-2xl border border-[#E2ECE5]">
+              <button
+                type="button"
+                onClick={() => setViewMode("stepper")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "stepper"
+                    ? "bg-white text-[#2D3748] shadow-xs border border-[#E2ECE5]"
+                    : "text-[#718096] hover:text-[#2D3748]"
+                }`}
+              >
+                <span>Blueprint Stepper</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode("calendar")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "calendar"
+                    ? "bg-[#10B981] text-white shadow-xs shadow-[#10B981]/25"
+                    : "text-[#718096] hover:text-[#2D3748]"
+                }`}
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>Calendar UI</span>
+                {isCompleted && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
+                )}
+              </button>
+            </div>
 
             <button
               type="button"
-              onClick={() => setViewMode("calendar")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "calendar"
-                  ? "bg-[#10B981] text-white shadow-xs shadow-[#10B981]/25"
-                  : "text-[#718096] hover:text-[#2D3748]"
-              }`}
+              onClick={handleStartNewEvent}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#10B981] hover:bg-[#059669] text-white shadow-xs shadow-[#10B981]/25 transition-all cursor-pointer group"
+              title="Create New Event"
             >
-              <CalendarIcon className="w-3.5 h-3.5" />
-              <span>Calendar UI</span>
-              {isCompleted && (
-                <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
-              )}
+              <Plus className="w-3.5 h-3.5 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
+              <span className="hidden sm:inline">New Event</span>
             </button>
           </div>
 
@@ -271,6 +296,7 @@ export default function Home() {
             selectedPlan={selectedPlan}
             organizerName={activeUser?.name}
             onBackToStepper={() => setViewMode("stepper")}
+            onNewEvent={handleStartNewEvent}
           />
         </main>
       ) : (
@@ -304,6 +330,7 @@ export default function Home() {
             )}
 
             <Stepper
+              key={stepperKey}
               initialStep={1}
               onStepChange={(step) => console.log("Stepper step changed to:", step)}
               onFinalStepCompleted={handleFinalStepCompleted}

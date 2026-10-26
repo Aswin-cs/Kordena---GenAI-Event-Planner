@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { signIn } from "next-auth/react";
 import Stepper, { Step } from "./Stepper";
 import { EventCalendarView } from "./EventCalendarView";
-import { Sparkles, CheckCircle2, ArrowRight } from "lucide-react";
+import { Sparkles, CheckCircle2, ArrowRight, Plus } from "lucide-react";
 
 interface LandingPageProps {
   onOpenLogin?: () => void;
@@ -18,9 +18,20 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
   const [eventBudget, setEventBudget] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
+  const [stepperKey, setStepperKey] = useState(0);
 
   // Redirect state to Calendar UI
   const [showCalendar, setShowCalendar] = useState(false);
+
+  const handleStartNewEvent = () => {
+    setEventName("");
+    setEventType("Conference");
+    setEventBudget("");
+    setEventDate("");
+    setSelectedPlan("Professional Suite");
+    setStepperKey((prev) => prev + 1);
+    setShowCalendar(false);
+  };
 
   const handleFinalStep = () => {
     console.log("Stepper completed on landing page:", {
@@ -47,7 +58,7 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
               <span className="text-lg font-bold text-[#2D3748]">Kordena</span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setShowCalendar(false)}
@@ -57,8 +68,17 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
               </button>
               <button
                 type="button"
+                onClick={handleStartNewEvent}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#10B981] hover:bg-[#059669] text-white shadow-xs shadow-[#10B981]/25 transition-all cursor-pointer group"
+                title="Create New Event"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
+                <span>New Event</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => signIn("google", { callbackUrl: "/" })}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#10B981] text-white hover:bg-[#059669] transition-all cursor-pointer shadow-xs"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-[#F4F7F5] hover:bg-[#E2ECE5] text-[#2D3748] border border-[#E2ECE5] transition-all cursor-pointer shadow-2xs"
               >
                 <span>Save with Google</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -76,6 +96,7 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
             selectedPlan={selectedPlan}
             organizerName="Guest Planner"
             onBackToStepper={() => setShowCalendar(false)}
+            onNewEvent={handleStartNewEvent}
           />
         </main>
       </div>
@@ -83,24 +104,62 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4F7F5] p-4 sm:p-6">
-      <div className="w-full max-w-[640px] flex flex-col items-center">
-        {/* Title */}
-        <div className="text-center mb-6 space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0] mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#10B981]" />
-            <span>Kordena Event Studio</span>
+    <div className="min-h-screen flex flex-col bg-[#F4F7F5]">
+      {/* Top Header */}
+      <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-[#E2ECE5] shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#10B981] to-[#34D399] flex items-center justify-center text-white shadow-xs shadow-[#10B981]/25">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-[#2D3748]">Kordena</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                Event Studio
+              </span>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2D3748] tracking-tight">
-            Configure Your Event Blueprint
-          </h1>
-          <p className="text-xs sm:text-sm text-[#718096]">
-            Input your event parameters to mark your event date on the Calendar.
-          </p>
-        </div>
 
-        <Stepper
-          initialStep={1}
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleStartNewEvent}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#10B981] hover:bg-[#059669] text-white shadow-xs shadow-[#10B981]/25 transition-all cursor-pointer group"
+              title="Create New Event"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
+              <span>New Event</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => signIn("google", { callbackUrl: "/" })}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#F4F7F5] hover:bg-[#E2ECE5] text-[#2D3748] border border-[#E2ECE5] transition-all cursor-pointer shadow-2xs"
+            >
+              <span>Sign In</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-[640px] flex flex-col items-center">
+          {/* Title */}
+          <div className="text-center mb-6 space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0] mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#10B981]" />
+              <span>Kordena Event Studio</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2D3748] tracking-tight">
+              Configure Your Event Blueprint
+            </h1>
+            <p className="text-xs sm:text-sm text-[#718096]">
+              Input your event parameters to mark your event date on the Calendar.
+            </p>
+          </div>
+
+          <Stepper
+            key={stepperKey}
+            initialStep={1}
           onStepChange={(step) => console.log("Landing stepper step:", step)}
           onFinalStepCompleted={handleFinalStep}
           backButtonText="Back"
@@ -301,5 +360,6 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };

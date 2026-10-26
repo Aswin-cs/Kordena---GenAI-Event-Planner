@@ -1,6 +1,16 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 
-export type EventType = "Birthday" | "Wedding" | "Conference" | "Corporate" | "Other";
+export type EventType =
+  | "Birthday"
+  | "Wedding"
+  | "Conference"
+  | "Corporate"
+  | "Product Launch"
+  | "Gala"
+  | "Networking"
+  | "Retreat"
+  | "Exhibition"
+  | "Other";
 
 export interface IUserStatus extends Document {
   userId: Types.ObjectId;
@@ -9,6 +19,7 @@ export interface IUserStatus extends Document {
   budget: number;
   guestCount: number;
   endDate: Date;
+  selectedPlan?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,9 +40,25 @@ const UserStatusSchema = new Schema<IUserStatus>(
       type: String,
       required: [true, "eventType is required"],
       enum: {
-        values: ["Birthday", "Wedding", "Conference", "Corporate", "Other"],
+        values: [
+          "Birthday",
+          "Wedding",
+          "Conference",
+          "Corporate",
+          "Product Launch",
+          "Gala",
+          "Networking",
+          "Retreat",
+          "Exhibition",
+          "Other",
+        ],
         message: "{VALUE} is not a supported event type",
       },
+    },
+    selectedPlan: {
+      type: String,
+      default: "Professional Suite",
+      trim: true,
     },
     budget: {
       type: Number,

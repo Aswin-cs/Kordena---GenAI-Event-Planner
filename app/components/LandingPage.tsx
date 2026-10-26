@@ -278,6 +278,7 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                   >
                     <option value="Conference">Conference / Summit</option>
                     <option value="Wedding">Wedding & Reception</option>
+                    <option value="Birthday">Birthday Party / Celebration</option>
                     <option value="Product Launch">Product Launch</option>
                     <option value="Gala">Gala & Charity Dinner</option>
                     <option value="Networking">Networking & Mixer</option>

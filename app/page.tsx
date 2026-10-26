@@ -38,6 +38,7 @@ function parseDateForInput(dateStr?: string): string {
 function normalizeEventType(typeStr?: string): string {
   if (!typeStr) return "Conference";
   const lower = typeStr.toLowerCase();
+  if (lower.includes("birthday")) return "Birthday";
   if (lower.includes("wedding")) return "Wedding";
   if (lower.includes("summit") || lower.includes("tech") || lower.includes("conference")) return "Conference";
   if (lower.includes("retreat")) return "Retreat";
@@ -64,6 +65,7 @@ export default function Home() {
   const [eventType, setEventType] = useState("Conference");
   const [eventBudget, setEventBudget] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [guestCount, setGuestCount] = useState("100");
   const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
   const [isCompleted, setIsCompleted] = useState(false);
   const [stepperKey, setStepperKey] = useState(0);
@@ -73,6 +75,7 @@ export default function Home() {
     setEventType("Conference");
     setEventBudget("");
     setEventDate("");
+    setGuestCount("100");
     setSelectedPlan("Professional Suite");
     setIsCompleted(false);
     setStepperKey((prev) => prev + 1);
@@ -114,18 +117,43 @@ export default function Home() {
   // Active event plan
   const activeEvent = events.find((e) => e.id === activeEventId) || events[0];
 
-  const handleFinalStepCompleted = () => {
+  const handleFinalStepCompleted = async () => {
     console.log("Event setup completed:", {
       eventName,
       eventType,
       eventBudget,
       eventDate,
+      guestCount,
       selectedPlan,
       organizer: activeUser?.name,
     });
     setIsCompleted(true);
     // Redirect to the Calendar UI as requested
     setViewMode("calendar");
+
+    // Persist to MongoDB via /api/user-status route
+    try {
+      const response = await fetch("/api/user-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventName: eventName.trim() || "Untitled Event",
+          eventType,
+          budget: Number(eventBudget) || 25000,
+          guestCount: Number(guestCount) || 100,
+          endDate: eventDate || new Date().toISOString().split("T")[0],
+          selectedPlan,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        console.warn("Failed to store user status in database:", result.message);
+      } else {
+        console.log("User status successfully saved to MongoDB:", result.userStatus);
+      }
+    } catch (err) {
+      console.error("Network error while storing user status:", err);
+    }
 
     if (eventName.trim()) {
       const newPlan: EventPlan = {
@@ -136,6 +164,7 @@ export default function Home() {
         eventType: eventType,
         date: eventDate || new Date().toISOString().split("T")[0],
         totalBudget: Number(eventBudget) || 25000,
+        guestCount: Number(guestCount) || 100,
       };
       setEvents((prev) => [newPlan, ...prev]);
       setActiveEventId(newPlan.id);
@@ -434,6 +463,7 @@ export default function Home() {
                       >
                         <option value="Conference">Conference / Summit</option>
                         <option value="Wedding">Wedding & Reception</option>
+                        <option value="Birthday">Birthday Party / Celebration</option>
                         <option value="Product Launch">Product Launch</option>
                         <option value="Gala">Gala & Charity Dinner</option>
                         <option value="Networking">Networking & Mixer</option>
@@ -473,6 +503,22 @@ export default function Home() {
                         value={eventDate}
                         onChange={(e) => setEventDate(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 5. Estimated Guest Count */}
+                    <div>
+                      <label className="block text-xs font-semibold text-[#2D3748] mb-1">
+                        Estimated Guest Count <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 150"
+                        value={guestCount}
+                        onChange={(e) => setGuestCount(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
+                        min="1"
+                        step="10"
                       />
                     </div>
                   </div>
@@ -563,6 +609,10 @@ export default function Home() {
                     <div className="flex items-center justify-between">
                       <span className="text-[#718096]">Event Date:</span>
                       <strong className="text-[#2D3748]">{eventDate || "Date TBD"}</strong>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#718096]">Guest Count:</span>
+                      <strong className="text-[#2D3748]">{guestCount || "100"} guests</strong>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#718096]">Selected Plan:</span>

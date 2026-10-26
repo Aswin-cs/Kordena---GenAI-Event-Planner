@@ -2,21 +2,19 @@
 
 import React, { useState, useMemo } from "react";
 import { EventPlan } from "../types";
+import MagicBento from "./MagicBento";
 import {
   History,
   Calendar as CalendarIcon,
-  DollarSign,
+  IndianRupee,
   Users,
   MapPin,
   ArrowUpRight,
   Sparkles,
   Trash2,
   Search,
-  ExternalLink,
   CheckCircle2,
-  Clock,
   Layers,
-  ChevronRight,
   Filter,
 } from "lucide-react";
 
@@ -58,9 +56,9 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
   }, [events, searchQuery, selectedFilter]);
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-IN", {
       style: "currency",
-      currency: "USD",
+      currency: "INR",
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -78,6 +76,162 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
     }
     return "bg-blue-50 text-blue-700 border-blue-200";
   };
+
+  // Convert filtered events to MagicBento items with interactive card content
+  const bentoItems = useMemo(() => {
+    return filteredEvents.map((event) => {
+      const isActive = activeEventId === event.id;
+
+      return {
+        id: event.id,
+        title: event.title,
+        description: event.tagline || event.aiVibeSummary,
+        colSpan: 1,
+        rowSpan: 1,
+        content: (
+          <div className="flex flex-col justify-between h-full w-full">
+            <div>
+              {/* Top Badges */}
+              <div className="flex items-start justify-between gap-2 mb-2.5">
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getEventTypeColor(
+                    event.eventType
+                  )}`}
+                >
+                  {event.eventType}
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  {isActive && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                      Active
+                    </span>
+                  )}
+
+                  {onDeleteEvent && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (
+                          window.confirm(
+                            `Are you sure you want to remove "${event.title}" from your history?`
+                          )
+                        ) {
+                          onDeleteEvent(event.id);
+                        }
+                      }}
+                      className="p-1 rounded-lg text-[#A0AEC0] hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer z-10"
+                      title="Delete blueprint"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Title & Tagline */}
+              <h3 className="text-base font-bold text-[#2D3748] leading-snug line-clamp-1 hover:text-[#10B981] transition-colors">
+                {event.title}
+              </h3>
+
+              {event.tagline && (
+                <p className="text-xs text-[#718096] mt-1 line-clamp-1 italic">
+                  "{event.tagline}"
+                </p>
+              )}
+
+              {/* Key Metrics / Attributes */}
+              <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[#F0F4F2] text-xs">
+                <div className="flex items-center gap-1.5 text-[#718096]">
+                  <CalendarIcon className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
+                  <span className="truncate font-medium text-[#2D3748]">
+                    {event.date || "Date TBD"}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-[#718096]">
+                  <IndianRupee className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
+                  <span className="truncate font-semibold text-[#10B981]">
+                    {event.totalBudget ? formatCurrency(event.totalBudget) : "Flexible"}
+                  </span>
+                </div>
+
+                {event.location && (
+                  <div className="flex items-center gap-1.5 text-[#718096] col-span-2">
+                    <MapPin className="w-3.5 h-3.5 text-[#718096] shrink-0" />
+                    <span className="truncate text-[#718096] text-[11px]">
+                      {event.location}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* AI Vibe Summary */}
+              {event.aiVibeSummary && (
+                <div className="mt-3 p-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-[11px] text-[#4A5568] line-clamp-2">
+                  <span className="font-semibold text-[#10B981] mr-1">AI Vibe:</span>
+                  {event.aiVibeSummary}
+                </div>
+              )}
+
+              {/* Tasks / Vendors counts */}
+              <div className="flex items-center gap-2 mt-3 text-[11px] text-[#718096]">
+                {event.tasks && event.tasks.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200">
+                    <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
+                    {event.tasks.length} Tasks
+                  </span>
+                )}
+                {event.vendors && event.vendors.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200">
+                    <Users className="w-3 h-3 text-blue-500" />
+                    {event.vendors.length} Vendors
+                  </span>
+                )}
+                {event.guestCount && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200">
+                    {event.guestCount} Guests
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#F0F4F2]">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectEvent(event);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#F4F7F5] hover:bg-[#E6F7F0] text-[#2D3748] hover:text-[#059669] border border-[#E2ECE5] hover:border-[#A7F3D0] transition-all cursor-pointer shadow-2xs z-10"
+                title="Load event parameters into stepper"
+              >
+                <Layers className="w-3.5 h-3.5 text-[#10B981]" />
+                <span>Load Blueprint</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenCalendar(event);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#10B981] hover:bg-[#059669] text-white transition-all cursor-pointer shadow-2xs z-10"
+                title="Open calendar for this event"
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+                <span>Open Calendar</span>
+                <ArrowUpRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        ),
+      };
+    });
+  }, [filteredEvents, activeEventId, onSelectEvent, onOpenCalendar, onDeleteEvent]);
 
   return (
     <section className="w-full mt-10 space-y-5">
@@ -97,7 +251,7 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
               </span>
             </div>
             <p className="text-xs sm:text-sm text-[#718096]">
-              Review previously architected event blueprints, load them into the stepper, or view their live calendar schedules.
+              Interactive Magic Bento grid of architected event blueprints. Hover for spotlight & tilt, or load into stepper.
             </p>
           </div>
         </div>
@@ -144,11 +298,10 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
               key={cat}
               type="button"
               onClick={() => setSelectedFilter(cat)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                selectedFilter === cat
-                  ? "bg-[#10B981] text-white shadow-2xs"
-                  : "bg-white text-[#718096] border border-[#E2ECE5] hover:text-[#2D3748] hover:border-[#CBD5E0]"
-              }`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${selectedFilter === cat
+                ? "bg-[#10B981] text-white shadow-2xs"
+                : "bg-white text-[#718096] border border-[#E2ECE5] hover:text-[#2D3748] hover:border-[#CBD5E0]"
+                }`}
             >
               {cat}
             </button>
@@ -156,7 +309,7 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
         </div>
       </div>
 
-      {/* Events List */}
+      {/* Events Bento Grid */}
       {filteredEvents.length === 0 ? (
         <div className="w-full bg-white rounded-2xl border border-[#E2ECE5] p-8 text-center space-y-3 shadow-xs">
           <div className="w-12 h-12 mx-auto rounded-full bg-[#F4F7F5] flex items-center justify-center text-[#718096]">
@@ -180,153 +333,25 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredEvents.map((event) => {
-            const isActive = activeEventId === event.id;
-
-            return (
-              <div
-                key={event.id}
-                className={`flex flex-col justify-between rounded-2xl p-5 bg-white border transition-all duration-200 hover:shadow-md relative group ${
-                  isActive
-                    ? "border-[#10B981] ring-1 ring-[#10B981]/30 shadow-xs bg-gradient-to-b from-white to-[#F4F7F5]/40"
-                    : "border-[#E2ECE5] hover:border-[#CBD5E0]"
-                }`}
-              >
-                <div>
-                  {/* Top Badges */}
-                  <div className="flex items-start justify-between gap-2 mb-2.5">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getEventTypeColor(
-                        event.eventType
-                      )}`}
-                    >
-                      {event.eventType}
-                    </span>
-
-                    <div className="flex items-center gap-1.5">
-                      {isActive && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                          Active
-                        </span>
-                      )}
-
-                      {onDeleteEvent && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (
-                              window.confirm(
-                                `Are you sure you want to remove "${event.title}" from your history?`
-                              )
-                            ) {
-                              onDeleteEvent(event.id);
-                            }
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-[#A0AEC0] hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
-                          title="Delete blueprint"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Title & Tagline */}
-                  <h3 className="text-base font-bold text-[#2D3748] leading-snug line-clamp-1 group-hover:text-[#10B981] transition-colors">
-                    {event.title}
-                  </h3>
-
-                  {event.tagline && (
-                    <p className="text-xs text-[#718096] mt-1 line-clamp-1 italic">
-                      "{event.tagline}"
-                    </p>
-                  )}
-
-                  {/* Key Metrics / Attributes */}
-                  <div className="grid grid-cols-2 gap-2 mt-3.5 pt-3 border-t border-[#F0F4F2] text-xs">
-                    <div className="flex items-center gap-1.5 text-[#718096]">
-                      <CalendarIcon className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
-                      <span className="truncate font-medium text-[#2D3748]">
-                        {event.date || "Date TBD"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[#718096]">
-                      <DollarSign className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
-                      <span className="truncate font-semibold text-[#10B981]">
-                        {event.totalBudget ? formatCurrency(event.totalBudget) : "Flexible"}
-                      </span>
-                    </div>
-
-                    {event.location && (
-                      <div className="flex items-center gap-1.5 text-[#718096] col-span-2">
-                        <MapPin className="w-3.5 h-3.5 text-[#718096] shrink-0" />
-                        <span className="truncate text-[#718096] text-[11px]">
-                          {event.location}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Vibe / Brief Summary */}
-                  {event.aiVibeSummary && (
-                    <div className="mt-3 p-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-[11px] text-[#4A5568] line-clamp-2">
-                      <span className="font-semibold text-[#10B981] mr-1">AI Vibe:</span>
-                      {event.aiVibeSummary}
-                    </div>
-                  )}
-
-                  {/* Tasks / Vendors counts */}
-                  <div className="flex items-center gap-2 mt-3 text-[11px] text-[#718096]">
-                    {event.tasks && event.tasks.length > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200">
-                        <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
-                        {event.tasks.length} Tasks
-                      </span>
-                    )}
-                    {event.vendors && event.vendors.length > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200">
-                        <Users className="w-3 h-3 text-blue-500" />
-                        {event.vendors.length} Vendors
-                      </span>
-                    )}
-                    {event.guestCount && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200">
-                        {event.guestCount} Guests
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#F0F4F2]">
-                  <button
-                    type="button"
-                    onClick={() => onSelectEvent(event)}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#F4F7F5] hover:bg-[#E6F7F0] text-[#2D3748] hover:text-[#059669] border border-[#E2ECE5] hover:border-[#A7F3D0] transition-all cursor-pointer shadow-2xs"
-                    title="Load event parameters into stepper"
-                  >
-                    <Layers className="w-3.5 h-3.5 text-[#10B981]" />
-                    <span>Load Blueprint</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onOpenCalendar(event)}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#10B981] hover:bg-[#059669] text-white transition-all cursor-pointer shadow-2xs"
-                    title="Open calendar for this event"
-                  >
-                    <CalendarIcon className="w-3.5 h-3.5" />
-                    <span>Open Calendar</span>
-                    <ArrowUpRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        <div className="w-full">
+          <MagicBento
+            items={bentoItems}
+            columns={2}
+            rowHeight={310}
+            gap={16}
+            radius={22}
+            theme="light"
+            glowColor="#10B981"
+            enableBorderGlow={true}
+            enableSpotlight={true}
+            spotlightRadius={300}
+            enableStars={false}
+            particleCount={20}
+            enableTilt={false}
+            enableMagnetism={false}
+            clickEffect={true}
+            textAutoHide={false}
+          />
         </div>
       )}
     </section>

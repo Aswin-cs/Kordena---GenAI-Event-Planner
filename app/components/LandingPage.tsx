@@ -7,7 +7,7 @@ import { EventCalendarView } from "./EventCalendarView";
 import { EventHistories } from "./EventHistories";
 import { initialEvents } from "../mockData";
 import { EventPlan } from "../types";
-import { Sparkles, CheckCircle2, ArrowRight, Plus } from "lucide-react";
+import { Sparkles, CheckCircle2, ArrowRight, Plus, IndianRupee } from "lucide-react";
 
 function parseDateForInput(dateStr?: string): string {
   if (!dateStr) return "";
@@ -289,20 +289,20 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                 {/* 3. Budget */}
                 <div>
                   <label className="block text-xs font-semibold text-[#2D3748] mb-1">
-                    Estimated Budget ($) <span className="text-rose-500">*</span>
+                    Estimated Budget (₹) <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#718096] text-xs font-bold">
-                      $
+                      ₹
                     </span>
                     <input
                       type="number"
-                      placeholder="e.g. 50000"
+                      placeholder="e.g. 500000"
                       value={eventBudget}
                       onChange={(e) => setEventBudget(e.target.value)}
                       className="w-full pl-7 pr-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
                       min="0"
-                      step="500"
+                      step="5000"
                     />
                   </div>
                 </div>
@@ -401,7 +401,7 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-[#718096]">Estimated Budget:</span>
                   <strong className="text-[#10B981]">
-                    {eventBudget ? `$${Number(eventBudget).toLocaleString()}` : "Not specified"}
+                    {eventBudget ? `₹${Number(eventBudget).toLocaleString("en-IN")}` : "Not specified"}
                   </strong>
                 </div>
                 <div className="flex items-center justify-between">

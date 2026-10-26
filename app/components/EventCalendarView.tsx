@@ -8,7 +8,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import {
   Calendar as CalendarIcon,
   Clock,
-  DollarSign,
+  IndianRupee,
   Tag,
   ArrowLeft,
   Sparkles,
@@ -113,7 +113,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         budget: eventBudget,
         plan: selectedPlan,
         isMainEvent: true,
-        description: `Main event execution date for ${mainTitle}. Budget: $${Number(eventBudget || 0).toLocaleString()}`,
+        description: `Main event execution date for ${mainTitle}. Budget: ₹${Number(eventBudget || 0).toLocaleString("en-IN")}`,
       },
     ];
 
@@ -239,9 +239,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           </div>
 
           <div className="px-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] flex items-center gap-1 text-xs">
-            <DollarSign className="w-3.5 h-3.5 text-[#10B981]" />
+            <IndianRupee className="w-3.5 h-3.5 text-[#10B981]" />
             <span className="font-semibold text-[#2D3748]">
-              {eventBudget ? `$${Number(eventBudget).toLocaleString()}` : "$0"}
+              {eventBudget ? `₹${Number(eventBudget).toLocaleString("en-IN")}` : "₹0"}
             </span>
           </div>
 
@@ -361,7 +361,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   <div className="bg-[#E6F7F0] p-2.5 rounded-xl border border-[#A7F3D0]">
                     <span className="text-[10px] uppercase font-bold text-[#059669]">Budget</span>
                     <p className="font-extrabold text-sm text-[#059669]">
-                      ${Number(selectedEvent.budget || 0).toLocaleString()}
+                      ₹{Number(selectedEvent.budget || 0).toLocaleString("en-IN")}
                     </p>
                   </div>
                   <div className="bg-[#F4F7F5] p-2.5 rounded-xl border border-[#E2ECE5]">

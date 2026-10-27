@@ -12,12 +12,16 @@ export type EventType =
   | "Exhibition"
   | "Other";
 
+export type TierType = "Starter" | "Basic" | "Professional";
+
 export interface IUserStatus extends Document {
   userId: Types.ObjectId;
   eventName: string;
   eventType: EventType;
+  tier?: TierType;
   budget: number;
   guestCount: number;
+  plannedItems?: string[];
   endDate: Date;
   selectedPlan?: string;
   decorations?: string[];
@@ -60,10 +64,13 @@ const UserStatusSchema = new Schema<IUserStatus>(
         message: "{VALUE} is not a supported event type",
       },
     },
-    selectedPlan: {
+    tier: {
       type: String,
-      default: "Professional Suite",
-      trim: true,
+      enum: {
+        values: ["Starter", "Basic", "Professional"],
+        message: "tier must be Starter, Basic or Professional",
+      },
+      default: "Starter",
     },
     budget: {
       type: Number,
@@ -75,22 +82,26 @@ const UserStatusSchema = new Schema<IUserStatus>(
       required: [true, "guestCount is required"],
       min: [1, "guestCount must be at least 1"],
     },
+    plannedItems: {
+      type: [String],
+      default: [],
+    },
     endDate: {
       type: Date,
       required: [true, "endDate is required"],
     },
-    decorations: {
-      type: [String],
-      default: [],
-    },
-    arrangements: {
-      type: [String],
-      default: [],
-    },
-    requirements: {
-      type: [String],
-      default: [],
-    },
+    // decorations: {
+    //   type: [String],
+    //   default: [],
+    // },
+    // arrangements: {
+    //   type: [String],
+    //   default: [],
+    // },
+    // requirements: {
+    //   type: [String],
+    //   default: [],
+    // },
     aiResponse: {
       type: Object,
       default: {},

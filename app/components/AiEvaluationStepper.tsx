@@ -27,6 +27,7 @@ interface AiEvaluationStepperProps {
     budget: number | string;
     guestCount: number | string;
     eventDate: string;
+    tier?: "Starter" | "Basic" | "Professional";
   };
   aiEvaluation: AiEvaluationResponse;
   onBackToParams: () => void;
@@ -36,6 +37,7 @@ interface AiEvaluationStepperProps {
     requirements: string[];
     aiSummary: string;
     aiResponse?: AiEvaluationResponse;
+    tier?: "Starter" | "Basic" | "Professional";
   }) => Promise<void> | void;
   isSaving?: boolean;
 }
@@ -48,6 +50,11 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
   isSaving = false,
 }) => {
   const { aiSummary, questions } = aiEvaluation;
+
+  // Selected tier
+  const [selectedTier, setSelectedTier] = useState<"Starter" | "Basic" | "Professional">(
+    eventData.tier || "Starter"
+  );
 
   // Selected decorations
   const [selectedDecorations, setSelectedDecorations] = useState<string[]>(() => {
@@ -107,6 +114,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
       requirements: selectedRequirements,
       aiSummary: summaryText,
       aiResponse: aiEvaluation,
+      tier: selectedTier,
     });
   };
 
@@ -199,6 +207,35 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                 <div className="text-[11px] font-bold text-[#2D3748] line-clamp-2">
                   {aiSummary.recommendedVibe}
                 </div>
+              </div>
+            </div>
+
+            {/* Package Tier Selector */}
+            <div className="p-3.5 rounded-xl bg-white border border-[#E2ECE5] shadow-2xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[#2D3748] text-xs font-bold">
+                  <Sparkles className="w-3.5 h-3.5 text-[#10B981]" />
+                  <span>Package Tier</span>
+                </div>
+                <span className="text-[10px] font-bold text-[#059669] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
+                  {selectedTier} Selected
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {(["Starter", "Basic", "Professional"] as const).map((tierOption) => (
+                  <button
+                    key={tierOption}
+                    type="button"
+                    onClick={() => setSelectedTier(tierOption)}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                      selectedTier === tierOption
+                        ? "border-[#10B981] bg-[#E6F7F0] text-[#059669] shadow-2xs"
+                        : "border-[#E2ECE5] bg-white text-[#718096] hover:bg-[#F4F7F5]"
+                    }`}
+                  >
+                    {tierOption}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -591,6 +628,12 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                   <p className="font-bold text-[#2D3748]">
                     {eventData.eventDate || "Date TBD"}
                   </p>
+                </div>
+                <div className="col-span-2 flex items-center justify-between pt-1 border-t border-[#E2ECE5]/60">
+                  <span className="text-[#718096]">Package Tier:</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                    {selectedTier}
+                  </span>
                 </div>
               </div>
 

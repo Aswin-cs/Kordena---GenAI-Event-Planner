@@ -69,6 +69,9 @@ export default function Home() {
   const [eventDate, setEventDate] = useState("");
   const [guestCount, setGuestCount] = useState("100");
   const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
+  const [eventTier, setEventTier] = useState<"Starter" | "Basic" | "Professional">("Starter");
+  const [planningItems, setPlanningItems] = useState<string[]>([]);
+  const [currentPlanningInput, setCurrentPlanningInput] = useState("");
   const [isCompleted, setIsCompleted] = useState(false);
   const [stepperKey, setStepperKey] = useState(0);
 
@@ -79,6 +82,17 @@ export default function Home() {
   const [aiEvaluationData, setAiEvaluationData] = useState<AiEvaluationResponse | null>(null);
   const [aiEvalError, setAiEvalError] = useState<string | null>(null);
 
+  const handleAddPlanningItem = () => {
+    const trimmed = currentPlanningInput.trim();
+    if (!trimmed) return;
+    setPlanningItems((prev) => [...prev, trimmed]);
+    setCurrentPlanningInput("");
+  };
+
+  const handleRemovePlanningItem = (indexToRemove: number) => {
+    setPlanningItems((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const handleStartNewEvent = () => {
     setEventName("");
     setEventType("Conference");
@@ -86,6 +100,9 @@ export default function Home() {
     setEventDate("");
     setGuestCount("100");
     setSelectedPlan("Professional Suite");
+    setEventTier("Starter");
+    setPlanningItems([]);
+    setCurrentPlanningInput("");
     setIsCompleted(false);
     setShowAiStepper(false);
     setAiEvaluationData(null);
@@ -151,6 +168,7 @@ export default function Home() {
           budget: Number(eventBudget) || 250000,
           guestCount: Number(guestCount) || 100,
           eventDate: eventDate || undefined,
+          planningItems,
         }),
       });
 
@@ -179,10 +197,13 @@ export default function Home() {
     requirements: string[];
     aiSummary: string;
     aiResponse?: any;
+    tier?: "Starter" | "Basic" | "Professional";
   }) => {
+    const effectiveTier = evalSelections.tier || eventTier;
     console.log("Saving full event architecture to MongoDB via UserStatus:", {
       eventName,
       eventType,
+      tier: effectiveTier,
       budget: eventBudget,
       guestCount,
       eventDate,
@@ -198,8 +219,10 @@ export default function Home() {
         body: JSON.stringify({
           eventName: eventName.trim() || "Untitled Event",
           eventType,
+          tier: effectiveTier,
           budget: Number(eventBudget) || 250000,
           guestCount: Number(guestCount) || 100,
+          plannedItems: planningItems,
           endDate: eventDate || new Date().toISOString().split("T")[0],
           selectedPlan,
           decorations: evalSelections.decorations,
@@ -536,6 +559,7 @@ export default function Home() {
                 eventData={{
                   eventName: eventName.trim() || "Untitled Event",
                   eventType,
+                  tier: eventTier,
                   budget: eventBudget || "250000",
                   guestCount: guestCount || "100",
                   eventDate,
@@ -658,11 +682,176 @@ export default function Home() {
                           step="10"
                         />
                       </div>
+
+                      {/* 6. Package Tier */}
+                      <div>
+                        <label className="block text-xs font-semibold text-[#2D3748] mb-1">
+                          Package Tier <span className="text-[#10B981] font-normal">(Starter, Basic, Professional)</span>
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(["Starter", "Basic", "Professional"] as const).map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setEventTier(t)}
+                              className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                                eventTier === t
+                                  ? "border-[#10B981] bg-[#E6F7F0] text-[#059669] shadow-2xs"
+                                  : "border-[#E2ECE5] bg-white text-[#718096] hover:bg-[#F4F7F5]"
+                              }`}
+                            >
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </Step>
 
-                {/* Step 2: Review */}
+                {/* Step 2: Planning Requirements */}
+                <Step title="Planning">
+                  <div className="space-y-4 py-1">
+                    <div>
+                      <h3 className="text-lg font-bold text-[#2D3748]">Planning Requirements</h3>
+                      <p className="text-xs sm:text-sm text-[#718096]">
+                        Specify the essential items, services, or sub-arrangements needed for your event.
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 pt-1">
+                      {/* Input Box with exact requested label */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-semibold text-[#2D3748]">
+                            What are things that be need for these <span className="text-rose-500">*</span>
+                          </label>
+                          <span className="text-[10.5px] text-[#059669] font-semibold bg-[#E6F7F0] px-2 py-0.5 rounded-md border border-[#A7F3D0]">
+                            Press Enter ↵ to add
+                          </span>
+                        </div>
+
+                        <div className="relative flex items-center">
+                          <input
+                            type="text"
+                            placeholder="Type a word or sentence and press Enter (e.g. Photography & Drone Video)"
+                            value={currentPlanningInput}
+                            onChange={(e) => setCurrentPlanningInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddPlanningItem();
+                              }
+                            }}
+                            className="w-full pl-3.5 pr-20 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] placeholder:text-[#A0AEC0] focus:outline-none focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/15 transition-all shadow-2xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddPlanningItem}
+                            disabled={!currentPlanningInput.trim()}
+                            className="absolute right-1.5 px-3 py-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] disabled:bg-[#E2ECE5] disabled:text-[#A0AEC0] text-white text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs flex items-center gap-1"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add</span>
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-[#718096] mt-1.5">
+                          Type any word or 5-word sentence, then press <strong>Enter</strong> to create sub-part bullet points below.
+                        </p>
+                      </div>
+
+                      {/* Suggested Quick Add Chips */}
+                      <div>
+                        <span className="text-[11px] font-semibold text-[#718096] block mb-1.5">
+                          Quick suggestions:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            "Stage & Audio Setup",
+                            "Catering & Refreshments",
+                            "Photography & Videography",
+                            "Guest Badges & Welcome Kit",
+                            "Decorations & Floral Backdrop",
+                            "VIP Seating & Hostess Desk",
+                          ].map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => {
+                                if (!planningItems.includes(suggestion)) {
+                                  setPlanningItems((prev) => [...prev, suggestion]);
+                                }
+                              }}
+                              className="text-[11px] px-2.5 py-1 rounded-lg bg-white border border-[#E2ECE5] text-[#4A5568] hover:border-[#10B981] hover:text-[#059669] hover:bg-[#E6F7F0]/50 transition-all cursor-pointer font-medium flex items-center gap-1 shadow-2xs"
+                            >
+                              <Plus className="w-3 h-3 text-[#10B981]" />
+                              <span>{suggestion}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Bullet Points / Sub parts display */}
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-bold text-[#2D3748] flex items-center gap-1.5">
+                            <span>Planning Points</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                              {planningItems.length} {planningItems.length === 1 ? "item" : "items"}
+                            </span>
+                          </label>
+                          {planningItems.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setPlanningItems([])}
+                              className="text-[11px] text-rose-500 hover:text-rose-700 font-semibold cursor-pointer"
+                            >
+                              Clear All
+                            </button>
+                          )}
+                        </div>
+
+                        {planningItems.length === 0 ? (
+                          <div className="p-4 rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] text-center space-y-1">
+                            <p className="text-xs font-medium text-[#64748B]">
+                              No planning points added yet
+                            </p>
+                            <p className="text-[11px] text-[#94A3B8]">
+                              Type in the input box above and press Enter to generate bullet points.
+                            </p>
+                          </div>
+                        ) : (
+                          <ul className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                            {planningItems.map((item, index) => (
+                              <li
+                                key={index}
+                                className="group flex items-start justify-between gap-3 p-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2ECE5] hover:border-[#A7F3D0] hover:bg-[#F0FDF4] transition-all"
+                              >
+                                <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                                  {/* Stylized bullet point */}
+                                  <span className="w-2 h-2 rounded-full bg-[#10B981] mt-1.5 shrink-0 shadow-2xs group-hover:scale-125 transition-transform" />
+                                  <span className="text-xs text-[#2D3748] font-medium leading-relaxed break-words">
+                                    {item}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePlanningItem(index)}
+                                  className="opacity-60 group-hover:opacity-100 hover:text-rose-600 text-[#718096] p-1 rounded-md transition-colors cursor-pointer shrink-0"
+                                  title="Remove point"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Step>
+
+                {/* Step 3: Review */}
                 <Step title="Review">
                   <div className="space-y-4 py-1">
                     <div>
@@ -688,6 +877,12 @@ export default function Home() {
                         </strong>
                       </div>
                       <div className="flex items-center justify-between">
+                        <span className="text-[#718096]">Package Tier:</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                          {eventTier}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
                         <span className="text-[#718096]">Event Date:</span>
                         <strong className="text-[#2D3748]">{eventDate || "Date TBD"}</strong>
                       </div>
@@ -695,6 +890,31 @@ export default function Home() {
                         <span className="text-[#718096]">Guest Count:</span>
                         <strong className="text-[#2D3748]">{guestCount || "100"} guests</strong>
                       </div>
+
+                      {/* Planning Points Review */}
+                      <div className="pt-2 border-t border-[#E2ECE5]">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[#718096]">Planning Points:</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                            {planningItems.length} {planningItems.length === 1 ? "point" : "points"}
+                          </span>
+                        </div>
+                        {planningItems.length > 0 ? (
+                          <ul className="space-y-1.5 pl-1 max-h-32 overflow-y-auto">
+                            {planningItems.map((item, idx) => (
+                              <li key={idx} className="flex items-start gap-2 text-[#2D3748]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] mt-1 shrink-0" />
+                                <span className="font-medium text-[11.5px] leading-snug">{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-[#718096] italic text-[11px]">
+                            No custom planning points specified (AI will infer defaults)
+                          </p>
+                        )}
+                      </div>
+
                       <div className="flex items-center justify-between pt-1.5 border-t border-[#E2ECE5]">
                         <span className="text-[#718096]">Lead Organizer:</span>
                         <strong className="text-[#2D3748]">{activeUser?.name || "Planner"}</strong>

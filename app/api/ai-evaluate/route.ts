@@ -42,6 +42,7 @@ export async function POST(request: Request) {
       guestCount = 100,
       budget = 250000,
       eventDate = "",
+      planningItems = [],
     } = body;
 
     const trimmedName = String(eventName).trim() || "Untitled Event";
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     const resolvedBudget = Math.max(0, Number(budget) || 250000);
     const resolvedType = String(eventType).trim() || "Conference";
     const perGuest = Math.round(resolvedBudget / resolvedGuestCount);
+    const plannedList = Array.isArray(planningItems) ? planningItems.filter(Boolean) : [];
 
     // 1. Attempt Gemini API via geminiConfig (handles key retrieval, model cascade, and JSON parsing)
     const prompt = `You are Kordena, an elite GenAI Event Architect.
@@ -58,6 +60,7 @@ Analyze this upcoming event:
 - Guest Count: ${resolvedGuestCount}
 - Total Budget: ₹${resolvedBudget} (approx ₹${perGuest}/guest)
 ${eventDate ? `- Target Date: ${eventDate}` : ""}
+${plannedList.length ? `- Specified Planning Items / Needs: ${plannedList.join(", ")}` : ""}
 
 Evaluate the event and generate a structured JSON response to help the planner configure decorations, arrangements, and requirements.
 Return ONLY valid JSON matching this exact structure:

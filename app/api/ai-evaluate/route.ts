@@ -125,20 +125,20 @@ Return ONLY valid JSON matching this exact structure:
     }
 
     // 2. Fallback: Domain-aware Intelligent Kordena AI Engine
-    const evaluation = generateSmartAiEvaluation(
-      trimmedName,
-      resolvedType,
-      resolvedGuestCount,
-      resolvedBudget,
-      perGuest
-    );
+    // const evaluation = generateSmartAiEvaluation(
+    //   trimmedName,
+    //   resolvedType,
+    //   resolvedGuestCount,
+    //   resolvedBudget,
+    //   perGuest
+    // );
 
-    return NextResponse.json({
-      success: true,
-      aiSummary: evaluation.aiSummary,
-      questions: evaluation.questions,
-      source: "kordena-ai-engine",
-    });
+    // return NextResponse.json({
+    //   success: true,
+    //   aiSummary: evaluation.aiSummary,
+    //   questions: evaluation.questions,
+    //   source: "kordena-ai-engine",
+    // });
   } catch (error: any) {
     console.error("AI Evaluation route error:", error);
     return NextResponse.json(

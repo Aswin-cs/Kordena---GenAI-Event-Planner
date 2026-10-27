@@ -154,6 +154,9 @@ export default function Home() {
       budget: eventBudget,
       guestCount,
       eventDate,
+      tier: eventTier,
+      leadOrganizer: activeUser?.name || "Planner",
+      planningItems,
     });
     setIsAiEvaluating(true);
     setAiEvalError(null);
@@ -168,7 +171,10 @@ export default function Home() {
           budget: Number(eventBudget) || 250000,
           guestCount: Number(guestCount) || 100,
           eventDate: eventDate || undefined,
+          tier: eventTier,
+          leadOrganizer: activeUser?.name || "Planner",
           planningItems,
+          plannedItems: planningItems,
         }),
       });
 
@@ -225,6 +231,11 @@ export default function Home() {
           plannedItems: planningItems,
           endDate: eventDate || new Date().toISOString().split("T")[0],
           selectedPlan,
+          evaluationSummary: evalSelections.aiResponse?.evaluationSummary,
+          budgetBreakdown: evalSelections.aiResponse?.budgetBreakdown,
+          prepCalendarTasks: evalSelections.aiResponse?.prepCalendarTasks,
+          dayOfRunOfShow: evalSelections.aiResponse?.dayOfRunOfShow,
+          mediatorStarterPrompts: evalSelections.aiResponse?.mediatorStarterPrompts,
           decorations: evalSelections.decorations,
           arrangements: evalSelections.arrangements,
           requirements: evalSelections.requirements,

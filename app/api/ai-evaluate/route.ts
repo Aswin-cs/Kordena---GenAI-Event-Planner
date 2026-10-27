@@ -16,8 +16,47 @@ export interface AiEvaluationQuestion {
   options: AiEvaluationOption[];
 }
 
+export interface EvaluationSummary {
+  eventVibe: string;
+  feasibilityAssessment: string;
+  costPerGuest: number;
+}
+
+export interface BudgetBreakdownItem {
+  category: string;
+  allocatedAmount: number;
+  percentage: number;
+  sliderMin: number;
+  sliderMax: number;
+  spendStrategy: string;
+}
+
+export interface PrepCalendarTask {
+  id: string;
+  title: string;
+  department: string;
+  actionType: "call" | "arrange" | "design" | "procure" | "setup";
+  daysBeforeEvent: number;
+  estimatedCost: number;
+  actionBrief: string;
+  priority: "high" | "medium" | "low";
+}
+
+export interface DayOfRunOfShowItem {
+  timeSlot: string;
+  activity: string;
+  departmentInCharge: string;
+  operationalNotes: string;
+  dependency: string;
+}
+
 export interface AiEvaluationResponse {
   success: boolean;
+  evaluationSummary?: EvaluationSummary;
+  budgetBreakdown?: BudgetBreakdownItem[];
+  prepCalendarTasks?: PrepCalendarTask[];
+  dayOfRunOfShow?: DayOfRunOfShowItem[];
+  mediatorStarterPrompts?: string[];
   aiSummary: {
     headline: string;
     overview: string;
@@ -42,84 +81,235 @@ export async function POST(request: Request) {
       guestCount = 100,
       budget = 250000,
       eventDate = "",
+      endDate = "",
+      tier = "Starter",
+      leadOrganizer = "",
       planningItems = [],
+      plannedItems = [],
     } = body;
 
     const trimmedName = String(eventName).trim() || "Untitled Event";
     const resolvedGuestCount = Math.max(1, Number(guestCount) || 100);
     const resolvedBudget = Math.max(0, Number(budget) || 250000);
     const resolvedType = String(eventType).trim() || "Conference";
+    const resolvedTier = String(tier).trim() || "Starter";
     const perGuest = Math.round(resolvedBudget / resolvedGuestCount);
-    const plannedList = Array.isArray(planningItems) ? planningItems.filter(Boolean) : [];
 
-    // 1. Attempt Gemini API via geminiConfig (handles key retrieval, model cascade, and JSON parsing)
-    const prompt = `You are Kordena, an elite GenAI Event Architect.
-Analyze this upcoming event:
-- Event Name: "${trimmedName}"
-- Event Type: "${resolvedType}"
+    // Collect planning points from either planningItems or plannedItems
+    const rawPlanned = Array.isArray(planningItems) && planningItems.length
+      ? planningItems
+      : Array.isArray(plannedItems)
+      ? plannedItems
+      : [];
+    const plannedList = rawPlanned.filter(Boolean);
+
+    const targetEndDate = endDate || eventDate || "Date TBD";
+    const plannedItemsFormatted = plannedList.length
+      ? plannedList.join(", ")
+      : "camera department, catering service, decoration team, audio & stage, venue arrangements";
+
+    // 1. Attempt Gemini API with new production-grade prompt and schema
+    const prompt = `You are an expert event operations producer and financial planner. 
+
+Analyze the following event constraints and output a production-grade, calendar-ready event schedule and budget breakdown:
+
+[EVENT PARAMETERS]
+- Event Name: ${trimmedName}
+- Event Type: ${resolvedType}
+- Tier: ${resolvedTier}
+- Total Budget: ${resolvedBudget}
 - Guest Count: ${resolvedGuestCount}
-- Total Budget: ₹${resolvedBudget} (approx ₹${perGuest}/guest)
-${eventDate ? `- Target Date: ${eventDate}` : ""}
-${plannedList.length ? `- Specified Planning Items / Needs: ${plannedList.join(", ")}` : ""}
+- Target Event Date (endDate): ${targetEndDate}
+- Selected Planned Items / Departments: ${plannedItemsFormatted}
 
-Evaluate the event and generate a structured JSON response to help the planner configure decorations, arrangements, and requirements.
-Return ONLY valid JSON matching this exact structure:
-{
-  "aiSummary": {
-    "headline": "concise punchy title highlighting budget per guest and event scale",
-    "overview": "2-3 sentences evaluating event feasibility, atmosphere, and key suggestions",
-    "budgetPerGuest": "₹${perGuest.toLocaleString("en-IN")}",
-    "feasibility": "Comfortable & Well-Funded" | "Balanced & Practical" | "Lean & High-Efficiency",
-    "recommendedVibe": "string describing visual & experiential theme"
-  },
-  "questions": {
-    "decorations": {
-      "question": "What are the decorations that you are planning?",
-      "description": "Select the aesthetic accents and staging elements tailored for your event",
-      "options": [
-        { "id": "dec_1", "label": "string", "description": "string", "recommended": true },
-        { "id": "dec_2", "label": "string", "description": "string", "recommended": true },
-        { "id": "dec_3", "label": "string", "description": "string", "recommended": false },
-        { "id": "dec_4", "label": "string", "description": "string", "recommended": false },
-        { "id": "dec_5", "label": "string", "description": "string", "recommended": true }
-      ]
-    },
-    "arrangements": {
-      "question": "What are the arrangements that are done?",
-      "description": "Mark what is already completed or currently in progress",
-      "options": [
-        { "id": "arr_1", "label": "string", "description": "string", "status": "Done" },
-        { "id": "arr_2", "label": "string", "description": "string", "status": "In Progress" },
-        { "id": "arr_3", "label": "string", "description": "string", "status": "Pending" },
-        { "id": "arr_4", "label": "string", "description": "string", "status": "Done" },
-        { "id": "arr_5", "label": "string", "description": "string", "status": "In Progress" }
-      ]
-    },
-    "requirements": {
-      "question": "What are the requirements that you need based on that?",
-      "description": "Choose essential operational and technical requirements based on guest count and budget",
-      "options": [
-        { "id": "req_1", "label": "string", "description": "string", "tag": "Essential" },
-        { "id": "req_2", "label": "string", "description": "string", "tag": "Recommended" },
-        { "id": "req_3", "label": "string", "description": "string", "tag": "Add-on" },
-        { "id": "req_4", "label": "string", "description": "string", "tag": "Essential" },
-        { "id": "req_5", "label": "string", "description": "string", "tag": "Recommended" }
-      ]
-    }
-  }
-}`;
+[EVALUATION RULES]
+1. Budget Allocation:
+   - Distribute the total budget across the selected 'plannedItems' (e.g., camera department, catering service, decoration team) plus a mandatory small contingency reserve.
+   - For every category, supply recommended slider boundaries ('sliderMin' and 'sliderMax') so the user can freely fine-tune amounts in the UI later without breaking overall feasibility.
+   - Sum of all 'allocatedAmount' must equal the total budget.
+
+2. Prep Calendar Tasks (Countdown Days):
+   - For every department in 'plannedItems', create concrete, sequential action items scheduled across practical lead times ('daysBeforeEvent' relative to 'endDate').
+   - Categorize each task strictly into: 'call', 'arrange', 'design', 'procure', or 'setup'.
+   - For any "call" actionType, write an actionable phone inquiry script or checklist in 'actionBrief' (e.g., exact quantities, budget limits, package requirements).
+   - For "design" or "arrange" tasks, provide clear visual and structural instructions.
+
+3. Day-of Run-of-Show:
+   - Build a realistic, chronological time-slot breakdown (e.g., "03:30 PM", "05:00 PM") for the final event day.
+   - Sequence logistics to prevent clashes (e.g., staging and decor setup must finish before photography equipment testing and guest arrival).
+
+4. Mediator Chatbot Starter Prompts:
+   - Provide 3 contextual prompts the upcoming AI mediator chatbot can display to the user (e.g., "Ask me to shift the photo shoot earlier", "Adjust catering if guest count rises", "Add rain contingency for decor").
+
+Return ONLY a valid JSON object matching the requested schema.`;
+
+    const responseSchema = {
+      type: "object",
+      properties: {
+        evaluationSummary: {
+          type: "object",
+          properties: {
+            eventVibe: { type: "string" },
+            feasibilityAssessment: { type: "string" },
+            costPerGuest: { type: "number" },
+          },
+          required: ["eventVibe", "feasibilityAssessment", "costPerGuest"],
+        },
+        budgetBreakdown: {
+          type: "array",
+          description: "Allocations mapped strictly to plannedItems with sliders limits",
+          items: {
+            type: "object",
+            properties: {
+              category: { type: "string" },
+              allocatedAmount: { type: "number" },
+              percentage: { type: "number" },
+              sliderMin: { type: "number" },
+              sliderMax: { type: "number" },
+              spendStrategy: { type: "string" },
+            },
+            required: [
+              "category",
+              "allocatedAmount",
+              "percentage",
+              "sliderMin",
+              "sliderMax",
+              "spendStrategy",
+            ],
+          },
+        },
+        prepCalendarTasks: {
+          type: "array",
+          description: "Pre-event countdown tasks mapped to calendar days",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              title: { type: "string" },
+              department: { type: "string" },
+              actionType: {
+                type: "string",
+                enum: ["call", "arrange", "design", "procure", "setup"],
+              },
+              daysBeforeEvent: { type: "number" },
+              estimatedCost: { type: "number" },
+              actionBrief: {
+                type: "string",
+                description: "Vendor calling script, inquiry points, or design checklist",
+              },
+              priority: {
+                type: "string",
+                enum: ["high", "medium", "low"],
+              },
+            },
+            required: [
+              "id",
+              "title",
+              "department",
+              "actionType",
+              "daysBeforeEvent",
+              "estimatedCost",
+              "actionBrief",
+              "priority",
+            ],
+          },
+        },
+        dayOfRunOfShow: {
+          type: "array",
+          description: "Minute-by-minute hourly timeline for the endDate",
+          items: {
+            type: "object",
+            properties: {
+              timeSlot: { type: "string" },
+              activity: { type: "string" },
+              departmentInCharge: { type: "string" },
+              operationalNotes: { type: "string" },
+              dependency: { type: "string" },
+            },
+            required: [
+              "timeSlot",
+              "activity",
+              "departmentInCharge",
+              "operationalNotes",
+              "dependency",
+            ],
+          },
+        },
+        mediatorStarterPrompts: {
+          type: "array",
+          description: "Pre-crafted suggestions the chatbot offers to help the user fine-tune the calendar",
+          items: { type: "string" },
+        },
+      },
+      required: [
+        "evaluationSummary",
+        "budgetBreakdown",
+        "prepCalendarTasks",
+        "dayOfRunOfShow",
+        "mediatorStarterPrompts",
+      ],
+    };
 
     try {
       const result = await geminiConfig({
         prompt,
+        responseSchema,
         responseMimeType: "application/json",
       });
 
-      if (result.success && result.data?.aiSummary && result.data?.questions) {
+      if (result.success && result.data?.evaluationSummary) {
+        const data = result.data;
         return NextResponse.json({
           success: true,
-          aiSummary: result.data.aiSummary,
-          questions: result.data.questions,
+          evaluationSummary: data.evaluationSummary,
+          budgetBreakdown: data.budgetBreakdown,
+          prepCalendarTasks: data.prepCalendarTasks,
+          dayOfRunOfShow: data.dayOfRunOfShow,
+          mediatorStarterPrompts: data.mediatorStarterPrompts,
+          // UI compatibility mappings
+          aiSummary: {
+            headline: `${trimmedName} — ${data.evaluationSummary.eventVibe || resolvedTier}`,
+            overview: data.evaluationSummary.feasibilityAssessment || "",
+            budgetPerGuest: `₹${Number(data.evaluationSummary.costPerGuest || perGuest).toLocaleString("en-IN")}`,
+            feasibility: data.evaluationSummary.feasibilityAssessment || "Balanced & Practical",
+            recommendedVibe: data.evaluationSummary.eventVibe || "",
+          },
+          questions: {
+            decorations: {
+              question: "What are the decorations that you are planning?",
+              description: "Select the aesthetic accents and staging elements tailored for your event",
+              options: data.prepCalendarTasks
+                ?.filter((t: any) => t.actionType === "design" || (t.department && t.department.toLowerCase().includes("decor")))
+                .map((t: any) => ({
+                  id: t.id,
+                  label: t.title,
+                  description: t.actionBrief,
+                  recommended: t.priority === "high",
+                })) || [],
+            },
+            arrangements: {
+              question: "What are the arrangements that are done?",
+              description: "Mark what is already completed or currently in progress",
+              options: data.prepCalendarTasks
+                ?.filter((t: any) => t.actionType === "arrange" || t.actionType === "setup")
+                .map((t: any) => ({
+                  id: t.id,
+                  label: t.title,
+                  description: t.actionBrief,
+                  status: t.daysBeforeEvent <= 2 ? "In Progress" : "Pending",
+                })) || [],
+            },
+            requirements: {
+              question: "What are the requirements that you need based on that?",
+              description: "Choose essential operational and technical requirements based on guest count and budget",
+              options: data.budgetBreakdown?.map((b: any, idx: number) => ({
+                id: `req_${idx + 1}`,
+                label: `${b.category} (₹${Number(b.allocatedAmount).toLocaleString("en-IN")})`,
+                description: b.spendStrategy,
+                tag: b.percentage >= 20 ? "Essential" : "Recommended",
+              })) || [],
+            },
+          },
           source: "gemini-api",
         });
       }
@@ -128,20 +318,28 @@ Return ONLY valid JSON matching this exact structure:
     }
 
     // 2. Fallback: Domain-aware Intelligent Kordena AI Engine
-    // const evaluation = generateSmartAiEvaluation(
-    //   trimmedName,
-    //   resolvedType,
-    //   resolvedGuestCount,
-    //   resolvedBudget,
-    //   perGuest
-    // );
+    const evaluation = generateSmartAiEvaluation(
+      trimmedName,
+      resolvedType,
+      resolvedGuestCount,
+      resolvedBudget,
+      perGuest,
+      resolvedTier,
+      plannedList,
+      leadOrganizer
+    );
 
-    // return NextResponse.json({
-    //   success: true,
-    //   aiSummary: evaluation.aiSummary,
-    //   questions: evaluation.questions,
-    //   source: "kordena-ai-engine",
-    // });
+    return NextResponse.json({
+      success: true,
+      evaluationSummary: evaluation.evaluationSummary,
+      budgetBreakdown: evaluation.budgetBreakdown,
+      prepCalendarTasks: evaluation.prepCalendarTasks,
+      dayOfRunOfShow: evaluation.dayOfRunOfShow,
+      mediatorStarterPrompts: evaluation.mediatorStarterPrompts,
+      aiSummary: evaluation.aiSummary,
+      questions: evaluation.questions,
+      source: "kordena-ai-engine",
+    });
   } catch (error: any) {
     console.error("AI Evaluation route error:", error);
     return NextResponse.json(
@@ -159,7 +357,10 @@ function generateSmartAiEvaluation(
   eventType: string,
   guestCount: number,
   budget: number,
-  perGuest: number
+  perGuest: number,
+  tier: string = "Starter",
+  plannedList: string[] = [],
+  leadOrganizer: string = ""
 ) {
   const lowerType = eventType.toLowerCase();
   const lowerName = eventName.toLowerCase();
@@ -267,9 +468,161 @@ function generateSmartAiEvaluation(
     ];
   }
 
+  // Prepend user's custom planned points as Essential requirements
+  if (plannedList.length > 0) {
+    overview += ` Prioritized by ${leadOrganizer || "planner"}: ${plannedList.join(", ")}.`;
+    plannedList.forEach((item, idx) => {
+      requirementOptions.unshift({
+        id: `planned_${idx + 1}`,
+        label: item,
+        description: `Custom requirement specified during planning setup (${tier} Tier)`,
+        tag: "Essential",
+      });
+    });
+  }
+
+  const budgetBreakdown: BudgetBreakdownItem[] = [
+    {
+      category: "Catering & Hospitality",
+      allocatedAmount: Math.round(budget * 0.38),
+      percentage: 38,
+      sliderMin: Math.round(budget * 0.25),
+      sliderMax: Math.round(budget * 0.5),
+      spendStrategy: "Multi-course service and beverage provisions",
+    },
+    {
+      category: "Venue & Infrastructure",
+      allocatedAmount: Math.round(budget * 0.25),
+      percentage: 25,
+      sliderMin: Math.round(budget * 0.15),
+      sliderMax: Math.round(budget * 0.35),
+      spendStrategy: "Main event space, technical utilities & seating",
+    },
+    {
+      category: "Decorations & Ambience",
+      allocatedAmount: Math.round(budget * 0.18),
+      percentage: 18,
+      sliderMin: Math.round(budget * 0.1),
+      sliderMax: Math.round(budget * 0.28),
+      spendStrategy: "Floral styling, stage backdrop and lighting",
+    },
+    {
+      category: "Audio, Visual & Media",
+      allocatedAmount: Math.round(budget * 0.12),
+      percentage: 12,
+      sliderMin: Math.round(budget * 0.08),
+      sliderMax: Math.round(budget * 0.2),
+      spendStrategy: "Sound engineering, camera operators and recording",
+    },
+    {
+      category: "Contingency & Incidentals",
+      allocatedAmount: Math.round(budget * 0.07),
+      percentage: 7,
+      sliderMin: Math.round(budget * 0.03),
+      sliderMax: Math.round(budget * 0.12),
+      spendStrategy: "Emergency buffer and last-minute requests",
+    },
+  ];
+
+  const prepCalendarTasks: PrepCalendarTask[] = [
+    {
+      id: "prep_1",
+      title: "Contract Catering & Menu Finalization",
+      department: "Catering",
+      actionType: "call",
+      daysBeforeEvent: 14,
+      estimatedCost: Math.round(budget * 0.38),
+      actionBrief: `Verify exact head count of ${guestCount} and lock live counter requirements.`,
+      priority: "high",
+    },
+    {
+      id: "prep_2",
+      title: "Stage & Lighting Architecture Review",
+      department: "Decor",
+      actionType: "design",
+      daysBeforeEvent: 10,
+      estimatedCost: Math.round(budget * 0.18),
+      actionBrief: "Review visual stage backdrop schematics and power load distribution.",
+      priority: "high",
+    },
+    {
+      id: "prep_3",
+      title: "Vendor Tech Alignment Call",
+      department: "Production",
+      actionType: "call",
+      daysBeforeEvent: 5,
+      estimatedCost: 0,
+      actionBrief: "Align mic frequencies, presentation feeds, and camera vantage points.",
+      priority: "medium",
+    },
+    {
+      id: "prep_4",
+      title: "Final Venue Setup & Rehearsal",
+      department: "Operations",
+      actionType: "setup",
+      daysBeforeEvent: 1,
+      estimatedCost: Math.round(budget * 0.1),
+      actionBrief: "Execute dry-run walk-through and verify security check-in protocols.",
+      priority: "high",
+    },
+  ];
+
+  const dayOfRunOfShow: DayOfRunOfShowItem[] = [
+    {
+      timeSlot: "08:00 AM",
+      activity: "Vendor Load-in & Power Checks",
+      departmentInCharge: "Production Crew",
+      operationalNotes: "Verify power distribution, stage trusses, and AV patch bays.",
+      dependency: "Venue doors open",
+    },
+    {
+      timeSlot: "10:30 AM",
+      activity: "Stage Decoration & Floral Rigging",
+      departmentInCharge: "Decor Team",
+      operationalNotes: "Complete backdrop styling before camera balance and dry run.",
+      dependency: "Production truss clearance",
+    },
+    {
+      timeSlot: "01:00 PM",
+      activity: "Audio/Visual Line Check & Tech Rehearsal",
+      departmentInCharge: "Tech Crew",
+      operationalNotes: "Sound check lapels and test display projections.",
+      dependency: "Stage decor completion",
+    },
+    {
+      timeSlot: "03:00 PM",
+      activity: "Guest Registration & Welcome Refreshments",
+      departmentInCharge: "Hospitality",
+      operationalNotes: "Open registration desks with badge scanning and beverage service.",
+      dependency: "Audio check pass",
+    },
+    {
+      timeSlot: "04:30 PM",
+      activity: "Main Ceremony / Keynote Session Commences",
+      departmentInCharge: "Operations Lead",
+      operationalNotes: "Execute timed schedule with MC cues and presentation decks.",
+      dependency: "Guest seating complete",
+    },
+  ];
+
+  const mediatorStarterPrompts: string[] = [
+    "Ask me to shift the photo shoot earlier",
+    "Adjust catering if guest count rises",
+    "Add rain contingency for decor",
+  ];
+
   return {
+    evaluationSummary: {
+      eventVibe: recommendedVibe,
+      feasibilityAssessment: overview,
+      costPerGuest: perGuest,
+    },
+    budgetBreakdown,
+    prepCalendarTasks,
+    dayOfRunOfShow,
+    mediatorStarterPrompts,
     aiSummary: {
-      headline: `${eventName} — AI Feasibility Blueprint (₹${perGuest.toLocaleString("en-IN")}/guest)`,
+      headline: `${eventName} — ${tier} AI Blueprint (₹${perGuest.toLocaleString("en-IN")}/guest)`,
       overview,
       budgetPerGuest: `₹${perGuest.toLocaleString("en-IN")}`,
       feasibility,

@@ -61,6 +61,11 @@ export async function POST(request: Request) {
       eventDate,
       selectedPlan,
       tier,
+      evaluationSummary,
+      budgetBreakdown,
+      prepCalendarTasks,
+      dayOfRunOfShow,
+      mediatorStarterPrompts,
       decorations,
       arrangements,
       requirements,
@@ -137,21 +142,57 @@ export async function POST(request: Request) {
     // Normalize event type
     const resolvedEventType = sanitizeEventType(eventType);
 
-    // Create UserStatus document in MongoDB
+    // Resolve evaluation fields (either top-level or from inside aiResponse)
+    const resolvedEvaluationSummary =
+      evaluationSummary && typeof evaluationSummary === "object" && Object.keys(evaluationSummary).length
+        ? evaluationSummary
+        : aiResponse?.evaluationSummary && typeof aiResponse.evaluationSummary === "object"
+        ? aiResponse.evaluationSummary
+        : {};
+
+    const resolvedBudgetBreakdown =
+      Array.isArray(budgetBreakdown) && budgetBreakdown.length
+        ? budgetBreakdown
+        : Array.isArray(aiResponse?.budgetBreakdown)
+        ? aiResponse.budgetBreakdown
+        : [];
+
+    const resolvedPrepCalendarTasks =
+      Array.isArray(prepCalendarTasks) && prepCalendarTasks.length
+        ? prepCalendarTasks
+        : Array.isArray(aiResponse?.prepCalendarTasks)
+        ? aiResponse.prepCalendarTasks
+        : [];
+
+    const resolvedDayOfRunOfShow =
+      Array.isArray(dayOfRunOfShow) && dayOfRunOfShow.length
+        ? dayOfRunOfShow
+        : Array.isArray(aiResponse?.dayOfRunOfShow)
+        ? aiResponse.dayOfRunOfShow
+        : [];
+
+    const resolvedRequirements =
+      Array.isArray(requirements) && requirements.length
+        ? requirements
+        : Array.isArray(plannedItems) && plannedItems.length
+        ? plannedItems
+        : [];
+
+    // Create UserStatus document in MongoDB matching the exact final schema
     const userStatus = await UserStatus.create({
       userId: resolvedUserId,
       eventName: trimmedEventName,
       eventType: resolvedEventType,
+      tier: tier && ["Starter", "Basic", "Professional"].includes(tier) ? tier : "Starter",
       budget: resolvedBudget,
       guestCount: resolvedGuestCount,
       plannedItems: Array.isArray(plannedItems) ? plannedItems : [],
       endDate: parsedDate,
-      selectedPlan: selectedPlan || "Professional Suite",
-      tier: tier && ["Starter", "Basic", "Professional"].includes(tier) ? tier : "Starter",
-      decorations: Array.isArray(decorations) ? decorations : [],
-      arrangements: Array.isArray(arrangements) ? arrangements : [],
-      requirements: Array.isArray(requirements) ? requirements : [],
-      aiSummary: typeof aiSummary === "string" ? aiSummary : "",
+      evaluationSummary: resolvedEvaluationSummary,
+      budgetBreakdown: resolvedBudgetBreakdown,
+      prepCalendarTasks: resolvedPrepCalendarTasks,
+      dayOfRunOfShow: resolvedDayOfRunOfShow,
+      requirements: resolvedRequirements,
       aiResponse: aiResponse && typeof aiResponse === "object" ? aiResponse : {},
     });
 

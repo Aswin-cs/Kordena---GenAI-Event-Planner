@@ -14,6 +14,40 @@ export type EventType =
 
 export type TierType = "Starter" | "Basic" | "Professional";
 
+export interface IEvaluationSummary {
+  eventVibe?: string;
+  feasibilityAssessment?: string;
+  costPerGuest?: number;
+}
+
+export interface IBudgetBreakdownItem {
+  category: string;
+  allocatedAmount: number;
+  percentage: number;
+  sliderMin: number;
+  sliderMax: number;
+  spendStrategy: string;
+}
+
+export interface IPrepCalendarTask {
+  id: string;
+  title: string;
+  department: string;
+  actionType: "call" | "arrange" | "design" | "procure" | "setup";
+  daysBeforeEvent: number;
+  estimatedCost: number;
+  actionBrief: string;
+  priority: "high" | "medium" | "low";
+}
+
+export interface IDayOfRunOfShowItem {
+  timeSlot: string;
+  activity: string;
+  departmentInCharge: string;
+  operationalNotes: string;
+  dependency: string;
+}
+
 export interface IUserStatus extends Document {
   userId: Types.ObjectId;
   eventName: string;
@@ -23,11 +57,11 @@ export interface IUserStatus extends Document {
   guestCount: number;
   plannedItems?: string[];
   endDate: Date;
-  selectedPlan?: string;
-  decorations?: string[];
-  arrangements?: string[];
+  evaluationSummary?: IEvaluationSummary;
+  budgetBreakdown?: IBudgetBreakdownItem[];
+  prepCalendarTasks?: IPrepCalendarTask[];
+  dayOfRunOfShow?: IDayOfRunOfShowItem[];
   requirements?: string[];
-  aiSummary?: string;
   aiResponse?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -90,18 +124,26 @@ const UserStatusSchema = new Schema<IUserStatus>(
       type: Date,
       required: [true, "endDate is required"],
     },
-    // decorations: {
-    //   type: [String],
-    //   default: [],
-    // },
-    // arrangements: {
-    //   type: [String],
-    //   default: [],
-    // },
-    // requirements: {
-    //   type: [String],
-    //   default: [],
-    // },
+    evaluationSummary: {
+      type: Object,
+      default: {},
+    },
+    budgetBreakdown: {
+      type: [Object],
+      default: [],
+    },
+    prepCalendarTasks: {
+      type: [Object],
+      default: [],
+    },
+    dayOfRunOfShow: {
+      type: [Object],
+      default: [],
+    },
+    requirements: {
+      type: [String],
+      default: [],
+    },
     aiResponse: {
       type: Object,
       default: {},

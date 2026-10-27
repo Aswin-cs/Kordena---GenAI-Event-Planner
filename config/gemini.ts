@@ -55,6 +55,8 @@ export interface GeminiExecutionOptions {
   stopSequences?: string[];
   /** Optional prompt text to append to uploaded contents */
   prompt?: string;
+  /** Desired MIME type of response, e.g. "application/json" */
+  responseMimeType?: string;
   /** Whether to stream the response (default false) */
   stream?: boolean;
   /** Custom list of fallback models to try if the primary model fails */
@@ -66,7 +68,7 @@ export interface GeminiExecutionOptions {
 /**
  * Default fallback models list tried sequentially if the primary model fails or is unavailable.
  * Covers Gemini 3.8 Flash, 3.6 Flash, 3.7 Flash, 3.5 Flash-Lite, 3.1 Flash-Lite, 3.5, 3 Flash Preview,
- * 2.5 Pro, 2.5 Flash, and 2.5 Flash-Lite.
+ * and 2.5 Pro.
  */
 export const DEFAULT_FALLBACK_MODELS: string[] = [
   "gemini-3.8-flash",
@@ -78,8 +80,6 @@ export const DEFAULT_FALLBACK_MODELS: string[] = [
   "gemini-3.5",
   "gemini-3-flash-preview",
   "gemini-2.5-pro",
-  "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
 ];
 
 /**
@@ -287,8 +287,13 @@ export function createGeminiConfig(
     config.systemInstruction = resolvedSystemInstructions;
   }
 
-  if (resolvedResponseSchema) {
+  if (options.responseMimeType) {
+    config.responseMimeType = options.responseMimeType;
+  } else if (resolvedResponseSchema) {
     config.responseMimeType = "application/json";
+  }
+
+  if (resolvedResponseSchema) {
     config.responseSchema = resolvedResponseSchema;
   }
 

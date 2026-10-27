@@ -24,6 +24,7 @@ export interface IUserStatus extends Document {
   arrangements?: string[];
   requirements?: string[];
   aiSummary?: string;
+  aiResponse?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -90,9 +91,9 @@ const UserStatusSchema = new Schema<IUserStatus>(
       type: [String],
       default: [],
     },
-    aiSummary: {
-      type: String,
-      default: "",
+    aiResponse: {
+      type: Object,
+      default: {},
     },
   },
   {

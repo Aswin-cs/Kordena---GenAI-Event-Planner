@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       arrangements,
       requirements,
       aiSummary,
+      aiResponse,
       userId: explicitUserId,
     } = body;
 
@@ -147,6 +148,7 @@ export async function POST(request: Request) {
       arrangements: Array.isArray(arrangements) ? arrangements : [],
       requirements: Array.isArray(requirements) ? requirements : [],
       aiSummary: typeof aiSummary === "string" ? aiSummary : "",
+      aiResponse: aiResponse && typeof aiResponse === "object" ? aiResponse : {},
     });
 
     return NextResponse.json(

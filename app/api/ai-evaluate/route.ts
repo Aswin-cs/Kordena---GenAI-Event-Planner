@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { geminiConfig } from "@/config/gemini";
 
 export interface AiEvaluationOption {
   id: string;
@@ -49,15 +50,8 @@ export async function POST(request: Request) {
     const resolvedType = String(eventType).trim() || "Conference";
     const perGuest = Math.round(resolvedBudget / resolvedGuestCount);
 
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    // 1. Attempt Gemini API if key is configured
-    if (apiKey) {
-      try {
-        const { GoogleGenAI } = await import("@google/genai");
-        const ai = new GoogleGenAI({ apiKey });
-
-        const prompt = `You are Kordena, an elite GenAI Event Architect.
+    // 1. Attempt Gemini API via geminiConfig (handles key retrieval, model cascade, and JSON parsing)
+    const prompt = `You are Kordena, an elite GenAI Event Architect.
 Analyze this upcoming event:
 - Event Name: "${trimmedName}"
 - Event Type: "${resolvedType}"
@@ -112,29 +106,22 @@ Return ONLY valid JSON matching this exact structure:
   }
 }`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-          },
-        });
+    try {
+      const result = await geminiConfig({
+        prompt,
+        responseMimeType: "application/json",
+      });
 
-        const text = response.text?.trim() || "";
-        if (text) {
-          const parsed = JSON.parse(text);
-          if (parsed.aiSummary && parsed.questions) {
-            return NextResponse.json({
-              success: true,
-              aiSummary: parsed.aiSummary,
-              questions: parsed.questions,
-              source: "gemini-api",
-            });
-          }
-        }
-      } catch (geminiError) {
-        console.warn("Gemini AI evaluation failed, falling back to smart engine:", geminiError);
+      if (result.success && result.data?.aiSummary && result.data?.questions) {
+        return NextResponse.json({
+          success: true,
+          aiSummary: result.data.aiSummary,
+          questions: result.data.questions,
+          source: "gemini-api",
+        });
       }
+    } catch (geminiError) {
+      console.warn("Gemini AI evaluation failed, falling back to smart engine:", geminiError);
     }
 
     // 2. Fallback: Domain-aware Intelligent Kordena AI Engine

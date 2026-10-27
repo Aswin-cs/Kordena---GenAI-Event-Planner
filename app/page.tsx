@@ -178,6 +178,7 @@ export default function Home() {
     arrangements: string[];
     requirements: string[];
     aiSummary: string;
+    aiResponse?: any;
   }) => {
     console.log("Saving full event architecture to MongoDB via UserStatus:", {
       eventName,
@@ -205,6 +206,7 @@ export default function Home() {
           arrangements: evalSelections.arrangements,
           requirements: evalSelections.requirements,
           aiSummary: evalSelections.aiSummary,
+          aiResponse: evalSelections.aiResponse,
         }),
       });
 

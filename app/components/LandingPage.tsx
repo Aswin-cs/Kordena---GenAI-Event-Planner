@@ -144,6 +144,7 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
     arrangements: string[];
     requirements: string[];
     aiSummary: string;
+    aiResponse?: any;
   }) => {
     setIsSaving(true);
     try {
@@ -161,6 +162,7 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
           arrangements: evalSelections.arrangements,
           requirements: evalSelections.requirements,
           aiSummary: evalSelections.aiSummary,
+          aiResponse: evalSelections.aiResponse,
         }),
       });
     } catch (err) {

@@ -35,6 +35,7 @@ interface AiEvaluationStepperProps {
     arrangements: string[];
     requirements: string[];
     aiSummary: string;
+    aiResponse?: AiEvaluationResponse;
   }) => Promise<void> | void;
   isSaving?: boolean;
 }
@@ -105,6 +106,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
       arrangements: selectedArrangements,
       requirements: selectedRequirements,
       aiSummary: summaryText,
+      aiResponse: aiEvaluation,
     });
   };
 

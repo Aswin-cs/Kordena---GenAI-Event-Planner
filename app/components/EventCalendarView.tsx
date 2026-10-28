@@ -46,6 +46,12 @@ import {
   Building2,
   Camera,
   Layers,
+  Columns,
+  Maximize2,
+  Minimize2,
+  CalendarRange,
+  Flame,
+  LayoutGrid,
 } from "lucide-react";
 import {
   IPrepCalendarTask,
@@ -269,6 +275,8 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeDrawerEvent, setActiveDrawerEvent] = useState<CalendarEventItem | null>(null);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"calendar" | "tasks" | "runofshow" | "budget">("calendar");
+  const [isCalendarSplitView, setIsCalendarSplitView] = useState<boolean>(true);
 
   // Smooth left pop-up drawer animation lifecycle
   useEffect(() => {
@@ -508,6 +516,45 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   useEffect(() => {
     setCurrentDate(parsedEventDate);
   }, [parsedEventDate]);
+
+  // Days until target event countdown
+  const daysUntilEvent = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(parsedEventDate);
+    target.setHours(0, 0, 0, 0);
+    const diffTime = target.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }, [parsedEventDate]);
+
+  // Calendar Header Navigation Handlers
+  const handleCalendarToday = () => {
+    setCurrentDate(new Date(parsedEventDate));
+  };
+
+  const handleCalendarPrev = () => {
+    const newDate = new Date(currentDate);
+    if (currentView === "month") {
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else if (currentView === "week") {
+      newDate.setDate(newDate.getDate() - 7);
+    } else if (currentView === "day") {
+      newDate.setDate(newDate.getDate() - 1);
+    }
+    setCurrentDate(newDate);
+  };
+
+  const handleCalendarNext = () => {
+    const newDate = new Date(currentDate);
+    if (currentView === "month") {
+      newDate.setMonth(newDate.getMonth() + 1);
+    } else if (currentView === "week") {
+      newDate.setDate(newDate.getDate() + 7);
+    } else if (currentView === "day") {
+      newDate.setDate(newDate.getDate() + 1);
+    }
+    setCurrentDate(newDate);
+  };
 
   // Toggle task completion
   const handleToggleTaskCompleted = (taskId: string, e?: React.MouseEvent) => {
@@ -995,7 +1042,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-in fade-in duration-300">
-      {/* Top Bar with Back Button & Event Summary Pill */}
+      {/* Executive Command Header Bar */}
       <div className="bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3">
           <button
@@ -1004,29 +1051,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             title="Back to Stepper Setup"
           >
             <ArrowLeft className="w-4 h-4 text-[#718096] group-hover:-translate-x-0.5 transition-transform" />
-            <span className="text-xs font-semibold hidden sm:inline">Back to Stepper</span>
-          </button>
-
-          {onNewEvent && (
-            <button
-              onClick={onNewEvent}
-              className="p-2.5 px-3.5 rounded-2xl bg-[#10B981] hover:bg-[#059669] text-white transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs shadow-[#10B981]/25 font-bold text-xs"
-              title="Create New Event"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>New Event</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setIsAiChatOpen(true)}
-            className="p-2.5 px-3.5 rounded-2xl bg-[#E6F7F0] hover:bg-[#D1FAE5] text-[#059669] border border-[#A7F3D0] transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs font-bold text-xs group"
-            title="Open AI Calendar Copilot"
-          >
-            <Sparkles className="w-4 h-4 text-[#10B981] group-hover:scale-110 transition-transform" />
-            <span className="hidden sm:inline">Ask AI Copilot</span>
-            <span className="sm:hidden">AI</span>
+            <span className="text-xs font-semibold hidden sm:inline">Back</span>
           </button>
 
           <div className="space-y-1">
@@ -1034,162 +1059,824 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
               <h1 className="text-xl sm:text-2xl font-extrabold text-[#2D3748] tracking-tight">
                 {eventName || "Annual Global Tech Summit 2026"}
               </h1>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0]">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Date Marked on Calendar
-              </span>
-            </div>
-            <p className="text-xs text-[#718096]">
-              {tasks.length > 0
-                ? `${tasks.length} countdown preparation milestones generated across departments.`
-                : "Your event blueprint schedule and milestone timeline are ready."}
-            </p>
-          </div>
-        </div>
 
-        {/* Event Meta Badges */}
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          <div className="px-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] flex items-center gap-2 text-xs">
-            <CalendarIcon className="w-3.5 h-3.5 text-[#10B981]" />
-            <span className="font-semibold text-[#2D3748]">
-              {format(parsedEventDate, "MMMM dd, yyyy")}
-            </span>
-          </div>
-
-          <div className="px-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] flex items-center gap-1.5 text-xs">
-            <Tag className="w-3.5 h-3.5 text-[#10B981]" />
-            <span className="font-semibold text-[#2D3748]">{eventType}</span>
-          </div>
-
-          <div className="px-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] flex items-center gap-1 text-xs">
-            <IndianRupee className="w-3.5 h-3.5 text-[#10B981]" />
-            <span className="font-semibold text-[#2D3748]">
-              {eventBudget ? `₹${Number(eventBudget).toLocaleString("en-IN")}` : "₹0"}
-            </span>
-          </div>
-
-          <div className="px-3 py-1.5 rounded-xl bg-[#E6F7F0] border border-[#A7F3D0] flex items-center gap-1.5 text-xs text-[#059669]">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="font-bold">{tier} Tier</span>
-          </div>
-        </div>
-      </div>
-
-      {/* AI Evaluation Operations Banner (if available) */}
-      {evalSummary && (
-        <div className="bg-gradient-to-r from-[#F0FDF4] via-[#FFFFFF] to-[#EFF6FF] rounded-3xl p-5 border border-[#A7F3D0] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-xl bg-[#10B981]/15 text-[#059669]">
-                <TrendingUp className="w-4 h-4" />
-              </span>
-              <span className="text-xs font-extrabold uppercase tracking-wider text-[#059669]">
-                Operations Feasibility & Vibe
-              </span>
-            </div>
-            <p className="text-sm font-bold text-[#2D3748]">
-              {evalSummary.eventVibe || "High-Energy Executive Experience"}
-            </p>
-            <p className="text-xs text-[#718096] max-w-2xl">
-              {evalSummary.feasibilityAssessment ||
-                "Production timeline and department requirements are aligned with target budget."}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4 shrink-0">
-            {evalSummary.costPerGuest && (
-              <div className="text-right">
-                <span className="text-[10px] font-semibold uppercase text-[#718096]">
-                  Est. Cost / Guest
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                <p className="text-base font-extrabold text-[#10B981]">
-                  ₹{Number(evalSummary.costPerGuest).toLocaleString("en-IN")}
-                </p>
-              </div>
-            )}
-            <div className="text-right pl-4 border-l border-[#E2ECE5]">
-              <span className="text-[10px] font-semibold uppercase text-[#718096]">
-                Prep Milestones
+                Production Blueprint Active
               </span>
-              <p className="text-base font-extrabold text-[#2D3748]">{tasks.length} Tasks</p>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Main Calendar & Right-side Budget Breakdown Allocator */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Left: Main Calendar Card (8 cols on xl) */}
-        <div className="xl:col-span-8 bg-[#FFFFFF] rounded-3xl p-4 sm:p-6 border border-[#E2ECE5] shadow-md space-y-4">
-          {/* Calendar Card Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#E2ECE5] gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#E6F7F0] text-[#10B981] flex items-center justify-center font-bold">
-                <CalendarIcon className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-[#2D3748]">Event Master Production Calendar</h2>
-                <p className="text-xs text-[#718096]">
-                  Interactive schedule mapping your target event and countdown milestones.
-                </p>
-              </div>
-            </div>
-
-            {/* Legend */}
-            <div className="flex items-center gap-2 text-xs flex-wrap">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#E6F7F0] text-[#059669] font-medium border border-[#A7F3D0]">
-                <span className="w-2 h-2 rounded-full bg-[#10B981]" /> Target Event
-              </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FEF2F2] text-[#B91C1C] font-medium border border-[#FCA5A5]">
-                <span className="w-2 h-2 rounded-full bg-[#EF4444]" /> High Priority
-              </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EFF6FF] text-[#1D4ED8] font-medium border border-[#93C5FD]">
-                <span className="w-2 h-2 rounded-full bg-[#3B82F6]" /> Medium Priority
-              </span>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#F0FDF4] text-[#15803D] font-medium border border-[#86EFAC]">
-                <span className="w-2 h-2 rounded-full bg-[#10B981]" /> Low Priority
-              </span>
-              {runOfShow.length > 0 && (
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#F3E8FF] text-[#7E22CE] font-medium border border-[#D8B4FE]">
-                  <span className="w-2 h-2 rounded-full bg-[#A855F7]" /> Run of Show
+              {daysUntilEvent !== undefined && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#EFF6FF] text-[#1D4ED8] border border-[#93C5FD]">
+                  <Clock className="w-3.5 h-3.5 text-[#3B82F6]" />
+                  {daysUntilEvent > 0
+                    ? `T - ${daysUntilEvent} Days To Go`
+                    : daysUntilEvent === 0
+                    ? "Target Event Day"
+                    : "Event Concluded"}
                 </span>
               )}
             </div>
+            <p className="text-xs text-[#718096]">
+              Master schedule synchronized across {tasks.length} countdown milestones & {runOfShow.length} day-of execution items.
+            </p>
           </div>
+        </div>
 
-          {/* Big Calendar Wrapper */}
-          <div className="h-[620px] w-full calendar-container">
-            <Calendar
-              localizer={localizer}
-              events={eventsList}
-              startAccessor="start"
-              endAccessor="end"
-              date={currentDate}
-              onNavigate={(newDate) => setCurrentDate(newDate)}
-              view={currentView}
-              onView={(view) => setCurrentView(view)}
-              eventPropGetter={eventPropGetter}
-              onSelectEvent={(event) => setSelectedEvent(event as CalendarEventItem)}
-              popup
-              views={["month", "week", "day", "agenda"]}
-              components={{
-                event: CustomCalendarEvent as any,
+        {/* Action Button Cluster */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {onNewEvent && (
+            <button
+              onClick={onNewEvent}
+              className="p-2.5 px-3.5 rounded-2xl bg-white hover:bg-[#F4F7F5] text-[#2D3748] border border-[#E2ECE5] transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs font-bold text-xs"
+              title="Create New Event Blueprint"
+            >
+              <Plus className="w-4 h-4 text-[#10B981] stroke-[2.5]" />
+              <span>New Blueprint</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsAiChatOpen(true)}
+            className="p-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#10B981] to-[#059669] hover:from-[#059669] hover:to-[#047857] text-white transition-all cursor-pointer flex items-center gap-2 shrink-0 shadow-sm shadow-[#10B981]/25 font-extrabold text-xs group"
+            title="Open AI Calendar Copilot (Ctrl+J)"
+          >
+            <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            <span>Ask AI Copilot</span>
+            <span className="hidden sm:inline-block text-[9px] font-mono bg-white/20 px-1.5 py-0.5 rounded-md border border-white/20">
+              Ctrl+J
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Executive 4-Card KPI Telemetry Matrix */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Target Date */}
+        <div className="bg-[#FFFFFF] p-4 rounded-3xl border border-[#E2ECE5] shadow-2xs space-y-2">
+          <div className="flex items-center justify-between text-[#718096]">
+            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+              <CalendarIcon className="w-3.5 h-3.5 text-[#10B981]" /> Target Date
+            </span>
+            <span className="text-[10px] font-semibold bg-[#F4F7F5] px-2 py-0.5 rounded-full border border-[#E2ECE5]">
+              {eventType}
+            </span>
+          </div>
+          <p className="text-sm font-extrabold text-[#2D3748] truncate">
+            {format(parsedEventDate, "EEE, MMM dd, yyyy")}
+          </p>
+          <div className="flex items-center gap-1.5 text-[11px] text-[#059669] font-semibold">
+            <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
+            <span>Master Schedule Locked</span>
+          </div>
+        </div>
+
+        {/* Card 2: Blueprint Profile & Vibe */}
+        <div className="bg-[#FFFFFF] p-4 rounded-3xl border border-[#E2ECE5] shadow-2xs space-y-2">
+          <div className="flex items-center justify-between text-[#718096]">
+            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#3B82F6]" /> Experience Tier
+            </span>
+            <span className="text-[10px] font-extrabold text-[#059669] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
+              {tier} Tier
+            </span>
+          </div>
+          <p className="text-sm font-extrabold text-[#2D3748] truncate">
+            {evalSummary?.eventVibe || "High-Energy Executive Experience"}
+          </p>
+          <div className="flex items-center gap-1.5 text-[11px] text-[#718096]">
+            <TrendingUp className="w-3 h-3 text-[#3B82F6]" />
+            <span>Feasibility: {evalSummary?.feasibilityAssessment ? "Verified" : "Aligned"}</span>
+          </div>
+        </div>
+
+        {/* Card 3: Total Budget Health */}
+        <div className="bg-[#FFFFFF] p-4 rounded-3xl border border-[#E2ECE5] shadow-2xs space-y-2">
+          <div className="flex items-center justify-between text-[#718096]">
+            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+              <IndianRupee className="w-3.5 h-3.5 text-[#10B981]" /> Budget Health
+            </span>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                budgetDelta > 0
+                  ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
+                  : budgetDelta === 0
+                  ? "bg-[#EFF6FF] text-[#1D4ED8] border-[#93C5FD]"
+                  : "bg-[#FEF2F2] text-[#B91C1C] border-[#FCA5A5]"
+              }`}
+            >
+              {budgetDelta > 0
+                ? `+₹${budgetDelta.toLocaleString("en-IN")} Buffer`
+                : budgetDelta === 0
+                ? "Balanced"
+                : "Over Budget"}
+            </span>
+          </div>
+          <p className="text-sm font-extrabold text-[#2D3748]">
+            ₹{targetBudget.toLocaleString("en-IN")}
+          </p>
+          <div className="w-full bg-[#E2ECE5] h-1.5 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                budgetDelta < 0 ? "bg-rose-500" : "bg-[#10B981]"
+              }`}
+              style={{
+                width: `${Math.min(100, (totalAllocated / Math.max(1, targetBudget)) * 100)}%`,
               }}
             />
           </div>
         </div>
 
-        {/* Right: Budget Breakdown Allocator Panel (4 cols on xl) */}
-        <div className="xl:col-span-4 bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-md space-y-5 xl:sticky xl:top-6">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-[#E2ECE5] gap-2">
+        {/* Card 4: Preparation Progress Velocity */}
+        <div className="bg-[#FFFFFF] p-4 rounded-3xl border border-[#E2ECE5] shadow-2xs space-y-2">
+          <div className="flex items-center justify-between text-[#718096]">
+            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" /> Task Velocity
+            </span>
+            <span className="text-[10px] font-bold text-[#10B981] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
+              {completionPercent}% Done
+            </span>
+          </div>
+          <p className="text-sm font-extrabold text-[#2D3748]">
+            {completedCount} of {tasks.length} Tasks Finished
+          </p>
+          <div className="w-full bg-[#E2ECE5] h-1.5 rounded-full overflow-hidden">
+            <div
+              className="bg-[#10B981] h-full rounded-full transition-all duration-500"
+              style={{ width: `${completionPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Primary Workspace Segmented Tabs */}
+      <div className="bg-[#FFFFFF] p-2 rounded-2xl border border-[#E2ECE5] shadow-xs flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveWorkspaceTab("calendar")}
+            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+              activeWorkspaceTab === "calendar"
+                ? "bg-[#10B981] text-white shadow-xs"
+                : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
+            }`}
+          >
+            <CalendarRange className="w-3.5 h-3.5" />
+            <span>Master Schedule & Calendar</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveWorkspaceTab("tasks")}
+            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+              activeWorkspaceTab === "tasks"
+                ? "bg-[#10B981] text-white shadow-xs"
+                : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
+            }`}
+          >
+            <ListChecks className="w-3.5 h-3.5" />
+            <span>Countdown Prep Tasks</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                activeWorkspaceTab === "tasks"
+                  ? "bg-white/25 text-white"
+                  : "bg-[#F4F7F5] text-[#718096] border border-[#E2ECE5]"
+              }`}
+            >
+              {tasks.length}
+            </span>
+          </button>
+
+          {runOfShow.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveWorkspaceTab("runofshow")}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+                activeWorkspaceTab === "runofshow"
+                  ? "bg-[#10B981] text-white shadow-xs"
+                  : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Day-of Run of Show</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeWorkspaceTab === "runofshow"
+                    ? "bg-white/25 text-white"
+                    : "bg-[#F4F7F5] text-[#718096] border border-[#E2ECE5]"
+                }`}
+              >
+                {runOfShow.length}
+              </span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setActiveWorkspaceTab("budget")}
+            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+              activeWorkspaceTab === "budget"
+                ? "bg-[#10B981] text-white shadow-xs"
+                : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5]"
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Budget Allocator</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                activeWorkspaceTab === "budget"
+                  ? "bg-white/25 text-white"
+                  : "bg-[#F4F7F5] text-[#718096] border border-[#E2ECE5]"
+              }`}
+            >
+              {editableBudget.length}
+            </span>
+          </button>
+        </div>
+
+        {/* If in Calendar tab, provide Layout Mode Switcher */}
+        {activeWorkspaceTab === "calendar" && (
+          <div className="hidden lg:flex items-center gap-1.5 bg-[#F4F7F5] p-1 rounded-xl border border-[#E2ECE5]">
+            <button
+              type="button"
+              onClick={() => setIsCalendarSplitView(true)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isCalendarSplitView
+                  ? "bg-white text-[#2D3748] shadow-2xs border border-[#E2ECE5]"
+                  : "text-[#718096] hover:text-[#2D3748]"
+              }`}
+              title="Split View (Calendar + Budget Panel)"
+            >
+              <Columns className="w-3 h-3 text-[#10B981]" />
+              <span>Split Companion</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCalendarSplitView(false)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                !isCalendarSplitView
+                  ? "bg-white text-[#2D3748] shadow-2xs border border-[#E2ECE5]"
+                  : "text-[#718096] hover:text-[#2D3748]"
+              }`}
+              title="Full Calendar Stage (Expanded)"
+            >
+              <Maximize2 className="w-3 h-3 text-[#10B981]" />
+              <span>Full Stage</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Main Workspace Stage */}
+      {activeWorkspaceTab === "calendar" && (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          {/* Main Calendar Card */}
+          <div
+            className={`${
+              isCalendarSplitView ? "xl:col-span-8" : "xl:col-span-12"
+            } bg-[#FFFFFF] rounded-3xl p-4 sm:p-6 border border-[#E2ECE5] shadow-md space-y-4`}
+          >
+            {/* Calendar Custom Command Strip */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between pb-3 border-b border-[#E2ECE5] gap-3">
+              {/* Date Navigation Cluster */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCalendarToday}
+                  className="px-3 py-1.5 rounded-xl bg-[#F4F7F5] hover:bg-[#E2ECE5] border border-[#E2ECE5] text-xs font-extrabold text-[#2D3748] transition-all cursor-pointer shadow-2xs"
+                >
+                  Today
+                </button>
+
+                <div className="flex items-center gap-0.5 bg-[#F4F7F5] p-0.5 rounded-xl border border-[#E2ECE5]">
+                  <button
+                    type="button"
+                    onClick={handleCalendarPrev}
+                    className="p-1.5 rounded-lg text-[#718096] hover:text-[#2D3748] hover:bg-white transition-all cursor-pointer"
+                    title="Previous Month/Week"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCalendarNext}
+                    className="p-1.5 rounded-lg text-[#718096] hover:text-[#2D3748] hover:bg-white transition-all cursor-pointer"
+                    title="Next Month/Week"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <h2 className="text-base sm:text-lg font-extrabold text-[#1A202C] ml-1 tracking-tight">
+                  {format(currentDate, "MMMM yyyy")}
+                </h2>
+              </div>
+
+              {/* Status Legend Pills */}
+              <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#E6F7F0] text-[#059669] font-medium border border-[#A7F3D0]">
+                  <span className="w-2 h-2 rounded-full bg-[#10B981]" /> Target Event
+                </span>
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#FEF2F2] text-[#B91C1C] font-medium border border-[#FCA5A5]">
+                  <span className="w-2 h-2 rounded-full bg-[#EF4444]" /> High
+                </span>
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#EFF6FF] text-[#1D4ED8] font-medium border border-[#93C5FD]">
+                  <span className="w-2 h-2 rounded-full bg-[#3B82F6]" /> Medium
+                </span>
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#F0FDF4] text-[#15803D] font-medium border border-[#86EFAC]">
+                  <span className="w-2 h-2 rounded-full bg-[#10B981]" /> Low
+                </span>
+                {runOfShow.length > 0 && (
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#F3E8FF] text-[#7E22CE] font-medium border border-[#D8B4FE]">
+                    <span className="w-2 h-2 rounded-full bg-[#A855F7]" /> Run of Show
+                  </span>
+                )}
+              </div>
+
+              {/* Calendar Views Switcher */}
+              <div className="flex items-center gap-1 bg-[#F4F7F5] p-1 rounded-xl border border-[#E2ECE5] text-xs">
+                {(["month", "week", "day", "agenda"] as View[]).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setCurrentView(v)}
+                    className={`px-2.5 py-1 rounded-lg font-bold capitalize transition-all cursor-pointer ${
+                      currentView === v
+                        ? "bg-[#10B981] text-white shadow-2xs"
+                        : "text-[#718096] hover:text-[#2D3748]"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Big Calendar Canvas */}
+            <div className="h-[640px] w-full calendar-container">
+              <Calendar
+                localizer={localizer}
+                events={eventsList}
+                startAccessor="start"
+                endAccessor="end"
+                date={currentDate}
+                onNavigate={(newDate) => setCurrentDate(newDate)}
+                view={currentView}
+                onView={(view) => setCurrentView(view)}
+                eventPropGetter={eventPropGetter}
+                onSelectEvent={(event) => setSelectedEvent(event as CalendarEventItem)}
+                popup
+                views={["month", "week", "day", "agenda"]}
+                components={{
+                  event: CustomCalendarEvent as any,
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Right Companion: Budget Breakdown Allocator Panel (when in split mode) */}
+          {isCalendarSplitView && (
+            <div className="xl:col-span-4 bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-md space-y-5 xl:sticky xl:top-6">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-[#E2ECE5] gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#E6F7F0] text-[#10B981] flex items-center justify-center font-bold">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-[#2D3748]">Budget Allocator</h2>
+                    <p className="text-[11px] text-[#718096]">
+                      Fine-tune allocations with Elastic Slider
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetBudget}
+                  className="p-1.5 rounded-xl text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] border border-transparent hover:border-[#E2ECE5] transition-all cursor-pointer flex items-center gap-1 text-xs"
+                  title="Reset to Original Values"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[11px] font-semibold">Reset</span>
+                </button>
+              </div>
+
+              {/* Current Event / Selected Milestone Context */}
+              <div className="p-3.5 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-[#718096]">
+                    Target Blueprint
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#059669]">
+                    <IndianRupee className="w-3 h-3 text-[#10B981]" />
+                    ₹{targetBudget.toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <p className="text-xs font-extrabold text-[#2D3748] truncate">
+                  {eventName || "Current Event"}
+                </p>
+                {selectedEvent ? (
+                  <div className="pt-2 mt-1.5 border-t border-[#E2ECE5] flex items-center justify-between text-[11px]">
+                    <span className="text-[#059669] font-medium truncate flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#10B981] inline-block shrink-0" />
+                      <span className="truncate">Selected: <strong>{selectedEvent.title}</strong></span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEvent(null)}
+                      className="text-[10px] text-[#718096] hover:text-[#2D3748] underline ml-2 shrink-0 cursor-pointer"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-[#718096]">
+                    Click any calendar task to highlight its department allocation.
+                  </p>
+                )}
+              </div>
+
+              {/* Budget Health Progress */}
+              <div className="space-y-2 p-3.5 rounded-2xl bg-gradient-to-br from-[#F0FDF4] to-[#FFFFFF] border border-[#A7F3D0]">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-[#2D3748]">Total Allocated:</span>
+                  <span className="font-extrabold text-sm text-[#2D3748]">
+                    ₹{totalAllocated.toLocaleString("en-IN")}
+                  </span>
+                </div>
+
+                <div className="w-full h-2 rounded-full bg-[#E2ECE5] overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 rounded-full ${
+                      budgetDelta < 0 ? "bg-rose-500" : "bg-[#10B981]"
+                    }`}
+                    style={{
+                      width: `${Math.min(100, (totalAllocated / Math.max(1, targetBudget)) * 100)}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-[#718096]">
+                    {((totalAllocated / Math.max(1, targetBudget)) * 100).toFixed(0)}% of target budget
+                  </span>
+                  <span
+                    className={`font-bold px-2 py-0.5 rounded-md border text-[10px] ${
+                      budgetDelta > 0
+                        ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
+                        : budgetDelta === 0
+                        ? "bg-[#EFF6FF] text-[#1D4ED8] border-[#93C5FD]"
+                        : "bg-[#FEF2F2] text-[#B91C1C] border-[#FCA5A5]"
+                    }`}
+                  >
+                    {budgetDelta > 0
+                      ? `₹${budgetDelta.toLocaleString("en-IN")} Buffer`
+                      : budgetDelta === 0
+                      ? "Balanced"
+                      : `+₹${Math.abs(budgetDelta).toLocaleString("en-IN")} Over`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Categories with ElasticSlider */}
+              <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
+                {editableBudget.map((item, index) => {
+                  const meta = getCategoryMeta(item.category);
+                  const CategoryIcon = meta.icon;
+                  const isDepartmentMatch =
+                    selectedEvent?.department &&
+                    item.category.toLowerCase().includes(selectedEvent.department.toLowerCase());
+
+                  const minBound = Math.max(0, item.sliderMin ?? 0);
+                  const maxBound = Math.max(minBound + 5000, item.sliderMax ?? Math.round(targetBudget * 0.6));
+
+                  return (
+                    <div
+                      key={`${item.category}-${index}`}
+                      className={`p-3 rounded-2xl border transition-all ${
+                        isDepartmentMatch
+                          ? "bg-[#F0FDF4] border-[#10B981] shadow-xs ring-1 ring-[#10B981]/30"
+                          : "bg-[#FFFFFF] hover:bg-[#F9FBFA] border-[#E2ECE5]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`p-1.5 rounded-xl border shrink-0 ${meta.color}`}>
+                            <CategoryIcon className="w-3.5 h-3.5" />
+                          </span>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-[#2D3748] truncate">
+                              {item.category}
+                            </h4>
+                            {item.spendStrategy && (
+                              <p className="text-[10px] text-[#718096] line-clamp-1">
+                                {item.spendStrategy}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-extrabold text-[#10B981] block">
+                            ₹{Number(item.allocatedAmount).toLocaleString("en-IN")}
+                          </span>
+                          <span className="text-[10px] text-[#718096] font-semibold">
+                            {item.percentage}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="py-1">
+                        <ElasticSlider
+                          value={item.allocatedAmount}
+                          startingValue={minBound}
+                          maxValue={maxBound}
+                          stepSize={500}
+                          isStepped={true}
+                          thickness={8}
+                          activeThickness={14}
+                          thumb={true}
+                          thumbColor="#10B981"
+                          valuePosition="bubble"
+                          rangeColor="#10B981"
+                          trackColor="#E2ECE5"
+                          leftIcon={<IndianRupee className="w-3.5 h-3.5 text-[#10B981]" />}
+                          rightIcon={<TrendingUp className="w-3.5 h-3.5 text-[#10B981]" />}
+                          formatValue={(val) => `₹${Math.round(val).toLocaleString("en-IN")}`}
+                          onChange={(newVal) => handleCategoryBudgetChange(index, newVal)}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Save Budget Action */}
+              <div className="pt-2 border-t border-[#E2ECE5]">
+                <button
+                  type="button"
+                  disabled={isSavingBudget}
+                  onClick={handleSaveBudget}
+                  className={`w-full py-2.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs ${
+                    saveSuccess
+                      ? "bg-[#059669] text-white"
+                      : "bg-[#10B981] hover:bg-[#059669] text-white shadow-[#10B981]/20"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isSavingBudget ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving Allocations...</span>
+                    </>
+                  ) : saveSuccess ? (
+                    <>
+                      <Check className="w-4 h-4 stroke-[2.5]" />
+                      <span>Allocations Saved</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Save & Sync Allocations</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Countdown Prep Tasks Section */}
+      {activeWorkspaceTab === "tasks" && (
+        <div className="bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[#E2ECE5] gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-[#E6F7F0] text-[#10B981] flex items-center justify-center">
+                  <ListChecks className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-[#2D3748]">
+                  Countdown Prep Tasks Checklist
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#F4F7F5] text-[#718096] border border-[#E2ECE5]">
+                  {tasks.length} Total
+                </span>
+              </div>
+              <p className="text-xs text-[#718096]">
+                Operational milestones mapped by countdown days prior to event day.
+              </p>
+            </div>
+
+            {/* Progress Pill */}
+            <div className="flex items-center gap-3 bg-[#F4F7F5] p-2.5 px-4 rounded-2xl border border-[#E2ECE5]">
+              <div className="text-xs font-semibold text-[#2D3748]">
+                <span className="font-extrabold text-[#10B981]">{completedCount}</span> /{" "}
+                {tasks.length} Completed
+              </div>
+              <div className="w-24 bg-[#E2ECE5] h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-[#10B981] h-full transition-all duration-300"
+                  style={{ width: `${completionPercent}%` }}
+                />
+              </div>
+              <span className="text-xs font-bold text-[#10B981]">{completionPercent}%</span>
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs">
+                <Filter className="w-3.5 h-3.5 text-[#718096]" />
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-semibold text-[#2D3748] focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
+                >
+                  <option value="all">All Departments ({tasks.length})</option>
+                  {uniqueDepartments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs">
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-semibold text-[#2D3748] focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
+                >
+                  <option value="all">All Priorities</option>
+                  <option value="high">High Priority</option>
+                  <option value="medium">Medium Priority</option>
+                  <option value="low">Low Priority</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs">
+                <select
+                  value={actionFilter}
+                  onChange={(e) => setActionFilter(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-semibold text-[#2D3748] focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
+                >
+                  <option value="all">All Action Types</option>
+                  <option value="call">Call</option>
+                  <option value="procure">Procure</option>
+                  <option value="design">Design</option>
+                  <option value="arrange">Arrange</option>
+                  <option value="setup">Setup</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Search Box */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-[#718096] absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search prep tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-medium text-[#2D3748] placeholder-[#718096] w-full sm:w-56 focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
+              />
+            </div>
+          </div>
+
+          {/* Bento Cards */}
+          {filteredTasks.length === 0 ? (
+            <div className="p-8 text-center bg-[#F4F7F5] rounded-2xl border border-dashed border-[#E2ECE5]">
+              <p className="text-xs text-[#718096] font-medium">
+                No prep tasks match the selected filters.
+              </p>
+            </div>
+          ) : (
+            <div className="w-full">
+              <MagicBento
+                items={bentoTaskItems}
+                columns={2}
+                rowHeight={170}
+                gap={14}
+                radius={20}
+                theme="light"
+                glowColor="#10B981"
+                enableBorderGlow={true}
+                enableSpotlight={true}
+                spotlightRadius={280}
+                enableStars={false}
+                enableTilt={false}
+                enableMagnetism={false}
+                clickEffect={true}
+                textAutoHide={false}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Day-of Run of Show Stage */}
+      {activeWorkspaceTab === "runofshow" && (
+        <div className="bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E2ECE5] gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#F3E8FF] text-[#A855F7] flex items-center justify-center font-bold">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[#2D3748]">
+                  Day-of Execution Run of Show Timeline
+                </h3>
+                <p className="text-xs text-[#718096]">
+                  Synchronized hourly execution schedule for main event day ({format(parsedEventDate, "MMMM dd, yyyy")}).
+                </p>
+              </div>
+            </div>
+
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#F3E8FF] text-[#7E22CE] border border-[#D8B4FE]">
+              {runOfShow.length} Operational Sequence Items
+            </span>
+          </div>
+
+          {runOfShow.length === 0 ? (
+            <div className="p-8 text-center bg-[#F4F7F5] rounded-2xl border border-dashed border-[#E2ECE5]">
+              <p className="text-xs text-[#718096] font-medium">
+                No run of show timeline items specified for this event.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {runOfShow.map((ros, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    const rosEvent: CalendarEventItem = {
+                      id: `ros-${idx}`,
+                      title: `[${ros.departmentInCharge}] ${ros.activity}`,
+                      start: new Date(parsedEventDate),
+                      end: new Date(parsedEventDate),
+                      allDay: false,
+                      type: "Day-of Run of Show",
+                      description: `${ros.operationalNotes} (Dependency: ${ros.dependency})`,
+                      runOfShowItem: ros,
+                      department: ros.departmentInCharge,
+                    };
+                    setSelectedEvent(rosEvent);
+                  }}
+                  className="p-4 rounded-2xl bg-[#FAFCFB] hover:bg-[#F0FDF4] border border-[#E2ECE5] hover:border-[#A7F3D0] transition-all cursor-pointer shadow-2xs space-y-2 group"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-extrabold text-[#7E22CE] bg-[#F3E8FF] px-2.5 py-1 rounded-lg border border-[#D8B4FE]">
+                      {ros.timeSlot || "TBD"}
+                    </span>
+                    <span className="text-[11px] font-bold text-[#2D3748] px-2 py-0.5 rounded-lg bg-[#F4F7F5] border border-[#E2ECE5]">
+                      {ros.departmentInCharge}
+                    </span>
+                  </div>
+
+                  <h4 className="text-sm font-extrabold text-[#1A202C] group-hover:text-[#059669] transition-colors">
+                    {ros.activity}
+                  </h4>
+
+                  <p className="text-xs text-[#718096] leading-relaxed">
+                    {ros.operationalNotes}
+                  </p>
+
+                  {ros.dependency && (
+                    <div className="pt-2 border-t border-[#E2ECE5] flex items-center justify-between text-[11px] text-[#718096]">
+                      <span>Dependency: <strong>{ros.dependency}</strong></span>
+                      <span className="text-[#10B981] font-semibold group-hover:translate-x-0.5 transition-transform">
+                        Details →
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Dedicated Budget Allocator Stage (when in budget tab) */}
+      {activeWorkspaceTab === "budget" && (
+        <div className="bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-sm space-y-5 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E2ECE5] gap-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-[#E6F7F0] text-[#10B981] flex items-center justify-center font-bold">
                 <SlidersHorizontal className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-[#2D3748]">Budget Allocator</h2>
-                <p className="text-[11px] text-[#718096]">
-                  Fine-tune allocations with Elastic Slider
+                <h3 className="text-base font-bold text-[#2D3748]">
+                  Financial Allocation Dashboard & Elastic Slider
+                </h3>
+                <p className="text-xs text-[#718096]">
+                  Fine-tune departmental budget allocations and simulate contingency reserves.
                 </p>
               </div>
             </div>
@@ -1197,150 +1884,45 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             <button
               type="button"
               onClick={handleResetBudget}
-              className="p-1.5 rounded-xl text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] border border-transparent hover:border-[#E2ECE5] transition-all cursor-pointer flex items-center gap-1 text-xs"
-              title="Reset to Original Values"
+              className="p-2 px-3 rounded-xl text-[#718096] hover:text-[#2D3748] bg-[#F4F7F5] hover:bg-[#E2ECE5] border border-[#E2ECE5] transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline text-[11px] font-semibold">Reset</span>
+              <span>Reset Values</span>
             </button>
           </div>
 
-          {/* Current Event / Selected Milestone Context */}
-          <div className="p-3.5 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-[#718096]">
-                Target Event Blueprint
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#059669]">
-                <IndianRupee className="w-3 h-3 text-[#10B981]" />
-                ₹{targetBudget.toLocaleString("en-IN")}
-              </span>
-            </div>
-            <p className="text-xs font-extrabold text-[#2D3748] truncate">
-              {eventName || "Current Event"}
-            </p>
-            {selectedEvent ? (
-              <div className="pt-2 mt-1.5 border-t border-[#E2ECE5] flex items-center justify-between text-[11px]">
-                <span className="text-[#059669] font-medium truncate flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#10B981] inline-block shrink-0" />
-                  <span className="truncate">Selected: <strong>{selectedEvent.title}</strong></span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedEvent(null)}
-                  className="text-[10px] text-[#718096] hover:text-[#2D3748] underline ml-2 shrink-0 cursor-pointer"
-                >
-                  Clear Selection
-                </button>
-              </div>
-            ) : (
-              <p className="text-[10px] text-[#718096]">
-                Click any calendar task to highlight its department allocation.
-              </p>
-            )}
-          </div>
-
-          {/* Budget Health & Allocation Progress */}
-          <div className="space-y-2 p-3.5 rounded-2xl bg-gradient-to-br from-[#F0FDF4] to-[#FFFFFF] border border-[#A7F3D0]">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-[#2D3748]">Total Allocated:</span>
-              <span className="font-extrabold text-sm text-[#2D3748]">
-                ₹{totalAllocated.toLocaleString("en-IN")}
-              </span>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-full h-2 rounded-full bg-[#E2ECE5] overflow-hidden">
-              <div
-                className={`h-full transition-all duration-300 rounded-full ${
-                  budgetDelta < 0 ? "bg-rose-500" : "bg-[#10B981]"
-                }`}
-                style={{
-                  width: `${Math.min(100, (totalAllocated / Math.max(1, targetBudget)) * 100)}%`,
-                }}
-              />
-            </div>
-
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[#718096]">
-                {((totalAllocated / Math.max(1, targetBudget)) * 100).toFixed(0)}% of target budget
-              </span>
-              <span
-                className={`font-bold px-2 py-0.5 rounded-md border text-[10px] ${
-                  budgetDelta > 0
-                    ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
-                    : budgetDelta === 0
-                    ? "bg-[#EFF6FF] text-[#1D4ED8] border-[#93C5FD]"
-                    : "bg-[#FEF2F2] text-[#B91C1C] border-[#FCA5A5]"
-                }`}
-              >
-                {budgetDelta > 0
-                  ? `₹${budgetDelta.toLocaleString("en-IN")} Buffer Left`
-                  : budgetDelta === 0
-                  ? "Perfect Balance"
-                  : `+₹${Math.abs(budgetDelta).toLocaleString("en-IN")} Over Budget`}
-              </span>
-            </div>
-          </div>
-
-          {/* Categories List with ElasticSlider */}
-          <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
+          {/* Full Width Grid for Budget Sliders */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {editableBudget.map((item, index) => {
               const meta = getCategoryMeta(item.category);
               const CategoryIcon = meta.icon;
-              const isDepartmentMatch =
-                selectedEvent?.department &&
-                item.category.toLowerCase().includes(selectedEvent.department.toLowerCase());
-
               const minBound = Math.max(0, item.sliderMin ?? 0);
               const maxBound = Math.max(minBound + 5000, item.sliderMax ?? Math.round(targetBudget * 0.6));
 
               return (
                 <div
                   key={`${item.category}-${index}`}
-                  className={`p-3 rounded-2xl border transition-all ${
-                    isDepartmentMatch
-                      ? "bg-[#F0FDF4] border-[#10B981] shadow-xs ring-1 ring-[#10B981]/30"
-                      : "bg-[#FFFFFF] hover:bg-[#F9FBFA] border-[#E2ECE5]"
-                  }`}
+                  className="p-4 rounded-2xl bg-[#FAFCFB] border border-[#E2ECE5] shadow-2xs space-y-2"
                 >
-                  {/* Category Header */}
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                       <span className={`p-1.5 rounded-xl border shrink-0 ${meta.color}`}>
                         <CategoryIcon className="w-3.5 h-3.5" />
                       </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="text-xs font-bold text-[#2D3748] truncate">
-                            {item.category}
-                          </h4>
-                          {isDepartmentMatch && (
-                            <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-full bg-[#10B981] text-white">
-                              Active Task
-                            </span>
-                          )}
-                        </div>
-                        {item.spendStrategy && (
-                          <p className="text-[10px] text-[#718096] line-clamp-1">
-                            {item.spendStrategy}
-                          </p>
-                        )}
+                      <div>
+                        <h4 className="text-xs font-bold text-[#2D3748]">{item.category}</h4>
+                        <span className="text-[10px] text-[#718096]">{item.spendStrategy}</span>
                       </div>
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-extrabold text-[#10B981] block">
+                    <div className="text-right">
+                      <span className="text-sm font-extrabold text-[#10B981] block">
                         ₹{Number(item.allocatedAmount).toLocaleString("en-IN")}
                       </span>
-                      <span className="text-[10px] text-[#718096] font-semibold">
-                        {item.percentage}%
-                      </span>
+                      <span className="text-[10px] text-[#718096] font-semibold">{item.percentage}%</span>
                     </div>
                   </div>
 
-                  {/* Elastic Slider from React Bits */}
-                  <div className="py-1">
+                  <div className="py-2">
                     <ElasticSlider
                       value={item.allocatedAmount}
                       startingValue={minBound}
@@ -1361,185 +1943,24 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                       className="w-full"
                     />
                   </div>
-
-                  {/* Min / Max bounds guide */}
-                  <div className="flex items-center justify-between text-[10px] text-[#718096] mt-1 pt-1 border-t border-[#E2ECE5]/50">
-                    <span>Min: ₹{minBound.toLocaleString("en-IN")}</span>
-                    <span>Max: ₹{maxBound.toLocaleString("en-IN")}</span>
-                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Save Action & Feedback */}
-          <div className="pt-2 border-t border-[#E2ECE5] space-y-2">
+          <div className="pt-2">
             <button
               type="button"
               disabled={isSavingBudget}
               onClick={handleSaveBudget}
-              className={`w-full py-2.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs ${
-                saveSuccess
-                  ? "bg-[#059669] text-white"
-                  : "bg-[#10B981] hover:bg-[#059669] text-white shadow-[#10B981]/20"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="py-3 px-6 rounded-2xl bg-[#10B981] hover:bg-[#059669] text-white font-bold text-xs transition-all cursor-pointer shadow-xs shadow-[#10B981]/25 flex items-center justify-center gap-2"
             >
-              {isSavingBudget ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Saving Allocations...</span>
-                </>
-              ) : saveSuccess ? (
-                <>
-                  <Check className="w-4 h-4 stroke-[2.5]" />
-                  <span>Allocations Saved to Blueprint</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>Save & Sync Budget Allocations</span>
-                </>
-              )}
+              <Save className="w-4 h-4" />
+              <span>Save & Sync All Allocations</span>
             </button>
-
-            {saveError && (
-              <p className="text-[11px] text-rose-600 font-medium text-center">
-                {saveError}
-              </p>
-            )}
           </div>
         </div>
-      </div>
-
-      {/* Countdown Prep Tasks Checklist Section (Directly from UserStatus.prepCalendarTasks) */}
-      <div className="bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[#E2ECE5] gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-xl bg-[#E6F7F0] text-[#10B981] flex items-center justify-center">
-                <ListChecks className="w-4 h-4" />
-              </div>
-              <h3 className="text-base font-bold text-[#2D3748]">
-                Countdown Prep Tasks Checklist (prepCalendarTasks)
-              </h3>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[#F4F7F5] text-[#718096] border border-[#E2ECE5]">
-                {tasks.length} Total
-              </span>
-            </div>
-            <p className="text-xs text-[#718096]">
-              Action-oriented tasks organized by countdown days before event execution date.
-            </p>
-          </div>
-
-          {/* Progress Pill */}
-          <div className="flex items-center gap-3 bg-[#F4F7F5] p-2.5 px-4 rounded-2xl border border-[#E2ECE5]">
-            <div className="text-xs font-semibold text-[#2D3748]">
-              <span className="font-extrabold text-[#10B981]">{completedCount}</span> /{" "}
-              {tasks.length} Completed
-            </div>
-            <div className="w-24 bg-[#E2ECE5] h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-[#10B981] h-full transition-all duration-300"
-                style={{ width: `${completionPercent}%` }}
-              />
-            </div>
-            <span className="text-xs font-bold text-[#10B981]">{completionPercent}%</span>
-          </div>
-        </div>
-
-        {/* Filter Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Department Filter */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <Filter className="w-3.5 h-3.5 text-[#718096]" />
-              <select
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-semibold text-[#2D3748] focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
-              >
-                <option value="all">All Departments ({tasks.length})</option>
-                {uniqueDepartments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Priority Filter */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <select
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-semibold text-[#2D3748] focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
-              >
-                <option value="all">All Priorities</option>
-                <option value="high">High Priority</option>
-                <option value="medium">Medium Priority</option>
-                <option value="low">Low Priority</option>
-              </select>
-            </div>
-
-            {/* Action Type Filter */}
-            <div className="flex items-center gap-1.5 text-xs">
-              <select
-                value={actionFilter}
-                onChange={(e) => setActionFilter(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-semibold text-[#2D3748] focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
-              >
-                <option value="all">All Action Types</option>
-                <option value="call">Call</option>
-                <option value="procure">Procure</option>
-                <option value="design">Design</option>
-                <option value="arrange">Arrange</option>
-                <option value="setup">Setup</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Search Box */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-[#718096] absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search prep tasks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-medium text-[#2D3748] placeholder-[#718096] w-full sm:w-56 focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
-            />
-          </div>
-        </div>
-
-        {/* Tasks List Table / Cards */}
-        {filteredTasks.length === 0 ? (
-          <div className="p-8 text-center bg-[#F4F7F5] rounded-2xl border border-dashed border-[#E2ECE5]">
-            <p className="text-xs text-[#718096] font-medium">
-              No prep tasks match the selected filters.
-            </p>
-          </div>
-        ) : (
-          <div className="w-full">
-            <MagicBento
-              items={bentoTaskItems}
-              columns={2}
-              rowHeight={170}
-              gap={14}
-              radius={20}
-              theme="light"
-              glowColor="#10B981"
-              enableBorderGlow={true}
-              enableSpotlight={true}
-              spotlightRadius={280}
-              enableStars={false}
-              enableTilt={false}
-              enableMagnetism={false}
-              clickEffect={true}
-              textAutoHide={false}
-            />
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Selected Event Details Left-Side Pop-Up Bar / Drawer */}
       {activeDrawerEvent && (() => {

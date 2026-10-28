@@ -315,9 +315,34 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     ];
   }, [eventBudget]);
 
+  const targetBudget = Number(eventBudget) || 100000;
+
+  // Helper to ensure each category has fixed, stable min & max bounds
+  const normalizeBudgetItems = (items: IBudgetBreakdownItem[]): IBudgetBreakdownItem[] => {
+    return items.map((item) => {
+      const allocated = Math.max(0, Number(item.allocatedAmount) || 0);
+      const sMin =
+        typeof item.sliderMin === "number" && !isNaN(item.sliderMin) && item.sliderMin >= 0
+          ? item.sliderMin
+          : Math.max(0, Math.round(Math.min(allocated * 0.25, targetBudget * 0.05)));
+      const sMax =
+        typeof item.sliderMax === "number" && !isNaN(item.sliderMax) && item.sliderMax > sMin
+          ? item.sliderMax
+          : Math.max(sMin + 5000, Math.round(Math.max(allocated * 2, targetBudget * 0.6, 25000)));
+
+      return {
+        ...item,
+        allocatedAmount: allocated,
+        sliderMin: sMin,
+        sliderMax: sMax,
+      };
+    });
+  };
+
   // Editable budget breakdown state controlled by ElasticSlider
   const [editableBudget, setEditableBudget] = useState<IBudgetBreakdownItem[]>(() => {
-    return initialBudget && initialBudget.length > 0 ? initialBudget : defaultCategories;
+    const base = initialBudget && initialBudget.length > 0 ? initialBudget : defaultCategories;
+    return normalizeBudgetItems(base);
   });
   const [isSavingBudget, setIsSavingBudget] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -326,12 +351,11 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   // Sync editable budget if budgetList updates from database or parent
   useEffect(() => {
     if (budgetList && budgetList.length > 0) {
-      setEditableBudget(budgetList);
+      setEditableBudget(normalizeBudgetItems(budgetList));
     }
-  }, [budgetList]);
+  }, [budgetList, targetBudget]);
 
   // Target budget and total allocated calculations
-  const targetBudget = Number(eventBudget) || 100000;
   const totalAllocated = useMemo(() => {
     return editableBudget.reduce(
       (sum, item) => sum + (Number(item.allocatedAmount) || 0),
@@ -1180,16 +1204,8 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                 selectedEvent?.department &&
                 item.category.toLowerCase().includes(selectedEvent.department.toLowerCase());
 
-              const minBound = Math.max(
-                0,
-                item.sliderMin !== undefined && item.sliderMin < item.allocatedAmount
-                  ? item.sliderMin
-                  : Math.round(item.allocatedAmount * 0.25)
-              );
-              const maxBound =
-                item.sliderMax && item.sliderMax > item.allocatedAmount
-                  ? item.sliderMax
-                  : Math.max(item.allocatedAmount * 2, Math.round(targetBudget * 0.6), 25000);
+              const minBound = Math.max(0, item.sliderMin ?? 0);
+              const maxBound = Math.max(minBound + 5000, item.sliderMax ?? Math.round(targetBudget * 0.6));
 
               return (
                 <div

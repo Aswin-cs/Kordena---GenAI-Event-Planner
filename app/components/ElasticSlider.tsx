@@ -369,6 +369,10 @@ export function ElasticSlider({
   const commit = (next: number) => {
     const s = settingsRef.current;
     motion.current.target = (next - s.lo) / s.span;
+    if (motion.current.dragging) {
+      motion.current.p = motion.current.target;
+      motion.current.vp = 0;
+    }
     kick();
     if (next === currentRef.current) return;
     currentRef.current = next;
@@ -388,16 +392,20 @@ export function ElasticSlider({
   useIsoLayoutEffect(() => {
     const m = motion.current;
     currentRef.current = current;
-    const fraction = (current - lo) / span;
-    if (!m.dragging) m.target = fraction;
-    if (!m.ready) {
-      m.ready = true;
-      m.p = fraction;
-      paint();
-      return;
+    const fraction = clamp((current - lo) / span, 0, 1);
+    if (!m.dragging) {
+      m.target = fraction;
+      if (!m.ready) {
+        m.ready = true;
+        m.p = fraction;
+      }
     }
+    if (hitRef.current) {
+      m.length = vertical ? hitRef.current.clientHeight : hitRef.current.clientWidth;
+    }
+    paint();
     kick();
-  }, [current, lo, span]);
+  }, [current, lo, span, vertical]);
 
   useIsoLayoutEffect(() => {
     const hit = hitRef.current;
@@ -475,6 +483,10 @@ export function ElasticSlider({
     if (disabled || event.button !== 0 || !hit) return;
     event.preventDefault();
 
+    try {
+      hit.setPointerCapture(event.pointerId);
+    } catch (_) {}
+
     const m = motion.current;
     const s = settingsRef.current;
     
@@ -496,35 +508,42 @@ export function ElasticSlider({
     refreshGoal();
 
     if (s.jumpToClick) {
-      commit(snap(s.lo + clamp(clientPos / length, 0, 1) * s.span));
+      const calculated = snap(s.lo + clamp(clientPos / length, 0, 1) * s.span);
+      commit(calculated);
     }
 
     const onPointerMove = (e: PointerEvent) => {
       if (!drag.current) return;
+      const curSettings = settingsRef.current;
       const curRect = hit.getBoundingClientRect();
-      const curLen = Math.max(1, s.vertical ? curRect.height : curRect.width);
+      const curLen = Math.max(1, curSettings.vertical ? curRect.height : curRect.width);
       m.length = curLen;
-      const pos = s.vertical ? curRect.bottom - e.clientY : e.clientX - curRect.left;
+      const pos = curSettings.vertical ? curRect.bottom - e.clientY : e.clientX - curRect.left;
       const fraction = drag.current.from === null 
         ? pos / curLen 
         : drag.current.from + (pos - drag.current.origin) / curLen;
 
       const over = fraction < 0 ? -fraction * curLen : fraction > 1 ? (fraction - 1) * curLen : 0;
-      if (over > 0 && s.maxStretch > 0) {
+      if (over > 0 && curSettings.maxStretch > 0) {
         const side = fraction < 0 ? -1 : 1;
         if (!m.held || m.side !== side) pulse(side);
         m.held = true;
         m.side = side;
-        m.s = rubber(over, s.maxStretch);
+        m.s = rubber(over, curSettings.maxStretch);
         m.vs = 0;
       } else if (m.held) {
         m.held = false;
       }
 
-      commit(snap(s.lo + clamp(fraction, 0, 1) * s.span));
+      commit(snap(curSettings.lo + clamp(fraction, 0, 1) * curSettings.span));
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (e: PointerEvent) => {
+      try {
+        if (hit.hasPointerCapture(e.pointerId)) {
+          hit.releasePointerCapture(e.pointerId);
+        }
+      } catch (_) {}
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);

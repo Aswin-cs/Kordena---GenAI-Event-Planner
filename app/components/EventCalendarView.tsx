@@ -25,6 +25,7 @@ import {
   Filter,
   Search,
   ExternalLink,
+  ChevronLeft,
   ChevronRight,
   TrendingUp,
   Users,
@@ -36,6 +37,10 @@ import {
   Save,
   RotateCcw,
   Check,
+  CheckCheck,
+  Copy,
+  FileText,
+  CalendarDays,
   ShieldCheck,
   UtensilsCrossed,
   Building2,
@@ -50,6 +55,7 @@ import {
 } from "@/models/UserStatus.model";
 import MagicBento, { MagicBentoItem } from "./MagicBento";
 import ElasticSlider from "./ElasticSlider";
+import { CalendarAiChatbot } from "./CalendarAiChatbot";
 
 const locales = {
   "en-US": enUS,
@@ -260,6 +266,26 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
 }) => {
   const [currentView, setCurrentView] = useState<View>("month");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [activeDrawerEvent, setActiveDrawerEvent] = useState<CalendarEventItem | null>(null);
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+
+  // Smooth left pop-up drawer animation lifecycle
+  useEffect(() => {
+    if (selectedEvent) {
+      setActiveDrawerEvent(selectedEvent);
+      const timer = setTimeout(() => {
+        setIsDrawerOpen(true);
+      }, 20);
+      return () => clearTimeout(timer);
+    } else {
+      setIsDrawerOpen(false);
+      const timer = setTimeout(() => {
+        setActiveDrawerEvent(null);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedEvent]);
 
   // Loaded tasks & run of show state (with fallback to GET /api/user-status if props are empty)
   const [tasks, setTasks] = useState<IPrepCalendarTask[]>(initialTasks || []);
@@ -599,6 +625,57 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     evalSummary,
     completedTaskIds,
   ]);
+
+  // Pop-up bar UI/UX helper states and actions
+  const [copiedTask, setCopiedTask] = useState(false);
+
+  const currentEventIdx = useMemo(() => {
+    if (!activeDrawerEvent) return -1;
+    return eventsList.findIndex((e) => e.id === activeDrawerEvent.id);
+  }, [eventsList, activeDrawerEvent]);
+
+  const handleNavigateEvent = (direction: "prev" | "next") => {
+    if (currentEventIdx === -1) return;
+    const nextIdx = direction === "prev" ? currentEventIdx - 1 : currentEventIdx + 1;
+    if (nextIdx >= 0 && nextIdx < eventsList.length) {
+      const nextEvent = eventsList[nextIdx];
+      setSelectedEvent(nextEvent);
+      setCurrentDate(nextEvent.start);
+    }
+  };
+
+  const handleCopyTask = (event: CalendarEventItem) => {
+    const textToCopy = `Event Task: ${event.title}\nDate: ${format(event.start, "EEE, MMM dd, yyyy")}\nTimeline: ${
+      event.daysBeforeEvent !== undefined ? `T - ${event.daysBeforeEvent} Days Before Event` : "Main Event Day"
+    }\nDepartment: ${event.department || "General"}\nGuidance: ${event.actionBrief || event.description || "N/A"}\nBudget: ₹${Number(event.estimatedCost ?? event.budget ?? 0).toLocaleString("en-IN")}`;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedTask(true);
+    setTimeout(() => setCopiedTask(false), 2000);
+  };
+
+  const handleFocusCalendar = (date: Date) => {
+    setCurrentDate(date);
+    const calendarEl = document.querySelector(".calendar-container");
+    if (calendarEl) {
+      calendarEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  // Keyboard navigation: ESC to close, Arrow keys to cycle tasks while open
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedEvent) return;
+      if (e.key === "Escape") {
+        setSelectedEvent(null);
+      } else if (e.key === "ArrowLeft" && currentEventIdx > 0) {
+        handleNavigateEvent("prev");
+      } else if (e.key === "ArrowRight" && currentEventIdx >= 0 && currentEventIdx < eventsList.length - 1) {
+        handleNavigateEvent("next");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedEvent, currentEventIdx, eventsList]);
 
   // Custom event styles for React-Big-Calendar
   const eventPropGetter = (event: CalendarEventItem) => {
@@ -940,6 +1017,17 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
               <span>New Event</span>
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => setIsAiChatOpen(true)}
+            className="p-2.5 px-3.5 rounded-2xl bg-[#E6F7F0] hover:bg-[#D1FAE5] text-[#059669] border border-[#A7F3D0] transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs font-bold text-xs group"
+            title="Open AI Calendar Copilot"
+          >
+            <Sparkles className="w-4 h-4 text-[#10B981] group-hover:scale-110 transition-transform" />
+            <span className="hidden sm:inline">Ask AI Copilot</span>
+            <span className="sm:hidden">AI</span>
+          </button>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -1453,156 +1541,423 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         )}
       </div>
 
-      {/* Selected Event Details Modal / Drawer */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-50 bg-[#2D3748]/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-[#FFFFFF] rounded-3xl max-w-lg w-full border border-[#E2ECE5] shadow-2xl p-6 animate-in fade-in zoom-in duration-150 relative space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E2ECE5]">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`w-3 h-3 rounded-full ${
-                    selectedEvent.isMainEvent
-                      ? "bg-[#10B981]"
-                      : selectedEvent.priority === "high"
-                      ? "bg-[#EF4444]"
-                      : selectedEvent.priority === "medium"
-                      ? "bg-[#3B82F6]"
-                      : "bg-[#10B981]"
+      {/* Selected Event Details Left-Side Pop-Up Bar / Drawer */}
+      {activeDrawerEvent && (() => {
+        const cleanTitle = activeDrawerEvent.title.replace(/^\[.*?\]\s*/, "");
+        const extractedDept =
+          activeDrawerEvent.department ||
+          (activeDrawerEvent.title.match(/^\[(.*?)\]/)?.[1] ?? "");
+        const isDone = Boolean(completedTaskIds[activeDrawerEvent.id]);
+        const eventCostNum = Number(
+          activeDrawerEvent.estimatedCost ?? activeDrawerEvent.budget ?? 0
+        );
+        const targetBudgetNum = Number(eventBudget) || 100000;
+        const percentOfBudget =
+          targetBudgetNum > 0
+            ? Math.min(100, Math.round((eventCostNum / targetBudgetNum) * 100))
+            : 0;
+        const hasPrev = currentEventIdx > 0;
+        const hasNext =
+          currentEventIdx >= 0 && currentEventIdx < eventsList.length - 1;
+
+        return (
+          <div className="fixed inset-0 z-50 overflow-hidden pointer-events-none">
+            {/* Backdrop with smooth fade */}
+            <div
+              onClick={() => setSelectedEvent(null)}
+              className={`fixed inset-0 bg-[#1A202C]/25 backdrop-blur-[3px] transition-opacity duration-300 ease-out pointer-events-auto ${
+                isDrawerOpen ? "opacity-100" : "opacity-0"
+              }`}
+              aria-hidden="true"
+            />
+
+            {/* Left Side Pop-Up Bar Card with Smooth Slide Animation */}
+            <div
+              className={`fixed top-0 bottom-0 left-0 sm:top-3 sm:bottom-3 sm:left-3 md:top-4 md:bottom-4 md:left-4 z-50 w-full sm:w-[490px] md:w-[510px] max-w-[calc(100vw-1rem)] p-2 sm:p-0 flex flex-col pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                isDrawerOpen
+                  ? "translate-x-0 opacity-100"
+                  : "-translate-x-full opacity-0"
+              }`}
+            >
+              <div className="bg-[#FFFFFF] rounded-3xl border border-[#E2ECE5] shadow-[0_25px_70px_-12px_rgba(20,40,30,0.18),0_0_0_1px_rgba(226,236,229,0.8)] flex flex-col h-full max-h-full overflow-hidden pointer-events-auto relative">
+                {/* Top Accent Gradient Line */}
+                <div
+                  className={`h-1.5 w-full shrink-0 ${
+                    activeDrawerEvent.isMainEvent
+                      ? "bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600"
+                      : activeDrawerEvent.priority === "high"
+                      ? "bg-gradient-to-r from-red-500 via-rose-500 to-amber-500"
+                      : activeDrawerEvent.priority === "medium"
+                      ? "bg-gradient-to-r from-blue-500 via-sky-400 to-cyan-500"
+                      : activeDrawerEvent.runOfShowItem
+                      ? "bg-gradient-to-r from-purple-500 via-fuchsia-400 to-indigo-500"
+                      : "bg-gradient-to-r from-emerald-500 to-teal-400"
                   }`}
                 />
-                <h3 className="text-base font-bold text-[#2D3748]">
-                  {selectedEvent.isMainEvent
-                    ? "Target Event Details"
-                    : selectedEvent.runOfShowItem
-                    ? "Day-of Run of Show Item"
-                    : "Countdown Prep Task Details"}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="text-[#718096] hover:text-[#2D3748] cursor-pointer p-1 rounded-lg hover:bg-[#F4F7F5] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="space-y-3.5 text-xs">
-              <div>
-                <p className="text-[#718096] font-semibold uppercase text-[10px] tracking-wider">
-                  Title
-                </p>
-                <p className="text-sm font-bold text-[#2D3748] mt-0.5">{selectedEvent.title}</p>
-              </div>
-
-              {/* Countdown or Execution Timing */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-[#F4F7F5] p-2.5 rounded-xl border border-[#E2ECE5]">
-                  <span className="text-[10px] uppercase font-bold text-[#718096]">Timeline</span>
-                  <p className="font-extrabold text-xs text-[#2D3748] mt-0.5">
-                    {selectedEvent.daysBeforeEvent !== undefined
-                      ? `T - ${selectedEvent.daysBeforeEvent} Days Before Event`
-                      : "Main Event Execution Day"}
-                  </p>
-                </div>
-                <div className="bg-[#F4F7F5] p-2.5 rounded-xl border border-[#E2ECE5]">
-                  <span className="text-[10px] uppercase font-bold text-[#718096]">Date</span>
-                  <p className="font-extrabold text-xs text-[#2D3748] mt-0.5">
-                    {format(selectedEvent.start, "EEE, MMM dd, yyyy")}
-                  </p>
-                </div>
-              </div>
-
-              {/* Badges for Department, Priority & Action Type */}
-              {(selectedEvent.department || selectedEvent.actionType || selectedEvent.priority) && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  {selectedEvent.department && (
-                    <span className="px-2.5 py-1 rounded-lg bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-semibold text-[#2D3748]">
-                      Dept: <strong>{selectedEvent.department}</strong>
-                    </span>
-                  )}
-                  {selectedEvent.actionType && (() => {
-                    const actionMeta = getActionMeta(selectedEvent.actionType);
-                    const ActionIcon = actionMeta.icon;
-                    return (
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-[#E2ECE5] bg-white shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    {/* Pulsing Status Dot */}
+                    <span className="relative flex h-2.5 w-2.5">
                       <span
-                        className={`px-2.5 py-1 rounded-lg border text-xs font-bold flex items-center gap-1.5 ${actionMeta.badgeBg}`}
-                      >
-                        <ActionIcon className="w-3.5 h-3.5 shrink-0" />
-                        <span>{actionMeta.label}</span>
-                      </span>
-                    );
-                  })()}
-                  {selectedEvent.priority && (
-                    <span
-                      className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${
-                        getPriorityMeta(selectedEvent.priority).badge
-                      }`}
-                    >
-                      {getPriorityMeta(selectedEvent.priority).label}
+                        className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                          activeDrawerEvent.isMainEvent
+                            ? "bg-emerald-400"
+                            : activeDrawerEvent.priority === "high"
+                            ? "bg-red-400"
+                            : activeDrawerEvent.priority === "medium"
+                            ? "bg-blue-400"
+                            : "bg-emerald-400"
+                        }`}
+                      />
+                      <span
+                        className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                          activeDrawerEvent.isMainEvent
+                            ? "bg-emerald-500"
+                            : activeDrawerEvent.priority === "high"
+                            ? "bg-red-500"
+                            : activeDrawerEvent.priority === "medium"
+                            ? "bg-blue-500"
+                            : "bg-emerald-500"
+                        }`}
+                      />
                     </span>
+                    <h3 className="text-xs sm:text-sm font-extrabold text-[#2D3748] tracking-tight">
+                      {activeDrawerEvent.isMainEvent
+                        ? "Target Event Details"
+                        : activeDrawerEvent.runOfShowItem
+                        ? "Day-of Run of Show Item"
+                        : "Countdown Prep Task Details"}
+                    </h3>
+                    {currentEventIdx >= 0 && (
+                      <span className="text-[10px] font-bold text-[#718096] bg-[#F4F7F5] px-2 py-0.5 rounded-full border border-[#E2ECE5]">
+                        {currentEventIdx + 1} of {eventsList.length}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Header Actions */}
+                  <div className="flex items-center gap-1.5">
+                    {/* Previous Task */}
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateEvent("prev")}
+                      disabled={!hasPrev}
+                      className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                        hasPrev
+                          ? "text-[#4A5568] hover:text-[#2D3748] hover:bg-[#F4F7F5] border-[#E2ECE5]"
+                          : "text-[#CBD5E1] border-transparent cursor-not-allowed"
+                      }`}
+                      title="Previous Milestone (← Arrow Key)"
+                      aria-label="Previous Milestone"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Next Task */}
+                    <button
+                      type="button"
+                      onClick={() => handleNavigateEvent("next")}
+                      disabled={!hasNext}
+                      className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                        hasNext
+                          ? "text-[#4A5568] hover:text-[#2D3748] hover:bg-[#F4F7F5] border-[#E2ECE5]"
+                          : "text-[#CBD5E1] border-transparent cursor-not-allowed"
+                      }`}
+                      title="Next Milestone (→ Arrow Key)"
+                      aria-label="Next Milestone"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Copy Summary */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopyTask(activeDrawerEvent)}
+                      className={`p-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
+                        copiedTask
+                          ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
+                          : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] border-[#E2ECE5]"
+                      }`}
+                      title="Copy Task Brief to Clipboard"
+                      aria-label="Copy Task Details"
+                    >
+                      {copiedTask ? (
+                        <>
+                          <CheckCheck className="w-3.5 h-3.5 text-[#059669]" />
+                          <span className="text-[10px] font-bold text-[#059669] hidden sm:inline">
+                            Copied
+                          </span>
+                        </>
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+
+                    {/* Close Button with Esc Hint */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEvent(null)}
+                      className="text-[#718096] hover:text-[#2D3748] cursor-pointer p-1.5 rounded-xl hover:bg-[#F4F7F5] transition-colors border border-transparent hover:border-[#E2ECE5] flex items-center"
+                      title="Close Panel (Esc)"
+                      aria-label="Close Details"
+                    >
+                      <X className="w-4 h-4" />
+                      <kbd className="text-[9px] font-bold text-[#718096] bg-[#F4F7F5] border border-[#E2ECE5] px-1 py-0.5 rounded-md ml-1 hidden sm:inline-block">
+                        ESC
+                      </kbd>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Body */}
+                <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-4 space-y-4 text-xs">
+                  {/* Category Pill & Completed State */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    {extractedDept ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-[11px] font-bold text-[#2D3748]">
+                        <Building2 className="w-3.5 h-3.5 text-[#10B981]" />
+                        <span>{extractedDept}</span>
+                      </span>
+                    ) : null}
+
+                    {activeDrawerEvent.task && (
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold border ${
+                          isDone
+                            ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
+                            : "bg-[#FFFBEB] text-[#B45309] border-[#FDE68A]"
+                        }`}
+                      >
+                        {isDone ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" />
+                            <span>Completed</span>
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="w-3.5 h-3.5 text-[#D97706]" />
+                            <span>Action Pending</span>
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Clean Title */}
+                  <div>
+                    <p className="text-[#718096] font-semibold uppercase text-[10px] tracking-wider">
+                      Title
+                    </p>
+                    <h2 className="text-sm sm:text-base font-extrabold text-[#1A202C] mt-0.5 tracking-tight leading-snug">
+                      {cleanTitle}
+                    </h2>
+                  </div>
+
+                  {/* Countdown & Execution Timing Cards */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="bg-gradient-to-br from-[#FAFCFB] to-[#F4F7F5] p-3 rounded-2xl border border-[#E2ECE5] shadow-2xs">
+                      <div className="flex items-center gap-1.5 text-[#718096]">
+                        <Clock className="w-3 h-3 text-[#10B981]" />
+                        <span className="text-[10px] uppercase font-bold tracking-wider">
+                          Timeline
+                        </span>
+                      </div>
+                      <p className="font-extrabold text-xs text-[#2D3748] mt-1.5">
+                        {activeDrawerEvent.daysBeforeEvent !== undefined
+                          ? `T - ${activeDrawerEvent.daysBeforeEvent} Days Before Event`
+                          : "Main Event Execution Day"}
+                      </p>
+                      <span className="text-[10px] text-[#718096] mt-0.5 block">
+                        Milestone prep phase
+                      </span>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-[#FAFCFB] to-[#F4F7F5] p-3 rounded-2xl border border-[#E2ECE5] shadow-2xs">
+                      <div className="flex items-center gap-1.5 text-[#718096]">
+                        <CalendarDays className="w-3 h-3 text-[#3B82F6]" />
+                        <span className="text-[10px] uppercase font-bold tracking-wider">
+                          Scheduled Date
+                        </span>
+                      </div>
+                      <p className="font-extrabold text-xs text-[#2D3748] mt-1.5">
+                        {format(activeDrawerEvent.start, "EEE, MMM dd, yyyy")}
+                      </p>
+                      <span className="text-[10px] text-[#718096] mt-0.5 block">
+                        Production calendar
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Badges for Action Type & Priority */}
+                  {(activeDrawerEvent.department ||
+                    activeDrawerEvent.actionType ||
+                    activeDrawerEvent.priority) && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {activeDrawerEvent.actionType && (() => {
+                        const actionMeta = getActionMeta(
+                          activeDrawerEvent.actionType
+                        );
+                        const ActionIcon = actionMeta.icon;
+                        return (
+                          <span
+                            className={`px-2.5 py-1 rounded-xl border text-xs font-bold flex items-center gap-1.5 shadow-2xs ${actionMeta.badgeBg}`}
+                          >
+                            <ActionIcon className="w-3.5 h-3.5 shrink-0" />
+                            <span>{actionMeta.label}</span>
+                          </span>
+                        );
+                      })()}
+                      {activeDrawerEvent.priority && (
+                        <span
+                          className={`px-2.5 py-1 rounded-xl border text-xs font-bold flex items-center gap-1.5 shadow-2xs ${
+                            getPriorityMeta(activeDrawerEvent.priority).badge
+                          }`}
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            {getPriorityMeta(activeDrawerEvent.priority).label}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Operational Guidance / Brief Card */}
+                  <div className="bg-gradient-to-br from-[#FAFCFB] to-[#F3F7F5] p-3.5 rounded-2xl border border-[#D5E5DC] shadow-2xs space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[#059669]">
+                      <Sparkles className="w-3.5 h-3.5 text-[#10B981]" />
+                      <span className="font-extrabold uppercase text-[10px] tracking-wider">
+                        Operational Guidance / Brief
+                      </span>
+                    </div>
+                    <div className="text-[#2D3748] text-xs leading-relaxed font-normal">
+                      {activeDrawerEvent.actionBrief ||
+                        activeDrawerEvent.description ||
+                        "Standard operational milestone execution."}
+                    </div>
+                  </div>
+
+                  {/* Milestone Budget Allocation Card */}
+                  {(activeDrawerEvent.estimatedCost !== undefined ||
+                    activeDrawerEvent.budget) && (
+                    <div className="bg-gradient-to-br from-[#ECFDF5] to-[#F0FDF4] p-3.5 rounded-2xl border border-[#A7F3D0] shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[#059669]">
+                          <span className="w-5 h-5 rounded-lg bg-[#10B981]/20 flex items-center justify-center font-bold">
+                            <IndianRupee className="w-3 h-3 text-[#059669]" />
+                          </span>
+                          <span className="text-xs font-bold text-[#059669]">
+                            {activeDrawerEvent.isMainEvent
+                              ? "Total Event Budget"
+                              : "Milestone Budget Allocation"}
+                          </span>
+                        </div>
+                        <p className="font-extrabold text-base text-[#059669]">
+                          ₹{eventCostNum.toLocaleString("en-IN")}
+                        </p>
+                      </div>
+
+                      {percentOfBudget > 0 && !activeDrawerEvent.isMainEvent && (
+                        <div className="pt-1 border-t border-[#A7F3D0]/50 space-y-1">
+                          <div className="flex items-center justify-between text-[10px] text-[#059669] font-medium">
+                            <span>Share of Total Budget</span>
+                            <span className="font-bold">{percentOfBudget}%</span>
+                          </div>
+                          <div className="w-full bg-[#A7F3D0]/40 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-[#10B981] h-1.5 rounded-full transition-all duration-500 ease-out"
+                              style={{ width: `${percentOfBudget}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Toggle Completion button for Prep Tasks */}
+                  {activeDrawerEvent.task && (
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleToggleTaskCompleted(activeDrawerEvent.id)
+                        }
+                        className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border shadow-xs ${
+                          isDone
+                            ? "bg-[#F3F4F6] text-[#4A5568] hover:bg-[#E5E7EB] border-[#D1D5DB]"
+                            : "bg-[#10B981] hover:bg-[#059669] text-white border-[#10B981] hover:shadow-md active:scale-[0.99]"
+                        }`}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>
+                          {isDone
+                            ? "Marked as Completed (Click to Reopen)"
+                            : "Mark Task as Completed"}
+                        </span>
+                      </button>
+                    </div>
                   )}
                 </div>
-              )}
 
-              {/* Action Brief or Description */}
-              <div>
-                <p className="text-[#718096] font-semibold uppercase text-[10px] tracking-wider">
-                  Operational Guidance / Brief
-                </p>
-                <div className="text-[#2D3748] bg-[#F4F7F5] p-3 rounded-xl border border-[#E2ECE5] mt-1 text-xs leading-relaxed">
-                  {selectedEvent.actionBrief || selectedEvent.description || "No notes available."}
-                </div>
-              </div>
-
-              {/* Estimated Cost & Budget */}
-              {(selectedEvent.estimatedCost !== undefined || selectedEvent.budget) && (
-                <div className="bg-[#E6F7F0] p-3 rounded-xl border border-[#A7F3D0] flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#059669]">
-                    {selectedEvent.isMainEvent ? "Total Event Budget" : "Milestone Budget Allocation"}
-                  </span>
-                  <p className="font-extrabold text-base text-[#059669]">
-                    ₹
-                    {Number(
-                      selectedEvent.estimatedCost ?? selectedEvent.budget ?? 0
-                    ).toLocaleString("en-IN")}
-                  </p>
-                </div>
-              )}
-
-              {/* Toggle Completion button for Prep Tasks */}
-              {selectedEvent.task && (
-                <div className="pt-1">
+                {/* Footer with Focus Calendar and Close */}
+                <div className="px-5 sm:px-6 py-3 border-t border-[#E2ECE5] bg-[#FFFFFF] shrink-0 flex items-center gap-2.5">
                   <button
                     type="button"
-                    onClick={() => handleToggleTaskCompleted(selectedEvent.id)}
-                    className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border ${
-                      completedTaskIds[selectedEvent.id]
-                        ? "bg-[#F3F4F6] text-[#718096] border-[#D1D5DB]"
-                        : "bg-[#10B981] hover:bg-[#059669] text-white border-[#10B981] shadow-xs"
-                    }`}
+                    onClick={() => handleFocusCalendar(activeDrawerEvent.start)}
+                    className="flex-1 py-2 rounded-xl bg-[#F4F7F5] text-[#2D3748] font-bold text-xs hover:bg-[#E2ECE5] transition-all cursor-pointer border border-[#E2ECE5] flex items-center justify-center gap-1.5"
+                    title="Focus Calendar on this Date"
                   >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>
-                      {completedTaskIds[selectedEvent.id]
-                        ? "Marked as Completed (Click to Reopen)"
-                        : "Mark Task as Completed"}
-                    </span>
+                    <CalendarIcon className="w-3.5 h-3.5 text-[#10B981]" />
+                    <span>Focus on Calendar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEvent(null)}
+                    className="flex-1 py-2 rounded-xl bg-white text-[#718096] hover:text-[#2D3748] font-bold text-xs hover:bg-[#F4F7F5] transition-all cursor-pointer border border-[#E2ECE5]"
+                  >
+                    Close Details
                   </button>
                 </div>
-              )}
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="w-full py-2.5 rounded-xl bg-[#F4F7F5] text-[#2D3748] font-bold text-xs hover:bg-[#E2ECE5] transition-all cursor-pointer border border-[#E2ECE5]"
-              >
-                Close Details
-              </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* Calendar AI Chatbot Assistant */}
+      <CalendarAiChatbot
+        isOpen={isAiChatOpen}
+        onToggle={() => setIsAiChatOpen((prev) => !prev)}
+        onClose={() => setIsAiChatOpen(false)}
+        eventContext={{
+          title: eventName,
+          eventType,
+          eventBudget,
+          eventDate,
+          tier,
+          guestCount,
+          prepCalendarTasks: tasks,
+          dayOfRunOfShow: runOfShow,
+          budgetBreakdown: budgetList,
+          evaluationSummary: evalSummary,
+          selectedEvent,
+        }}
+        onEventStatusUpdated={(updatedFields) => {
+          if (updatedFields.prepCalendarTasks) {
+            setTasks(updatedFields.prepCalendarTasks);
+          }
+          if (updatedFields.dayOfRunOfShow) {
+            setRunOfShow(updatedFields.dayOfRunOfShow);
+          }
+          if (updatedFields.budgetBreakdown) {
+            setBudgetList(updatedFields.budgetBreakdown);
+          }
+        }}
+        onFocusDate={handleFocusCalendar}
+      />
     </div>
   );
 };

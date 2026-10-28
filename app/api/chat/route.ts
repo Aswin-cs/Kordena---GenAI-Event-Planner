@@ -1,118 +1,507 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import mongoose from "mongoose";
+import { authOptions } from "@/lib/auth";
+import { connectToDatabase } from "@/lib/mongodb";
+import UserStatus, {
+  IPrepCalendarTask,
+  IDayOfRunOfShowItem,
+  IBudgetBreakdownItem,
+} from "@/models/UserStatus.model";
+import User from "@/models/User";
+import { geminiConfig } from "@/config/gemini";
+
+// Response Schema for Gemini distinguishing between standard Q&A vs Blueprint Edits
+const chatResponseSchema = {
+  type: "object",
+  properties: {
+    type: {
+      type: "string",
+      enum: ["question", "edit"],
+      description:
+        "Set to 'question' if user asks general inquiries, advice, questions, or clarification. Set to 'edit' if the user asks to add, remove, reschedule, rebalance, or modify prep tasks, run-of-show schedule, budget breakdown, or requirements.",
+    },
+    reply: {
+      type: "string",
+      description:
+        "Clear, professional conversational response explaining the answer or detailing the exact changes made.",
+    },
+    isEditApplied: {
+      type: "boolean",
+      description:
+        "True if the user requested an edit and updatedFields contains modified data.",
+    },
+    updatedFields: {
+      type: "object",
+      description:
+        "Contains the full updated arrays reflecting UserStatus.model.ts (budgetBreakdown, prepCalendarTasks, dayOfRunOfShow, requirements). Only included when type is 'edit'.",
+      properties: {
+        budgetBreakdown: {
+          type: "array",
+          description: "Full updated budget breakdown items array if modified.",
+          items: {
+            type: "object",
+            properties: {
+              category: { type: "string" },
+              allocatedAmount: { type: "number" },
+              percentage: { type: "number" },
+              sliderMin: { type: "number" },
+              sliderMax: { type: "number" },
+              spendStrategy: { type: "string" },
+            },
+            required: [
+              "category",
+              "allocatedAmount",
+              "percentage",
+              "sliderMin",
+              "sliderMax",
+              "spendStrategy",
+            ],
+          },
+        },
+        prepCalendarTasks: {
+          type: "array",
+          description:
+            "Full updated prep countdown tasks array if added, edited, or removed.",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              title: { type: "string" },
+              department: { type: "string" },
+              actionType: {
+                type: "string",
+                enum: ["call", "arrange", "design", "procure", "setup"],
+              },
+              daysBeforeEvent: { type: "number" },
+              scheduledDate: { type: "string" },
+              estimatedCost: { type: "number" },
+              actionBrief: { type: "string" },
+              priority: { type: "string", enum: ["high", "medium", "low"] },
+            },
+            required: [
+              "id",
+              "title",
+              "department",
+              "actionType",
+              "daysBeforeEvent",
+              "estimatedCost",
+              "actionBrief",
+              "priority",
+            ],
+          },
+        },
+        dayOfRunOfShow: {
+          type: "array",
+          description:
+            "Full updated day-of run-of-show timeline array if modified.",
+          items: {
+            type: "object",
+            properties: {
+              timeSlot: { type: "string" },
+              activity: { type: "string" },
+              departmentInCharge: { type: "string" },
+              operationalNotes: { type: "string" },
+              dependency: { type: "string" },
+            },
+            required: [
+              "timeSlot",
+              "activity",
+              "departmentInCharge",
+              "operationalNotes",
+              "dependency",
+            ],
+          },
+        },
+        requirements: {
+          type: "array",
+          items: { type: "string" },
+          description: "Full updated event requirements array if modified.",
+        },
+      },
+    },
+  },
+  required: ["type", "reply", "isEditApplied"],
+};
 
 export async function POST(request: Request) {
   try {
     const { message, eventContext, apiKey } = await request.json();
 
-    const geminiKey = apiKey || process.env.GEMINI_API_KEY;
+    const currentTasks: IPrepCalendarTask[] = eventContext?.prepCalendarTasks || [];
+    const currentRunOfShow: IDayOfRunOfShowItem[] = eventContext?.dayOfRunOfShow || [];
+    const currentBudgetBreakdown: IBudgetBreakdownItem[] = eventContext?.budgetBreakdown || [];
+    const currentRequirements: string[] = eventContext?.requirements || [];
 
-    if (geminiKey) {
+    const tasksJson = JSON.stringify(currentTasks);
+    const runOfShowJson = JSON.stringify(currentRunOfShow);
+    const budgetJson = JSON.stringify(currentBudgetBreakdown);
+    const reqsJson = JSON.stringify(currentRequirements);
+
+    const systemInstruction = `You are Kordena, the intelligent GenAI Event Planner and Master Production Calendar Copilot.
+You have direct capability to answer user questions OR edit the event blueprint stored in UserStatus.model.ts (budgetBreakdown, prepCalendarTasks, dayOfRunOfShow, requirements).
+
+CURRENT EVENT BLUEPRINT:
+Event Title: "${eventContext?.title || eventContext?.eventName || "Event"}"
+Event Type: "${eventContext?.eventType || "Conference"}"
+Event Date: "${eventContext?.date || eventContext?.eventDate || "Upcoming"}"
+Total Budget: ₹${eventContext?.totalBudget || eventContext?.eventBudget || "100000"}
+
+Existing prepCalendarTasks (${currentTasks.length} tasks):
+${tasksJson}
+
+Existing dayOfRunOfShow (${currentRunOfShow.length} items):
+${runOfShowJson}
+
+Existing budgetBreakdown (${currentBudgetBreakdown.length} items):
+${budgetJson}
+
+Existing requirements:
+${reqsJson}
+
+CLASSIFICATION RULES:
+1. IF the user is just asking a question, asking for advice, asking to draft an email, or asking about status:
+   - Set "type": "question"
+   - Set "isEditApplied": false
+   - Do NOT include updatedFields. Provide a rich, clear conversational answer in "reply".
+
+2. IF the user requests an EDIT (e.g., "add a task", "delete task X", "reschedule load-in to 2 days before", "increase catering budget", "change task priority to high", "add requirement"):
+   - Set "type": "edit"
+   - Set "isEditApplied": true
+   - Set "reply": A friendly explanation of the exact changes performed.
+   - Set "updatedFields": Provide the complete updated array for whichever field was modified (e.g. prepCalendarTasks with the new/modified task included, budgetBreakdown with updated numbers, dayOfRunOfShow, or requirements).
+   - Ensure all task objects retain or generate valid IDs, appropriate actionType, and numeric costs.`;
+
+    let replyData: {
+      type: "question" | "edit";
+      reply: string;
+      isEditApplied: boolean;
+      updatedFields?: {
+        budgetBreakdown?: IBudgetBreakdownItem[];
+        prepCalendarTasks?: IPrepCalendarTask[];
+        dayOfRunOfShow?: IDayOfRunOfShowItem[];
+        requirements?: string[];
+      };
+    } | null = null;
+
+    try {
+      // Execute via centralized geminiConfig utility with responseSchema
+      const geminiResult = await geminiConfig({
+        systemInstruction,
+        prompt: message,
+        responseSchema: chatResponseSchema,
+        apiKey: apiKey?.trim() || undefined,
+        temperature: 0.2, // Low temperature for high structural precision on edits
+      });
+
+      if (geminiResult.success && geminiResult.data) {
+        replyData = geminiResult.data;
+      } else if (geminiResult.text) {
+        // In case it returned pure text
+        replyData = {
+          type: "question",
+          reply: geminiResult.text.trim(),
+          isEditApplied: false,
+        };
+      }
+    } catch (geminiErr) {
+      console.warn(
+        "[Chat API] Gemini execution error, activating smart advisor fallback:",
+        geminiErr
+      );
+    }
+
+    // Fallback if Gemini did not produce parsed structured output
+    if (!replyData) {
+      replyData = generateSmartAdvisorReply(message, eventContext);
+    }
+
+    // If an edit was applied, store the updated arrays into UserStatus in MongoDB
+    let savedToDb = false;
+    let savedDocId: string | null = null;
+
+    if (replyData.isEditApplied && replyData.updatedFields) {
       try {
-        const { GoogleGenAI } = await import("@google/genai");
-        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        await connectToDatabase();
+        const session = await getServerSession(authOptions);
 
-        const prompt = `You are Kordena, the intelligent GenAI Event Planner.
-You maintain a serene, balanced, focused, and proactive tone.
-Theme palette: Fresh Sage (#F4F7F5), Pure White Surfaces, Slate Gray text (#2D3748), Emerald / Mint accents (#10B981).
-
-Current Event Context:
-Title: ${eventContext?.title || "Event"}
-Type: ${eventContext?.eventType || "Event"}
-Guest Count: ${eventContext?.guestCount || "N/A"}
-Budget: $${eventContext?.totalBudget || "N/A"}
-Location: ${eventContext?.location || "N/A"}
-
-User Question/Prompt:
-"${message}"
-
-Provide a crisp, actionable, elegant response. When suggesting changes (e.g. cutting budget, adjusting timeline, or drafting guest emails), format with bullet points and clear numbers.`;
-
-        const response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite-preview",
-          contents: prompt,
-        });
-
-        const reply = response.text?.trim();
-        if (reply) {
-          return NextResponse.json({ success: true, reply });
+        let targetDoc = null;
+        if (
+          eventContext?.userStatusId &&
+          mongoose.Types.ObjectId.isValid(eventContext.userStatusId)
+        ) {
+          targetDoc = await UserStatus.findById(eventContext.userStatusId);
         }
-      } catch (err) {
-        console.warn("Gemini chat error, falling back to smart advice engine:", err);
+
+        if (!targetDoc && (eventContext?.title || eventContext?.eventName)) {
+          const nameToMatch = (
+            eventContext?.title ||
+            eventContext?.eventName ||
+            ""
+          ).trim();
+          targetDoc = await UserStatus.findOne({ eventName: nameToMatch }).sort({
+            createdAt: -1,
+          });
+        }
+
+        if (!targetDoc && session?.user?.email) {
+          const dbUser = await User.findOne({
+            email: session.user.email.toLowerCase(),
+          });
+          if (dbUser) {
+            targetDoc = await UserStatus.findOne({ userId: dbUser._id }).sort({
+              createdAt: -1,
+            });
+          }
+        }
+
+        if (!targetDoc) {
+          targetDoc = await UserStatus.findOne().sort({ createdAt: -1 });
+        }
+
+        if (targetDoc) {
+          if (Array.isArray(replyData.updatedFields.budgetBreakdown)) {
+            targetDoc.budgetBreakdown = replyData.updatedFields.budgetBreakdown;
+          }
+          if (Array.isArray(replyData.updatedFields.prepCalendarTasks)) {
+            targetDoc.prepCalendarTasks = replyData.updatedFields.prepCalendarTasks;
+          }
+          if (Array.isArray(replyData.updatedFields.dayOfRunOfShow)) {
+            targetDoc.dayOfRunOfShow = replyData.updatedFields.dayOfRunOfShow;
+          }
+          if (Array.isArray(replyData.updatedFields.requirements)) {
+            targetDoc.requirements = replyData.updatedFields.requirements;
+          }
+
+          await targetDoc.save();
+          savedToDb = true;
+          savedDocId = targetDoc._id.toString();
+        }
+      } catch (dbErr) {
+        console.warn("[Chat API] Warning saving updated UserStatus to DB:", dbErr);
       }
     }
 
-    // Smart fallback generator for contextual advice
-    const reply = generateSmartAdvisorReply(message, eventContext);
-    return NextResponse.json({ success: true, reply });
+    return NextResponse.json({
+      success: true,
+      type: replyData.type,
+      reply: replyData.reply,
+      isEditApplied: replyData.isEditApplied,
+      updatedFields: replyData.updatedFields,
+      savedToDb,
+      savedDocId,
+    });
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json(
-      { success: false, reply: "I am ready to help refine your event. Could you rephrase your question?" },
+      {
+        success: false,
+        type: "question",
+        reply: "I am ready to help refine your event. Could you rephrase your question?",
+        isEditApplied: false,
+      },
       { status: 500 }
     );
   }
 }
 
-function generateSmartAdvisorReply(message: string, context: any): string {
+function generateSmartAdvisorReply(
+  message: string,
+  context: any
+): {
+  type: "question" | "edit";
+  reply: string;
+  isEditApplied: boolean;
+  updatedFields?: any;
+} {
   const lower = (message || "").toLowerCase();
-  const eventTitle = context?.title || "your event";
-  const budget = context?.totalBudget || 30000;
-  const guests = context?.guestCount || 100;
+  const eventTitle = context?.title || context?.eventName || "your event";
+  const tasks: IPrepCalendarTask[] = context?.prepCalendarTasks || [];
+  const runOfShow: IDayOfRunOfShowItem[] = context?.dayOfRunOfShow || [];
+  const budgetList: IBudgetBreakdownItem[] = context?.budgetBreakdown || [];
 
-  if (lower.includes("budget") || lower.includes("cost") || lower.includes("save") || lower.includes("cut")) {
-    return `🌿 **Kordena AI Budget Optimization for ${eventTitle}**:
+  // Check if user is asking to add a task
+  if (
+    lower.includes("add task") ||
+    lower.includes("new task") ||
+    lower.includes("create task") ||
+    lower.includes("schedule task")
+  ) {
+    const newTask: IPrepCalendarTask = {
+      id: `task-${Date.now()}`,
+      title: "Confirm Production Equipment & Final Check",
+      department: "Production & Tech",
+      actionType: "setup",
+      daysBeforeEvent: 2,
+      estimatedCost: 15000,
+      actionBrief: "Conduct physical walkthrough and check off all technical gear specifications.",
+      priority: "high",
+    };
 
-1. **Repurpose Floral Installations**: Use ceremony floral arches and olive garlands as the photo-wall and head table backdrop for reception (estimated savings: **$850 – $1,200**).
-2. **Signature Drink Strategy**: Limit the open bar to 2 curated herbal sage & mint signature cocktails plus local wines instead of an unrestricted top-shelf liquor roster (estimated savings: **$1,400**).
-3. **Digital & Sustainable Stationery**: Transition remaining paper collateral to digital RSVP and dynamic seat-finders with NFC/QR cards (savings: **$400**).
+    const updatedTasks = [...tasks, newTask];
 
-*This preserves your serene aesthetic while freeing up ~$2,600 into your contingency buffer.*`;
+    return {
+      type: "edit",
+      reply: `I have added a new high-priority countdown task: **"${newTask.title}"** for **${eventTitle}** scheduled at T - 2 days before event day with an estimated budget of ₹15,000.`,
+      isEditApplied: true,
+      updatedFields: {
+        prepCalendarTasks: updatedTasks,
+      },
+    };
   }
 
-  if (lower.includes("invite") || lower.includes("email") || lower.includes("draft") || lower.includes("message")) {
-    return `✉️ **Bespoke Invitation Draft for ${eventTitle}**:
+  // Check if user is asking to delete or remove a task
+  if (lower.includes("delete task") || lower.includes("remove task")) {
+    if (tasks.length > 0) {
+      const removedTask = tasks[tasks.length - 1];
+      const updatedTasks = tasks.slice(0, tasks.length - 1);
+      return {
+        type: "edit",
+        reply: `I have removed the milestone task **"${removedTask.title}"** from your countdown schedule.`,
+        isEditApplied: true,
+        updatedFields: {
+          prepCalendarTasks: updatedTasks,
+        },
+      };
+    }
+  }
 
-**Subject**: You are warmly invited to ${eventTitle}
+  if (
+    lower.includes("priority") ||
+    lower.includes("risk") ||
+    lower.includes("urgent") ||
+    lower.includes("prep")
+  ) {
+    const highTasks = tasks.filter((t: any) => t.priority === "high");
+    if (highTasks.length > 0) {
+      const taskList = highTasks
+        .slice(0, 4)
+        .map(
+          (t: any) =>
+            `• **[T - ${t.daysBeforeEvent} Days] ${t.title}** (${t.department}): ${
+              t.actionBrief || "Critical path dependency."
+            }`
+        )
+        .join("\n");
+      return {
+        type: "question",
+        reply: `⚠️ **Kordena High-Priority Countdown Assessment**:
 
-Dear [Guest Name],
+Here are the critical path items that require immediate coordination for **${eventTitle}**:
 
-We invite you to join us for an evening designed around serenity, inspiration, and connection.
+${taskList}
 
-• **When**: ${context?.date || "Upcoming"}
-• **Where**: ${context?.location || "San Francisco"}
-• **Aesthetic & Attire**: Relaxed Elegance / Fresh Sage & Neutral Tones
+💡 **Action Advice**: Secure vendor confirmations and technical brief sign-offs before entering the final 48-hour delivery window.`,
+        isEditApplied: false,
+      };
+    }
+    return {
+      type: "question",
+      reply: `⚡ **Kordena Milestone Readiness Check**:
+All countdown milestones are currently on track. Ensure all team department leads check off vendor deposits and equipment load-in passes 3 days prior to execution.`,
+      isEditApplied: false,
+    };
+  }
 
-Please confirm your attendance and dietary preferences by visiting your personal guest portal: [RSVP Link]
+  if (
+    lower.includes("timeline") ||
+    lower.includes("schedule") ||
+    lower.includes("run of show") ||
+    lower.includes("time") ||
+    lower.includes("buffer")
+  ) {
+    if (runOfShow.length > 0) {
+      const items = runOfShow
+        .slice(0, 4)
+        .map(
+          (r: any) =>
+            `• **${r.timeSlot || "TBD"}**: ${r.activity} (*${r.departmentInCharge}*)`
+        )
+        .join("\n");
+      return {
+        type: "question",
+        reply: `⏱️ **Day-of Run of Show Execution Plan for ${eventTitle}**:
+
+${items}
+
+🛡️ **Safety Recommendation**: Insert a dedicated **15-minute operational buffer** between major stage transitions to absorb soundcheck and VIP arrival delays.`,
+        isEditApplied: false,
+      };
+    }
+    return {
+      type: "question",
+      reply: `⏱️ **Kordena Optimal Schedule Recommendation**:
+
+• **T - 3 Hours**: Production load-in, AV rigging, and acoustic soundcheck.
+• **T - 45 Mins**: Staff briefing, registration portal live check, ambient lighting active.
+• **Hour 0**: Welcome keynote / Opening remarks.
+• **Hour 1.5**: Primary event showcase & interactive sessions.
+• **Hour 3.0**: Networking reception & culinary tasting.`,
+      isEditApplied: false,
+    };
+  }
+
+  if (
+    lower.includes("budget") ||
+    lower.includes("cost") ||
+    lower.includes("save") ||
+    lower.includes("cut") ||
+    lower.includes("reallocate")
+  ) {
+    const budget = context?.totalBudget || context?.eventBudget || 100000;
+    return {
+      type: "question",
+      reply: `💰 **Kordena AI Budget Optimization for ${eventTitle}** (Target: ₹${Number(
+        budget
+      ).toLocaleString("en-IN")}):
+
+1. **Staging & AV Rigging**: Consolidate lighting rigs and audio modules with a single verified vendor to negotiate a 10–12% bundled discount.
+2. **Catering Strategy**: Replace a continuous open buffet with curated signature courses and live experiential live counters to minimize food wastage.
+3. **Collateral & Signage**: Use dynamic digital LED displays and QR badges instead of single-use printed foam boards.
+
+*Estimated cost recovery: ~₹25,000 – ₹45,000, which can be safely channeled into your contingency reserve.*`,
+      isEditApplied: false,
+    };
+  }
+
+  if (
+    lower.includes("vendor") ||
+    lower.includes("brief") ||
+    lower.includes("email") ||
+    lower.includes("draft")
+  ) {
+    return {
+      type: "question",
+      reply: `📋 **Vendor Operational Load-In Briefing for ${eventTitle}**:
+
+**Subject**: Urgent: Production Load-In Protocol & Schedule for ${eventTitle}
+
+Dear Production Partner,
+
+Please review our synchronized event calendar milestones for the upcoming production of **${eventTitle}**:
+
+• **Load-In Window**: T - 1 Day (Commencing 08:00 AM)
+• **Key Contact**: Stage Production Manager & Technical Lead
+• **Safety & Delivery**: Loading bay passes must be presented upon entry. Rigging certifications required.
+• **Soundcheck Lock**: T - 3 Hours prior to guest entry.
+
+Please confirm receipt and acknowledge readiness: [Acknowledgement Link]
 
 Warm regards,  
-The Planning Host`;
+Kordena Master Operations Team`,
+      isEditApplied: false,
+    };
   }
 
-  if (lower.includes("timeline") || lower.includes("schedule") || lower.includes("run of show") || lower.includes("time")) {
-    return `⏱️ **Kordena Optimal Schedule Recommendation**:
+  return {
+    type: "question",
+    reply: `✨ **Kordena Calendar Intelligence Copilot**:
 
-• **T - 3 Hours**: Vendor load-in, stage audio balance, lighting preset lock.
-• **T - 30 Mins**: Ambient 432Hz soundscape & fresh mint mocktails ready at foyer.
-• **Hour 0**: Welcome remarks & opening presentation (keep to 35 mins for peak executive retention).
-• **Hour 1.5**: Multi-course dinner service with scheduled 15-minute intermezzo.
-• **Hour 3.5**: Coffee, artisanal herbal infusions, and networking lounge.`;
-  }
+I am connected to your master production schedule for **${eventTitle}**.
 
-  if (lower.includes("drink") || lower.includes("food") || lower.includes("menu") || lower.includes("catering")) {
-    return `🍸 **Sage & Mint Curated Beverage & Culinary Pairing**:
-
-1. **The Emerald Solstice (Signature Mocktail)**: Muddled garden mint, fresh lime, cold-pressed cucumber juice, elderflower tonic, and bruised sage leaf garnish.
-2. **Wild Botanist Spritz**: Prosecco, sparkling botanical water, bergamot, and dehydrated citrus wheel.
-3. **Farm-to-Table Entrée**: Pan-seared sea bass or wild foraged mushroom risotto with herb oil and micro-greens.`;
-  }
-
-  return `✨ **Kordena AI Event Recommendation for ${eventTitle}**:
-
-Based on your current plan for **${guests} guests** with a **$${budget.toLocaleString()}** allocation:
-
-• **Ambiance**: Prioritize warm 2700K indirect lighting and living botanical foliage to reinforce your serene sage aesthetic.
-• **Flow**: Ensure a 10-minute buffer between reception and seated dining to let guests comfortably find their places.
-• **Task Status**: Keep track of high-priority calendar alerts to avoid surge vendor charges.
-
-Feel free to ask me to draft announcements, negotiate vendor terms, or rebalance your budget categories!`;
+• **Ask Questions**: Inquire about milestones, budgets, or load-in logistics.
+• **Perform Live Edits**: Tell me to *"Add a prep task to hire a videographer 3 days before"*, *"Remove the soundcheck item"*, or *"Adjust catering budget"*, and I will update your blueprint and database in real-time!`,
+    isEditApplied: false,
+  };
 }
+

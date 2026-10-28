@@ -6,36 +6,36 @@ import { GoogleGenAI, type GenerateContentConfig } from "@google/genai";
  */
 export type UploadedContent =
   | {
+    mimeType: string;
+    data: string | Buffer;
+    [key: string]: any;
+  }
+  | {
+    inlineData: {
       mimeType: string;
-      data: string | Buffer;
-      [key: string]: any;
-    }
+      data: string;
+    };
+    [key: string]: any;
+  }
   | {
-      inlineData: {
-        mimeType: string;
-        data: string;
-      };
-      [key: string]: any;
-    }
+    fileUri: string;
+    mimeType?: string;
+    [key: string]: any;
+  }
   | {
+    fileData: {
       fileUri: string;
       mimeType?: string;
-      [key: string]: any;
-    }
+    };
+    [key: string]: any;
+  }
   | {
-      fileData: {
-        fileUri: string;
-        mimeType?: string;
-      };
-      [key: string]: any;
-    }
-  | {
-      text?: string;
-      prompt?: string;
-      files?: UploadedContent[];
-      file?: UploadedContent;
-      [key: string]: any;
-    }
+    text?: string;
+    prompt?: string;
+    files?: UploadedContent[];
+    file?: UploadedContent;
+    [key: string]: any;
+  }
   | Record<string, any>
   | string;
 
@@ -59,6 +59,8 @@ export interface GeminiExecutionOptions {
   responseMimeType?: string;
   /** Whether to stream the response (default false) */
   stream?: boolean;
+  /** Maximum execution timeout in milliseconds per candidate model (default: 12000) */
+  timeout?: number;
   /** Custom list of fallback models to try if the primary model fails */
   fallbackModels?: string[];
   /** Disable automatic fallback to backup models (default false) */
@@ -67,9 +69,9 @@ export interface GeminiExecutionOptions {
 
 /**
  * Default fallback models list tried sequentially if the primary model fails or is unavailable.
- * Covers Gemini 3.8 Flash, 3.6 Flash, 3.7 Flash, 3.5 Flash-Lite, 3.1 Flash-Lite, 3.5, 3 Flash Preview,
- * and 2.5 Pro.
+ * Uses current active Google Gemini models.
  */
+
 export const DEFAULT_FALLBACK_MODELS: string[] = [
   "gemini-3.8-flash",
   "gemini-3.6-flash",
@@ -370,12 +372,12 @@ export async function geminiConfig<T = any>(
     const apiKey = resolvedOptions.apiKey;
     const ai = getGeminiClient(apiKey);
 
-    // Build models queue: primary model first, followed by fallback models
+    // Build models queue: primary model first, followed by all fallback models
     const primaryModel = payload.model || "gemini-3.8-flash";
     const customFallbacks = resolvedOptions.fallbackModels || DEFAULT_FALLBACK_MODELS;
     const disableFallback = resolvedOptions.disableFallback === true;
 
-    // Ordered unique model list to try
+    // Ordered unique model list to try: primary model first, followed by every model in DEFAULT_FALLBACK_MODELS
     const modelsToTry: string[] = disableFallback
       ? [primaryModel]
       : Array.from(new Set([primaryModel, ...customFallbacks]));
@@ -388,15 +390,30 @@ export async function geminiConfig<T = any>(
       try {
         if (i > 0) {
           console.info(
-            `[Gemini Config] Attempting fallback model (${i}/${modelsToTry.length - 1}): "${candidateModel}"...`
+            `[Gemini Config] Fallback triggered (${i}/${modelsToTry.length - 1}): Attempting model "${candidateModel}"...`
           );
         }
 
-        const result = await ai.models.generateContent({
+        const timeoutMs = typeof resolvedOptions.timeout === "number" ? resolvedOptions.timeout : 12000;
+        const generatePromise = ai.models.generateContent({
           model: candidateModel,
           contents: payload.contents,
           config: payload.config,
         });
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `Gemini model "${candidateModel}" timed out after ${timeoutMs}ms`
+                )
+              ),
+            timeoutMs
+          )
+        );
+
+        const result = await Promise.race([generatePromise, timeoutPromise]);
 
         const text = result.text?.trim() || "";
         let data: T | null = null;
@@ -416,10 +433,26 @@ export async function geminiConfig<T = any>(
               try {
                 data = JSON.parse(jsonMatch[1]) as T;
               } catch {
-                console.warn("[Gemini Config] Failed to parse JSON response:", text);
+                console.warn(`[Gemini Config] Model "${candidateModel}" returned JSON that could not be parsed:`, text);
               }
             }
           }
+        }
+
+        // If response text is empty, treat as candidate model failure to trigger next fallback
+        if (!text) {
+          throw new Error(`Model "${candidateModel}" returned an empty response.`);
+        }
+
+        // If JSON schema was requested but parsed data is missing, treat as failure to trigger next fallback
+        if (isJsonExpected && !data) {
+          throw new Error(`Model "${candidateModel}" did not return valid JSON adhering to the required schema.`);
+        }
+
+        if (i > 0) {
+          console.info(
+            `[Gemini Config] Successfully generated response using fallback model "${candidateModel}".`
+          );
         }
 
         return {
@@ -438,7 +471,7 @@ export async function geminiConfig<T = any>(
         const nextModel = modelsToTry[i + 1];
         if (nextModel) {
           console.warn(
-            `[Gemini Config] Model "${candidateModel}" failed: ${errMsg}. Falling back to "${nextModel}"...`
+            `[Gemini Config] Model "${candidateModel}" failed: ${errMsg}. Falling back to next model "${nextModel}" (${i + 1}/${modelsToTry.length - 1})...`
           );
         }
       }

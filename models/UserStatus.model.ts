@@ -35,6 +35,7 @@ export interface IPrepCalendarTask {
   department: string;
   actionType: "call" | "arrange" | "design" | "procure" | "setup";
   daysBeforeEvent: number;
+  scheduledDate?: string; // YYYY-MM-DD concrete calendar date
   estimatedCost: number;
   actionBrief: string;
   priority: "high" | "medium" | "low";

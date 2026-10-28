@@ -17,6 +17,7 @@ import {
   Layers,
   X,
   Check,
+  Star,
 } from "lucide-react";
 import { AiEvaluationResponse, AiEvaluationOption } from "../api/ai-evaluate/route";
 
@@ -668,9 +669,10 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                     selectedArrangements.map((a, i) => (
                       <span
                         key={i}
-                        className="px-2 py-0.5 rounded-lg bg-white border border-[#E2ECE5] text-[10.5px] font-medium text-[#059669]"
+                        className="px-2 py-0.5 rounded-lg bg-white border border-[#E2ECE5] text-[10.5px] font-medium text-[#059669] flex items-center gap-1"
                       >
-                        ✓ {a}
+                        <Check className="w-3 h-3 text-[#10B981] shrink-0" />
+                        <span>{a}</span>
                       </span>
                     ))
                   ) : (
@@ -689,9 +691,10 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                     selectedRequirements.map((r, i) => (
                       <span
                         key={i}
-                        className="px-2 py-0.5 rounded-lg bg-white border border-[#E2ECE5] text-[10.5px] font-medium text-[#2D3748]"
+                        className="px-2 py-0.5 rounded-lg bg-white border border-[#E2ECE5] text-[10.5px] font-medium text-[#2D3748] flex items-center gap-1"
                       >
-                        ★ {r}
+                        <Star className="w-3 h-3 text-[#10B981] shrink-0" />
+                        <span>{r}</span>
                       </span>
                     ))
                   ) : (

@@ -256,3 +256,103 @@ export async function GET(request: Request) {
     );
   }
 }
+
+/**
+ * DELETE /api/user-status
+ * Deletes a specific user status by ID.
+ */
+export async function DELETE(request: Request) {
+  try {
+    await connectToDatabase();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Missing blueprint id" },
+        { status: 400 }
+      );
+    }
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      await UserStatus.findByIdAndDelete(id);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Blueprint removed successfully",
+    });
+  } catch (error: any) {
+    console.error("Error deleting user status:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: error?.message || "Failed to delete user status",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/user-status
+ * Updates budgetBreakdown or budget of an existing UserStatus document.
+ */
+export async function PATCH(request: Request) {
+  try {
+    await connectToDatabase();
+    const body = await request.json();
+    const { id, eventName, budgetBreakdown, budget } = body;
+
+    let targetDoc = null;
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      targetDoc = await UserStatus.findById(id);
+    } else if (eventName) {
+      targetDoc = await UserStatus.findOne({
+        eventName: (eventName || "").trim(),
+      }).sort({ createdAt: -1 });
+    }
+
+    if (!targetDoc) {
+      // Fallback to latest document
+      targetDoc = await UserStatus.findOne().sort({ createdAt: -1 });
+    }
+
+    if (!targetDoc) {
+      return NextResponse.json(
+        { success: false, message: "No event blueprint found to update" },
+        { status: 404 }
+      );
+    }
+
+    if (Array.isArray(budgetBreakdown)) {
+      targetDoc.budgetBreakdown = budgetBreakdown;
+    }
+    if (typeof budget === "number" && !isNaN(budget) && budget >= 0) {
+      targetDoc.budget = budget;
+    }
+
+    await targetDoc.save();
+
+    return NextResponse.json({
+      success: true,
+      message: "Budget breakdown updated successfully",
+      updated: {
+        id: targetDoc._id,
+        eventName: targetDoc.eventName,
+        budget: targetDoc.budget,
+        budgetBreakdown: targetDoc.budgetBreakdown,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error updating user status budget breakdown:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: error?.message || "Failed to update budget breakdown",
+      },
+      { status: 500 }
+    );
+  }
+}
+

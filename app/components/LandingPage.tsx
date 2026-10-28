@@ -69,10 +69,76 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
   const [showAiStepper, setShowAiStepper] = useState(false);
   const [aiEvaluationData, setAiEvaluationData] = useState<AiEvaluationResponse | null>(null);
   const [aiEvalError, setAiEvalError] = useState<string | null>(null);
+  const [savedOperations, setSavedOperations] = useState<{
+    prepCalendarTasks?: any[];
+    dayOfRunOfShow?: any[];
+    budgetBreakdown?: any[];
+    evaluationSummary?: any;
+    plannedItems?: string[];
+  } | null>(null);
 
-  // Events history state
-  const [events, setEvents] = useState<EventPlan[]>(initialEvents);
-  const [activeEventId, setActiveEventId] = useState<string>(initialEvents[0].id);
+  // Events history state (initialized empty so no static mock data is shown)
+  const [events, setEvents] = useState<EventPlan[]>([]);
+  const [activeEventId, setActiveEventId] = useState<string>("");
+
+  // Fetch real saved event blueprints from database if available
+  React.useEffect(() => {
+    let isMounted = true;
+    fetch("/api/user-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted || !data.success || !Array.isArray(data.userStatuses)) return;
+        const loadedPlans: EventPlan[] = data.userStatuses.map((us: any) => ({
+          id: us._id || `event-${Date.now()}-${Math.random()}`,
+          title: us.eventName || "Untitled Event",
+          tagline:
+            us.evaluationSummary?.eventVibe ||
+            us.aiSummary ||
+            `${us.eventType || "Event"} architected with Kordena GenAI`,
+          eventType: us.eventType || "Conference",
+          date: us.endDate ? new Date(us.endDate).toISOString().split("T")[0] : "",
+          location: "Main Venue",
+          guestCount: us.guestCount || 100,
+          totalBudget: us.budget || 50000,
+          aiVibeSummary: us.evaluationSummary?.eventVibe || us.aiSummary || "",
+          paletteDescription: "",
+          tasks: (us.prepCalendarTasks || []).map((t: any, idx: number) => ({
+            id: t.id || `t-${idx}`,
+            title: t.title || "Task",
+            category: "Program",
+            deadline: "",
+            completed: false,
+            priority: t.priority === "high" ? "High" : t.priority === "medium" ? "Medium" : "Low",
+          })),
+          budget: (us.budgetBreakdown || []).map((b: any, idx: number) => ({
+            id: `b-${idx}`,
+            category: b.category,
+            allocated: b.allocatedAmount || 0,
+            spent: 0,
+            notes: b.spendStrategy || "",
+          })),
+          alerts: [],
+          vendors: [],
+          schedule: (us.dayOfRunOfShow || []).map((s: any, idx: number) => ({
+            id: `s-${idx}`,
+            time: s.timeSlot || "",
+            title: s.activity || "",
+            duration: "",
+            responsible: s.departmentInCharge || "",
+            status: "Pending",
+          })),
+          aiSuggestions: [],
+        }));
+        if (loadedPlans.length > 0) {
+          setEvents(loadedPlans);
+          setActiveEventId((prev) => prev || loadedPlans[0].id);
+        }
+      })
+      .catch((err) => console.warn("Failed to load user events:", err));
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Redirect state to Calendar UI
   const [showCalendar, setShowCalendar] = useState(false);
@@ -89,6 +155,7 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
     setCurrentPlanningInput("");
     setShowAiStepper(false);
     setAiEvaluationData(null);
+    setSavedOperations(null);
     setAiEvalError(null);
     setStepperKey((prev) => prev + 1);
     setShowCalendar(false);
@@ -117,8 +184,15 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDeleteEventFromHistory = (eventId: string) => {
+  const handleDeleteEventFromHistory = async (eventId: string) => {
     setEvents((prev) => prev.filter((ev) => ev.id !== eventId));
+    try {
+      await fetch(`/api/user-status?id=${encodeURIComponent(eventId)}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.warn("Could not delete from backend:", err);
+    }
   };
 
   const handleTriggerAiEvaluation = async () => {
@@ -148,7 +222,71 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
       }
 
       setAiEvaluationData(data);
-      setShowAiStepper(true);
+      const ops = {
+        prepCalendarTasks: data.prepCalendarTasks || [],
+        dayOfRunOfShow: data.dayOfRunOfShow || [],
+        budgetBreakdown: data.budgetBreakdown || [],
+        evaluationSummary: data.evaluationSummary,
+        plannedItems: planningItems,
+      };
+      setSavedOperations(ops);
+
+      // Directly save full event architecture and AI operations to MongoDB via /api/user-status
+      try {
+        await fetch("/api/user-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventName: eventName.trim() || "Untitled Event",
+            eventType,
+            tier: eventTier,
+            budget: Number(eventBudget) || 250000,
+            guestCount: Number(guestCount) || 100,
+            plannedItems: planningItems,
+            endDate: eventDate || new Date().toISOString().split("T")[0],
+            selectedPlan,
+            evaluationSummary: data.evaluationSummary,
+            budgetBreakdown: data.budgetBreakdown,
+            prepCalendarTasks: data.prepCalendarTasks,
+            dayOfRunOfShow: data.dayOfRunOfShow,
+            requirements: planningItems,
+            aiResponse: data,
+          }),
+        });
+      } catch (err) {
+        console.error("Guest save error:", err);
+      }
+
+      // Add to events history
+      if (eventName.trim()) {
+        const activeEv = events.find((e) => e.id === activeEventId) || events[0];
+        const newPlan: EventPlan = {
+          id: `event-${Date.now()}`,
+          title: eventName,
+          tagline:
+            data.evaluationSummary?.eventVibe ||
+            `${eventType} architected with Kordena GenAI`,
+          eventType: eventType,
+          date: eventDate || new Date().toISOString().split("T")[0],
+          location: activeEv?.location || "Main Venue",
+          totalBudget: Number(eventBudget) || 250000,
+          guestCount: Number(guestCount) || 100,
+          aiVibeSummary: data.evaluationSummary?.eventVibe || activeEv?.aiVibeSummary || "",
+          paletteDescription: activeEv?.paletteDescription || "",
+          tasks: activeEv?.tasks || [],
+          budget: activeEv?.budget || [],
+          alerts: activeEv?.alerts || [],
+          vendors: activeEv?.vendors || [],
+          schedule: activeEv?.schedule || [],
+          aiSuggestions: activeEv?.aiSuggestions || [],
+        };
+        setEvents((prev) => [newPlan, ...prev]);
+        setActiveEventId(newPlan.id);
+      }
+
+      // Directly go to calendar UI
+      setShowAiStepper(false);
+      setShowCalendar(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
       console.error("AI Evaluation error on landing page:", err);
@@ -195,6 +333,16 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
           aiResponse: evalSelections.aiResponse,
         }),
       });
+
+      if (evalSelections.aiResponse) {
+        setSavedOperations({
+          prepCalendarTasks: evalSelections.aiResponse.prepCalendarTasks || [],
+          dayOfRunOfShow: evalSelections.aiResponse.dayOfRunOfShow || [],
+          budgetBreakdown: evalSelections.aiResponse.budgetBreakdown || [],
+          evaluationSummary: evalSelections.aiResponse.evaluationSummary,
+          plannedItems: planningItems,
+        });
+      }
     } catch (err) {
       console.error("Guest save error:", err);
     } finally {
@@ -204,14 +352,22 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
     if (eventName.trim()) {
       const activeEv = events.find((e) => e.id === activeEventId) || events[0];
       const newPlan: EventPlan = {
-        ...activeEv,
         id: `event-${Date.now()}`,
         title: eventName,
         tagline: evalSelections.aiSummary || `${eventType} architected with Kordena GenAI`,
         eventType: eventType,
         date: eventDate || new Date().toISOString().split("T")[0],
+        location: activeEv?.location || "Main Venue",
         totalBudget: Number(eventBudget) || 250000,
         guestCount: Number(guestCount) || 100,
+        aiVibeSummary: evalSelections.aiSummary || activeEv?.aiVibeSummary || "",
+        paletteDescription: activeEv?.paletteDescription || "",
+        tasks: activeEv?.tasks || [],
+        budget: activeEv?.budget || [],
+        alerts: activeEv?.alerts || [],
+        vendors: activeEv?.vendors || [],
+        schedule: activeEv?.schedule || [],
+        aiSuggestions: activeEv?.aiSuggestions || [],
       };
       setEvents((prev) => [newPlan, ...prev]);
       setActiveEventId(newPlan.id);
@@ -269,7 +425,14 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
             eventBudget={eventBudget || "50000"}
             eventDate={eventDate || new Date().toISOString().split("T")[0]}
             selectedPlan={selectedPlan}
+            tier={eventTier}
+            guestCount={guestCount}
             organizerName="Guest Planner"
+            prepCalendarTasks={savedOperations?.prepCalendarTasks || aiEvaluationData?.prepCalendarTasks}
+            dayOfRunOfShow={savedOperations?.dayOfRunOfShow || aiEvaluationData?.dayOfRunOfShow}
+            budgetBreakdown={savedOperations?.budgetBreakdown || aiEvaluationData?.budgetBreakdown}
+            evaluationSummary={savedOperations?.evaluationSummary || aiEvaluationData?.evaluationSummary}
+            plannedItems={planningItems}
             onBackToStepper={() => setShowCalendar(false)}
             onNewEvent={handleStartNewEvent}
           />
@@ -372,36 +535,20 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                 </div>
                 <p className="text-[11px] text-[#059669] font-semibold flex items-center gap-1.5">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Synthesizing tailored decorations, arrangements & requirements...
+                  Synthesizing production schedule, countdown milestones & budget breakdown...
                 </p>
               </div>
             </div>
           )}
 
-          {/* If AI Stepper Stage is Active, render AiEvaluationStepper */}
-          {showAiStepper && aiEvaluationData ? (
-            <AiEvaluationStepper
-              eventData={{
-                eventName: eventName.trim() || "Untitled Event",
-                eventType,
-                tier: eventTier,
-                budget: eventBudget || "250000",
-                guestCount: guestCount || "100",
-                eventDate,
-              }}
-              aiEvaluation={aiEvaluationData}
-              onBackToParams={() => setShowAiStepper(false)}
-              onComplete={handleFinalSaveWithAi}
-              isSaving={isSaving}
-            />
-          ) : (
-            <Stepper
-              key={stepperKey}
-              initialStep={1}
-              onStepChange={(step) => console.log("Landing stepper step:", step)}
-              onFinalStepCompleted={handleTriggerAiEvaluation}
-              backButtonText="Back"
-              nextButtonText="Continue"
+          {/* Blueprint Stepper */}
+          <Stepper
+            key={stepperKey}
+            initialStep={1}
+            onStepChange={(step) => console.log("Landing stepper step:", step)}
+            onFinalStepCompleted={handleTriggerAiEvaluation}
+            backButtonText="Back"
+            nextButtonText="Continue"
               orientation="vertical"
               width={640}
               completeButtonText="Submit to AI Evaluation →"
@@ -742,7 +889,6 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                 </div>
               </Step>
             </Stepper>
-          )}
 
         <div className="mt-5 text-center">
           <button
@@ -755,16 +901,18 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
         </div>
 
         {/* Event Histories Section under Blueprint Stepper */}
-        <div className="w-full">
-          <EventHistories
-            events={events}
-            activeEventId={activeEventId}
-            onSelectEvent={handleSelectEventFromHistory}
-            onOpenCalendar={handleOpenCalendarFromHistory}
-            onDeleteEvent={handleDeleteEventFromHistory}
-            onStartNewEvent={handleStartNewEvent}
-          />
-        </div>
+        {events.length > 0 && (
+          <div className="w-full">
+            <EventHistories
+              events={events}
+              activeEventId={activeEventId}
+              onSelectEvent={handleSelectEventFromHistory}
+              onOpenCalendar={handleOpenCalendarFromHistory}
+              onDeleteEvent={handleDeleteEventFromHistory}
+              onStartNewEvent={handleStartNewEvent}
+            />
+          </div>
+        )}
       </div>
     </div>
   </div>

@@ -37,6 +37,7 @@ export interface PrepCalendarTask {
   department: string;
   actionType: "call" | "arrange" | "design" | "procure" | "setup";
   daysBeforeEvent: number;
+  scheduledDate: string; // YYYY-MM-DD concrete calendar date
   estimatedCost: number;
   actionBrief: string;
   priority: "high" | "medium" | "low";
@@ -99,11 +100,52 @@ export async function POST(request: Request) {
     const rawPlanned = Array.isArray(planningItems) && planningItems.length
       ? planningItems
       : Array.isArray(plannedItems)
-      ? plannedItems
-      : [];
+        ? plannedItems
+        : [];
     const plannedList = rawPlanned.filter(Boolean);
 
+    const todayDate = new Date().toISOString().split("T")[0];
     const targetEndDate = endDate || eventDate || "Date TBD";
+
+    // Validate: event date cannot be today (no prep time available)
+    if (targetEndDate !== "Date TBD") {
+      const eventDateNorm = new Date(targetEndDate);
+      const todayNorm = new Date(todayDate);
+      eventDateNorm.setHours(0, 0, 0, 0);
+      todayNorm.setHours(0, 0, 0, 0);
+
+      if (eventDateNorm.getTime() === todayNorm.getTime()) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Event date cannot be today. Please select a future date so we can plan preparation tasks leading up to the event.",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (eventDateNorm.getTime() < todayNorm.getTime()) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Event date is in the past. Please select a future date.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Calculate total prep days available
+    const totalPrepDays =
+      targetEndDate !== "Date TBD"
+        ? Math.ceil(
+          (new Date(targetEndDate).getTime() - new Date(todayDate).getTime()) /
+          (1000 * 60 * 60 * 24)
+        )
+        : 14; // default fallback
+
     const plannedItemsFormatted = plannedList.length
       ? plannedList.join(", ")
       : "camera department, catering service, decoration team, audio & stage, venue arrangements";
@@ -114,12 +156,14 @@ export async function POST(request: Request) {
 Analyze the following event constraints and output a production-grade, calendar-ready event schedule and budget breakdown:
 
 [EVENT PARAMETERS]
+- Today's Date: ${todayDate}
 - Event Name: ${trimmedName}
 - Event Type: ${resolvedType}
 - Tier: ${resolvedTier}
 - Total Budget: ${resolvedBudget}
 - Guest Count: ${resolvedGuestCount}
 - Target Event Date (endDate): ${targetEndDate}
+- Total Preparation Days Available: ${totalPrepDays}
 - Selected Planned Items / Departments: ${plannedItemsFormatted}
 
 [EVALUATION RULES]
@@ -129,7 +173,12 @@ Analyze the following event constraints and output a production-grade, calendar-
    - Sum of all 'allocatedAmount' must equal the total budget.
 
 2. Prep Calendar Tasks (Countdown Days):
-   - For every department in 'plannedItems', create concrete, sequential action items scheduled across practical lead times ('daysBeforeEvent' relative to 'endDate').
+   - CRITICAL: All tasks MUST be scheduled between Today's Date (${todayDate}) and Target Event Date (${targetEndDate}). You have exactly ${totalPrepDays} days of preparation time.
+   - For every department in 'plannedItems', create concrete, sequential action items.
+   - Each task MUST have both:
+     a) 'scheduledDate': the actual calendar date in YYYY-MM-DD format when this task should be performed (must be >= ${todayDate} and <= ${targetEndDate}).
+     b) 'daysBeforeEvent': the countdown number (how many days before the event date). This is calculated as the difference between ${targetEndDate} and scheduledDate.
+   - Spread tasks evenly across the available ${totalPrepDays}-day window. Early tasks (vendor calls, design decisions) should be near today's date; later tasks (setup, rehearsal) should be near the event date.
    - Categorize each task strictly into: 'call', 'arrange', 'design', 'procure', or 'setup'.
    - For any "call" actionType, write an actionable phone inquiry script or checklist in 'actionBrief' (e.g., exact quantities, budget limits, package requirements).
    - For "design" or "arrange" tasks, provide clear visual and structural instructions.
@@ -180,7 +229,7 @@ Return ONLY a valid JSON object matching the requested schema.`;
         },
         prepCalendarTasks: {
           type: "array",
-          description: "Pre-event countdown tasks mapped to calendar days",
+          description: `Pre-event countdown tasks scheduled between ${todayDate} and ${targetEndDate}`,
           items: {
             type: "object",
             properties: {
@@ -191,7 +240,11 @@ Return ONLY a valid JSON object matching the requested schema.`;
                 type: "string",
                 enum: ["call", "arrange", "design", "procure", "setup"],
               },
-              daysBeforeEvent: { type: "number" },
+              scheduledDate: {
+                type: "string",
+                description: `Actual calendar date in YYYY-MM-DD format, must be between ${todayDate} and ${targetEndDate}`,
+              },
+              daysBeforeEvent: { type: "number", description: "Countdown days before the event date" },
               estimatedCost: { type: "number" },
               actionBrief: {
                 type: "string",
@@ -207,6 +260,7 @@ Return ONLY a valid JSON object matching the requested schema.`;
               "title",
               "department",
               "actionType",
+              "scheduledDate",
               "daysBeforeEvent",
               "estimatedCost",
               "actionBrief",
@@ -255,6 +309,7 @@ Return ONLY a valid JSON object matching the requested schema.`;
         prompt,
         responseSchema,
         responseMimeType: "application/json",
+        timeout: 15000,
       });
 
       if (result.success && result.data?.evaluationSummary) {
@@ -313,33 +368,57 @@ Return ONLY a valid JSON object matching the requested schema.`;
           source: "gemini-api",
         });
       }
-    } catch (geminiError) {
-      console.warn("Gemini AI evaluation failed, falling back to smart engine:", geminiError);
+
+      console.error(
+        "All Gemini models in fallback queue failed:",
+        result.error,
+        result.fallbackAttempts
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            result.error ||
+            "All candidate Gemini models in the fallback queue failed to generate an evaluation.",
+          fallbackAttempts: result.fallbackAttempts,
+        },
+        { status: 502 }
+      );
+    } catch (geminiError: any) {
+      console.warn("Gemini AI evaluation route error:", geminiError);
+      return NextResponse.json(
+        {
+          success: false,
+          message: geminiError?.message || "Gemini AI evaluation failed",
+        },
+        { status: 500 }
+      );
     }
 
     // 2. Fallback: Domain-aware Intelligent Kordena AI Engine
-    const evaluation = generateSmartAiEvaluation(
-      trimmedName,
-      resolvedType,
-      resolvedGuestCount,
-      resolvedBudget,
-      perGuest,
-      resolvedTier,
-      plannedList,
-      leadOrganizer
-    );
+    // const evaluation = generateSmartAiEvaluation(
+    //   trimmedName,
+    //   resolvedType,
+    //   resolvedGuestCount,
+    //   resolvedBudget,
+    //   perGuest,
+    //   resolvedTier,
+    //   plannedList,
+    //   leadOrganizer
+    // );
 
-    return NextResponse.json({
-      success: true,
-      evaluationSummary: evaluation.evaluationSummary,
-      budgetBreakdown: evaluation.budgetBreakdown,
-      prepCalendarTasks: evaluation.prepCalendarTasks,
-      dayOfRunOfShow: evaluation.dayOfRunOfShow,
-      mediatorStarterPrompts: evaluation.mediatorStarterPrompts,
-      aiSummary: evaluation.aiSummary,
-      questions: evaluation.questions,
-      source: "kordena-ai-engine",
-    });
+    // return NextResponse.json({
+    //   success: true,
+    //   evaluationSummary: evaluation.evaluationSummary,
+    //   budgetBreakdown: evaluation.budgetBreakdown,
+    //   prepCalendarTasks: evaluation.prepCalendarTasks,
+    //   dayOfRunOfShow: evaluation.dayOfRunOfShow,
+    //   mediatorStarterPrompts: evaluation.mediatorStarterPrompts,
+    //   aiSummary: evaluation.aiSummary,
+    //   questions: evaluation.questions,
+    //   source: "kordena-ai-engine",
+    // });
   } catch (error: any) {
     console.error("AI Evaluation route error:", error);
     return NextResponse.json(
@@ -524,6 +603,22 @@ function generateSmartAiEvaluation(
     },
   ];
 
+  // Helper: compute a scheduled date given days-before-event, clamped to today
+  const computeScheduledDate = (daysBeforeEvt: number): string => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const evtDate = new Date(today);
+    // Use a rough prep window; fallback tasks use relative offsets
+    evtDate.setDate(evtDate.getDate() + 14); // default 14-day window for fallback
+    const taskDate = new Date(evtDate);
+    taskDate.setDate(taskDate.getDate() - daysBeforeEvt);
+    // Clamp: task cannot be before today
+    if (taskDate.getTime() < today.getTime()) {
+      return today.toISOString().split("T")[0];
+    }
+    return taskDate.toISOString().split("T")[0];
+  };
+
   const prepCalendarTasks: PrepCalendarTask[] = [
     {
       id: "prep_1",
@@ -531,6 +626,7 @@ function generateSmartAiEvaluation(
       department: "Catering",
       actionType: "call",
       daysBeforeEvent: 14,
+      scheduledDate: computeScheduledDate(14),
       estimatedCost: Math.round(budget * 0.38),
       actionBrief: `Verify exact head count of ${guestCount} and lock live counter requirements.`,
       priority: "high",
@@ -541,6 +637,7 @@ function generateSmartAiEvaluation(
       department: "Decor",
       actionType: "design",
       daysBeforeEvent: 10,
+      scheduledDate: computeScheduledDate(10),
       estimatedCost: Math.round(budget * 0.18),
       actionBrief: "Review visual stage backdrop schematics and power load distribution.",
       priority: "high",
@@ -551,6 +648,7 @@ function generateSmartAiEvaluation(
       department: "Production",
       actionType: "call",
       daysBeforeEvent: 5,
+      scheduledDate: computeScheduledDate(5),
       estimatedCost: 0,
       actionBrief: "Align mic frequencies, presentation feeds, and camera vantage points.",
       priority: "medium",
@@ -561,6 +659,7 @@ function generateSmartAiEvaluation(
       department: "Operations",
       actionType: "setup",
       daysBeforeEvent: 1,
+      scheduledDate: computeScheduledDate(1),
       estimatedCost: Math.round(budget * 0.1),
       actionBrief: "Execute dry-run walk-through and verify security check-in protocols.",
       priority: "high",

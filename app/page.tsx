@@ -81,6 +81,13 @@ export default function Home() {
   const [showAiStepper, setShowAiStepper] = useState(false);
   const [aiEvaluationData, setAiEvaluationData] = useState<AiEvaluationResponse | null>(null);
   const [aiEvalError, setAiEvalError] = useState<string | null>(null);
+  const [savedOperations, setSavedOperations] = useState<{
+    prepCalendarTasks?: any[];
+    dayOfRunOfShow?: any[];
+    budgetBreakdown?: any[];
+    evaluationSummary?: any;
+    plannedItems?: string[];
+  } | null>(null);
 
   const handleAddPlanningItem = () => {
     const trimmed = currentPlanningInput.trim();
@@ -106,6 +113,7 @@ export default function Home() {
     setIsCompleted(false);
     setShowAiStepper(false);
     setAiEvaluationData(null);
+    setSavedOperations(null);
     setAiEvalError(null);
     setStepperKey((prev) => prev + 1);
     setViewMode("stepper");
@@ -128,9 +136,9 @@ export default function Home() {
     }
   }, []);
 
-  // Workspace state
-  const [events, setEvents] = useState<EventPlan[]>(initialEvents);
-  const [activeEventId, setActiveEventId] = useState<string>(initialEvents[0].id);
+  // Workspace state (initialized empty so no unwanted static mock data is shown)
+  const [events, setEvents] = useState<EventPlan[]>([]);
+  const [activeEventId, setActiveEventId] = useState<string>("");
 
   // Active authenticated user from NextAuth session
   const activeUser = session?.user
@@ -145,6 +153,66 @@ export default function Home() {
 
   // Active event plan
   const activeEvent = events.find((e) => e.id === activeEventId) || events[0];
+
+  // Fetch real saved event blueprints from database
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/user-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted || !data.success || !Array.isArray(data.userStatuses)) return;
+        const loadedPlans: EventPlan[] = data.userStatuses.map((us: any) => ({
+          id: us._id || `event-${Date.now()}-${Math.random()}`,
+          title: us.eventName || "Untitled Event",
+          tagline:
+            us.evaluationSummary?.eventVibe ||
+            us.aiSummary ||
+            `${us.eventType || "Event"} architected with Kordena GenAI`,
+          eventType: us.eventType || "Conference",
+          date: us.endDate ? new Date(us.endDate).toISOString().split("T")[0] : "",
+          location: "Main Venue",
+          guestCount: us.guestCount || 100,
+          totalBudget: us.budget || 50000,
+          aiVibeSummary: us.evaluationSummary?.eventVibe || us.aiSummary || "",
+          paletteDescription: "",
+          tasks: (us.prepCalendarTasks || []).map((t: any, idx: number) => ({
+            id: t.id || `t-${idx}`,
+            title: t.title || "Task",
+            category: "Program",
+            deadline: "",
+            completed: false,
+            priority: t.priority === "high" ? "High" : t.priority === "medium" ? "Medium" : "Low",
+          })),
+          budget: (us.budgetBreakdown || []).map((b: any, idx: number) => ({
+            id: `b-${idx}`,
+            category: b.category,
+            allocated: b.allocatedAmount || 0,
+            spent: 0,
+            notes: b.spendStrategy || "",
+          })),
+          alerts: [],
+          vendors: [],
+          schedule: (us.dayOfRunOfShow || []).map((s: any, idx: number) => ({
+            id: `s-${idx}`,
+            time: s.timeSlot || "",
+            title: s.activity || "",
+            duration: "",
+            responsible: s.departmentInCharge || "",
+            status: "Pending",
+          })),
+          aiSuggestions: [],
+        }));
+        if (loadedPlans.length > 0) {
+          setEvents(loadedPlans);
+          setActiveEventId((prev) => prev || loadedPlans[0].id);
+        }
+      })
+      .catch((err) => console.warn("Failed to load user events:", err));
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
+
 
   // 1. Trigger AI Evaluation route after initial stepper review
   const handleTriggerAiEvaluation = async () => {
@@ -184,7 +252,73 @@ export default function Home() {
       }
 
       setAiEvaluationData(data);
-      setShowAiStepper(true);
+      const ops = {
+        prepCalendarTasks: data.prepCalendarTasks || [],
+        dayOfRunOfShow: data.dayOfRunOfShow || [],
+        budgetBreakdown: data.budgetBreakdown || [],
+        evaluationSummary: data.evaluationSummary,
+        plannedItems: planningItems,
+      };
+      setSavedOperations(ops);
+
+      // Directly save full event architecture and AI operations to MongoDB via /api/user-status
+      try {
+        const saveRes = await fetch("/api/user-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventName: eventName.trim() || "Untitled Event",
+            eventType,
+            tier: eventTier,
+            budget: Number(eventBudget) || 250000,
+            guestCount: Number(guestCount) || 100,
+            plannedItems: planningItems,
+            endDate: eventDate || new Date().toISOString().split("T")[0],
+            selectedPlan,
+            evaluationSummary: data.evaluationSummary,
+            budgetBreakdown: data.budgetBreakdown,
+            prepCalendarTasks: data.prepCalendarTasks,
+            dayOfRunOfShow: data.dayOfRunOfShow,
+            requirements: planningItems,
+            aiResponse: data,
+          }),
+        });
+        const saveResult = await saveRes.json();
+        console.log("Auto-saved UserStatus to database:", saveResult);
+      } catch (saveErr) {
+        console.warn("Could not auto-save user status:", saveErr);
+      }
+
+      // Add to event history
+      if (eventName.trim()) {
+        const newPlan: EventPlan = {
+          id: `event-${Date.now()}`,
+          title: eventName,
+          tagline:
+            data.evaluationSummary?.eventVibe ||
+            `${eventType} architected with Kordena GenAI`,
+          eventType: eventType,
+          date: eventDate || new Date().toISOString().split("T")[0],
+          location: activeEvent?.location || "Main Venue",
+          totalBudget: Number(eventBudget) || 250000,
+          guestCount: Number(guestCount) || 100,
+          aiVibeSummary: data.evaluationSummary?.eventVibe || activeEvent?.aiVibeSummary || "",
+          paletteDescription: activeEvent?.paletteDescription || "",
+          tasks: activeEvent?.tasks || [],
+          budget: activeEvent?.budget || [],
+          alerts: activeEvent?.alerts || [],
+          vendors: activeEvent?.vendors || [],
+          schedule: activeEvent?.schedule || [],
+          aiSuggestions: activeEvent?.aiSuggestions || [],
+        };
+        setEvents((prev) => [newPlan, ...prev]);
+        setActiveEventId(newPlan.id);
+      }
+
+      // Directly go to calendar UI
+      setIsCompleted(true);
+      setShowAiStepper(false);
+      setViewMode("calendar");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
       console.error("AI Evaluation error:", err);
@@ -250,6 +384,16 @@ export default function Home() {
       } else {
         console.log("User status successfully saved to MongoDB:", result.userStatus);
       }
+
+      if (evalSelections.aiResponse) {
+        setSavedOperations({
+          prepCalendarTasks: evalSelections.aiResponse.prepCalendarTasks || [],
+          dayOfRunOfShow: evalSelections.aiResponse.dayOfRunOfShow || [],
+          budgetBreakdown: evalSelections.aiResponse.budgetBreakdown || [],
+          evaluationSummary: evalSelections.aiResponse.evaluationSummary,
+          plannedItems: planningItems,
+        });
+      }
     } catch (err) {
       console.error("Network error while storing user status:", err);
     } finally {
@@ -258,14 +402,22 @@ export default function Home() {
 
     if (eventName.trim()) {
       const newPlan: EventPlan = {
-        ...activeEvent,
         id: `event-${Date.now()}`,
         title: eventName,
         tagline: evalSelections.aiSummary || `${eventType} architected with Kordena GenAI`,
         eventType: eventType,
         date: eventDate || new Date().toISOString().split("T")[0],
+        location: activeEvent?.location || "Main Venue",
         totalBudget: Number(eventBudget) || 250000,
         guestCount: Number(guestCount) || 100,
+        aiVibeSummary: evalSelections.aiSummary || activeEvent?.aiVibeSummary || "",
+        paletteDescription: activeEvent?.paletteDescription || "",
+        tasks: activeEvent?.tasks || [],
+        budget: activeEvent?.budget || [],
+        alerts: activeEvent?.alerts || [],
+        vendors: activeEvent?.vendors || [],
+        schedule: activeEvent?.schedule || [],
+        aiSuggestions: activeEvent?.aiSuggestions || [],
       };
       setEvents((prev) => [newPlan, ...prev]);
       setActiveEventId(newPlan.id);
@@ -301,8 +453,15 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDeleteEventFromHistory = (eventId: string) => {
+  const handleDeleteEventFromHistory = async (eventId: string) => {
     setEvents((prev) => prev.filter((ev) => ev.id !== eventId));
+    try {
+      await fetch(`/api/user-status?id=${encodeURIComponent(eventId)}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.warn("Could not delete from backend:", err);
+    }
   };
 
   const handleLogout = async () => {
@@ -483,7 +642,14 @@ export default function Home() {
             eventBudget={eventBudget || String(activeEvent?.totalBudget || 50000)}
             eventDate={eventDate || parseDateForInput(activeEvent?.date) || new Date().toISOString().split("T")[0]}
             selectedPlan={selectedPlan}
+            tier={eventTier}
+            guestCount={guestCount}
             organizerName={activeUser?.name}
+            prepCalendarTasks={savedOperations?.prepCalendarTasks || aiEvaluationData?.prepCalendarTasks}
+            dayOfRunOfShow={savedOperations?.dayOfRunOfShow || aiEvaluationData?.dayOfRunOfShow}
+            budgetBreakdown={savedOperations?.budgetBreakdown || aiEvaluationData?.budgetBreakdown}
+            evaluationSummary={savedOperations?.evaluationSummary || aiEvaluationData?.evaluationSummary}
+            plannedItems={planningItems}
             onBackToStepper={() => setViewMode("stepper")}
             onNewEvent={handleStartNewEvent}
           />
@@ -558,37 +724,20 @@ export default function Home() {
                   </div>
                   <p className="text-[11px] text-[#059669] font-semibold flex items-center gap-1.5">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Synthesizing tailored decorations, arrangements & requirements...
+                    Synthesizing production schedule, countdown milestones & budget breakdown...
                   </p>
                 </div>
               </div>
             )}
 
-            {/* If AI Stepper Stage is Active, render AiEvaluationStepper */}
-            {showAiStepper && aiEvaluationData ? (
-              <AiEvaluationStepper
-                eventData={{
-                  eventName: eventName.trim() || "Untitled Event",
-                  eventType,
-                  tier: eventTier,
-                  budget: eventBudget || "250000",
-                  guestCount: guestCount || "100",
-                  eventDate,
-                }}
-                aiEvaluation={aiEvaluationData}
-                onBackToParams={() => setShowAiStepper(false)}
-                onComplete={handleFinalSaveWithAi}
-                isSaving={isSaving}
-              />
-            ) : (
-              /* Otherwise render Initial Blueprint Stepper */
-              <Stepper
-                key={stepperKey}
-                initialStep={1}
-                onStepChange={(step) => console.log("Stepper step changed to:", step)}
-                onFinalStepCompleted={handleTriggerAiEvaluation}
-                backButtonText="Back"
-                nextButtonText="Continue"
+            {/* Blueprint Stepper */}
+            <Stepper
+              key={stepperKey}
+              initialStep={1}
+              onStepChange={(step) => console.log("Stepper step changed to:", step)}
+              onFinalStepCompleted={handleTriggerAiEvaluation}
+              backButtonText="Back"
+              nextButtonText="Continue"
                 orientation="vertical"
                 width={640}
                 completeButtonText="Submit to AI Evaluation →"
@@ -934,19 +1083,20 @@ export default function Home() {
                   </div>
                 </Step>
               </Stepper>
-            )}
 
             {/* Event Histories Section under Blueprint Stepper */}
-            <div className="w-full">
-              <EventHistories
-                events={events}
-                activeEventId={activeEventId}
-                onSelectEvent={handleSelectEventFromHistory}
-                onOpenCalendar={handleOpenCalendarFromHistory}
-                onDeleteEvent={handleDeleteEventFromHistory}
-                onStartNewEvent={handleStartNewEvent}
-              />
-            </div>
+            {events.length > 0 && (
+              <div className="w-full">
+                <EventHistories
+                  events={events}
+                  activeEventId={activeEventId}
+                  onSelectEvent={handleSelectEventFromHistory}
+                  onOpenCalendar={handleOpenCalendarFromHistory}
+                  onDeleteEvent={handleDeleteEventFromHistory}
+                  onStartNewEvent={handleStartNewEvent}
+                />
+              </div>
+            )}
           </div>
         </main>
       )}

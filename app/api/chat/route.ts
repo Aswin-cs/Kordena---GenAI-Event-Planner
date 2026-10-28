@@ -28,7 +28,7 @@ User Question/Prompt:
 Provide a crisp, actionable, elegant response. When suggesting changes (e.g. cutting budget, adjusting timeline, or drafting guest emails), format with bullet points and clear numbers.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.8-flash",
+          model: "gemini-3.1-flash-lite-preview",
           contents: prompt,
         });
 

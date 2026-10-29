@@ -72,5 +72,46 @@ test("UserStatus Model Efficiency & Schema Optimization Audit", async (t) => {
     assert.strictEqual(typeof (UserStatus as any).findActiveByUser, "function");
     assert.strictEqual(typeof (UserStatus as any).findLatestByUser, "function");
   });
+
+  await t.test("instance methods toggleTask and getCompletionMetrics function reliably", () => {
+    const doc: any = new UserStatus({
+      userId: new mongoose.Types.ObjectId(),
+      eventName: "Quality Summit",
+      eventType: "Conference",
+      budget: 100000,
+      guestCount: 150,
+      endDate: new Date(Date.now() + 86400000 * 10),
+      prepCalendarTasks: [
+        { id: "task-1", title: "Catering", isCompleted: false },
+        { id: "task-2", title: "Audio Visual", isCompleted: true },
+      ],
+      budgetBreakdown: [
+        { category: "Venue", allocatedAmount: 50000, percentage: 50 },
+        { category: "Catering", allocatedAmount: 30000, percentage: 30 },
+      ],
+    });
+
+    // Check virtual totalAllocatedBudget
+    assert.strictEqual(doc.totalAllocatedBudget, 80000);
+
+    // Check virtual daysUntilEvent
+    assert.ok(typeof doc.daysUntilEvent === "number" && doc.daysUntilEvent >= 9);
+
+    // Initial metrics
+    const initialMetrics = doc.getCompletionMetrics();
+    assert.strictEqual(initialMetrics.completedCount, 1);
+    assert.strictEqual(initialMetrics.totalCount, 2);
+    assert.strictEqual(initialMetrics.percentage, 50);
+
+    // Toggle task-1 using instance method
+    const updated = doc.toggleTask("task-1", true);
+    assert.strictEqual(updated, true);
+    assert.strictEqual(doc.prepCalendarTasks[0].isCompleted, true);
+
+    // Recomputed metrics
+    const finalMetrics = doc.getCompletionMetrics();
+    assert.strictEqual(finalMetrics.completedCount, 2);
+    assert.strictEqual(finalMetrics.percentage, 100);
+  });
 });
 

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next";
 import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import UserStatus, { EventType } from "@/models/UserStatus.model";
+import UserStatus, { EventType, VALID_EVENT_TYPES } from "@/models/UserStatus.model";
 import User from "@/models/User";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -12,19 +12,6 @@ import {
   clampNumber,
   safeErrorResponse,
 } from "@/lib/security";
-
-const VALID_EVENT_TYPES: EventType[] = [
-  "Birthday",
-  "Wedding",
-  "Conference",
-  "Corporate",
-  "Product Launch",
-  "Gala",
-  "Networking",
-  "Retreat",
-  "Exhibition",
-  "Other",
-];
 
 function sanitizeEventType(type?: string): EventType {
   if (!type) return "Conference";

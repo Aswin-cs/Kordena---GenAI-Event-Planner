@@ -23,6 +23,7 @@ const testFiles = [
   "./tests/tasks-toggle-api.test.ts",
   "./tests/security.test.ts",
   "./tests/a11y.test.ts",
+  "./tests/user-status-model.test.ts",
 ];
 
 console.log("=================================================");

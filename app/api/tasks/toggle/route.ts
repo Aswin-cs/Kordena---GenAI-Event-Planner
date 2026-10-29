@@ -1,22 +1,33 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import UserStatus, { IPrepCalendarTask } from "@/models/UserStatus.model";
 import User from "@/models/User";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { escapeRegex, sanitizeString, safeErrorResponse } from "@/lib/security";
 
 /**
  * Handles toggling or explicitly setting the isCompleted status of a prep calendar task.
  */
 async function handleTaskToggle(request: Request) {
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 120,
+    windowSeconds: 60,
+    bucketPrefix: "tasks:toggle",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     await connectToDatabase();
     const body = await request.json();
     const { taskId, isCompleted, userStatusId, eventName } = body;
 
-    if (!taskId) {
+    const sanitizedTaskId = sanitizeString(taskId, 100);
+    if (!sanitizedTaskId) {
       return NextResponse.json(
-        { success: false, message: "taskId is required" },
+        { success: false, message: "A valid taskId is required" },
         { status: 400 }
       );
     }
@@ -28,19 +39,25 @@ async function handleTaskToggle(request: Request) {
       if (dbUser) {
         userId = dbUser._id;
       }
+    } else {
+      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
+      if (guestUser) {
+        userId = guestUser._id;
+      }
     }
 
     let targetDoc: any = null;
 
     // 1. Try finding by userStatusId if provided
-    if (userStatusId) {
+    if (userStatusId && mongoose.Types.ObjectId.isValid(userStatusId)) {
       targetDoc = await UserStatus.findById(userStatusId);
     }
 
     // 2. Try finding by eventName
     if (!targetDoc && eventName) {
+      const safeEventName = escapeRegex(sanitizeString(eventName, 120));
       const query: Record<string, any> = {
-        eventName: { $regex: new RegExp(`^${eventName.trim()}$`, "i") },
+        eventName: { $regex: new RegExp(`^${safeEventName}$`, "i") },
       };
       if (userId) query.userId = userId;
       targetDoc = await UserStatus.findOne(query).sort({ updatedAt: -1 });
@@ -48,21 +65,28 @@ async function handleTaskToggle(request: Request) {
       // Fallback without userId if guest or session is different
       if (!targetDoc) {
         targetDoc = await UserStatus.findOne({
-          eventName: { $regex: new RegExp(`^${eventName.trim()}$`, "i") },
+          eventName: { $regex: new RegExp(`^${safeEventName}$`, "i") },
         }).sort({ updatedAt: -1 });
       }
     }
 
-    // 3. Fallback to latest doc
-    if (!targetDoc) {
-      const query: Record<string, any> = userId ? { userId } : {};
-      targetDoc = await UserStatus.findOne(query).sort({ updatedAt: -1 });
+    // 3. Fallback to latest doc for the authenticated user
+    if (!targetDoc && userId) {
+      targetDoc = await UserStatus.findOne({ userId }).sort({ updatedAt: -1 });
     }
 
     if (!targetDoc) {
       return NextResponse.json(
         { success: false, message: "No event blueprint found to update" },
         { status: 404 }
+      );
+    }
+
+    // Ownership check: if user is signed in, ensure they own the blueprint
+    if (userId && !targetDoc.userId.equals(userId)) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden: You do not have permission to modify tasks on this blueprint" },
+        { status: 403 }
       );
     }
 
@@ -73,12 +97,12 @@ async function handleTaskToggle(request: Request) {
     let updatedTaskObj: any = null;
 
     // Check if taskId matches directly, or matches index pattern (e.g. "task-0", "task-1")
-    const indexMatch = String(taskId).match(/^task-(\d+)$/i);
+    const indexMatch = String(sanitizedTaskId).match(/^task-(\d+)$/i);
     const parsedIdx = indexMatch ? parseInt(indexMatch[1], 10) : -1;
 
     for (let i = 0; i < tasks.length; i++) {
       const t = tasks[i];
-      const matchById = t.id && t.id === taskId;
+      const matchById = t.id && t.id === sanitizedTaskId;
       const matchByIndex = i === parsedIdx;
 
       if (matchById || matchByIndex) {
@@ -95,7 +119,7 @@ async function handleTaskToggle(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: `Task with id '${taskId}' not found in event blueprint '${targetDoc.eventName}'`,
+          message: `Task with id '${sanitizedTaskId}' not found in event blueprint '${targetDoc.eventName}'`,
         },
         { status: 404 }
       );
@@ -107,19 +131,15 @@ async function handleTaskToggle(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Task '${updatedTaskObj.title || taskId}' status updated to ${newCompletedState ? "completed" : "pending"}`,
-      taskId,
+      message: `Task '${updatedTaskObj.title || sanitizedTaskId}' status updated to ${newCompletedState ? "completed" : "pending"}`,
+      taskId: sanitizedTaskId,
       isCompleted: newCompletedState,
       updatedTask: updatedTaskObj,
       userStatusId: targetDoc._id,
       eventName: targetDoc.eventName,
     });
   } catch (error: any) {
-    console.error("[Task Toggle API] Error toggling task:", error);
-    return NextResponse.json(
-      { success: false, message: error?.message || "Internal server error" },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Internal server error updating task");
   }
 }
 
@@ -132,6 +152,13 @@ export async function PATCH(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 100,
+    windowSeconds: 60,
+    bucketPrefix: "tasks:get",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     await connectToDatabase();
     const { searchParams } = new URL(request.url);
@@ -143,13 +170,18 @@ export async function GET(request: Request) {
     if (session?.user?.email) {
       const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
       if (dbUser) userId = dbUser._id;
+    } else {
+      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
+      if (guestUser) userId = guestUser._id;
     }
 
     let filter: Record<string, any> = {};
-    if (userStatusId) {
+    if (userStatusId && mongoose.Types.ObjectId.isValid(userStatusId)) {
       filter._id = userStatusId;
+      if (userId) filter.userId = userId;
     } else if (eventName) {
-      filter.eventName = { $regex: new RegExp(`^${eventName.trim()}$`, "i") };
+      const safeEventName = escapeRegex(sanitizeString(eventName, 120));
+      filter.eventName = { $regex: new RegExp(`^${safeEventName}$`, "i") };
       if (userId) filter.userId = userId;
     } else if (userId) {
       filter.userId = userId;
@@ -175,10 +207,7 @@ export async function GET(request: Request) {
       prepCalendarTasks: tasks,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, message: error?.message || "Failed to fetch tasks" },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Failed to fetch tasks");
   }
 }
 

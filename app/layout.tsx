@@ -20,6 +20,13 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="min-h-full flex flex-col bg-[#F4F7F5] text-[#2D3748] antialiased selection:bg-[#10B981]/20 selection:text-[#10B981]">
+        {/* Skip to Main Content Link for Keyboard Accessibility (WCAG 2.4.1) */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#10B981] focus:text-white focus:rounded-xl focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#059669] font-bold text-xs"
+        >
+          Skip to main content
+        </a>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

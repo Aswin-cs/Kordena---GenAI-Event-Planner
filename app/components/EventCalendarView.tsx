@@ -1336,6 +1336,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   <button
                     type="button"
                     onClick={handlePrevEvent}
+                    aria-label={`Switch to previous blueprint (${effectiveEvents[(currentEventIndex - 1 + effectiveEvents.length) % effectiveEvents.length]?.eventName || "Previous"})`}
                     className="p-1 sm:p-1.5 rounded-xl hover:bg-[#FFFFFF] text-[#4A5568] hover:text-[#10B981] transition-all cursor-pointer shadow-2xs active:scale-95 group"
                     title={`Previous Event (${effectiveEvents[(currentEventIndex - 1 + effectiveEvents.length) % effectiveEvents.length]?.eventName || "Previous"}) [Alt+←]`}
                   >
@@ -1345,6 +1346,8 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsEventDropdownOpen((prev) => !prev)}
+                    aria-expanded={isEventDropdownOpen}
+                    aria-label={`Current blueprint: ${activeEventName || eventName}, ${currentEventIndex + 1} of ${effectiveEvents.length}. Click to view all.`}
                     className="px-2 py-0.5 rounded-lg hover:bg-white text-[11px] font-extrabold text-[#2D3748] flex items-center gap-1 transition-all cursor-pointer select-none"
                     title="Click to view all events"
                   >
@@ -1356,6 +1359,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   <button
                     type="button"
                     onClick={handleNextEvent}
+                    aria-label={`Switch to next blueprint (${effectiveEvents[(currentEventIndex + 1) % effectiveEvents.length]?.eventName || "Next"})`}
                     className="p-1 sm:p-1.5 rounded-xl hover:bg-[#FFFFFF] text-[#4A5568] hover:text-[#10B981] transition-all cursor-pointer shadow-2xs active:scale-95 group"
                     title={`Next Event (${effectiveEvents[(currentEventIndex + 1) % effectiveEvents.length]?.eventName || "Next"}) [Alt+→]`}
                   >
@@ -1818,6 +1822,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                 views={["month", "week", "day", "agenda"]}
                 components={{
                   event: CustomCalendarEvent as any,
+                  toolbar: () => null,
                 }}
               />
             </div>
@@ -2563,7 +2568,12 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   : "-translate-x-full opacity-0"
               }`}
             >
-              <div className="bg-[#FFFFFF] rounded-3xl border border-[#E2ECE5] shadow-[0_25px_70px_-12px_rgba(20,40,30,0.18),0_0_0_1px_rgba(226,236,229,0.8)] flex flex-col h-full max-h-full overflow-hidden pointer-events-auto relative">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="drawer-event-title"
+                className="bg-[#FFFFFF] rounded-3xl border border-[#E2ECE5] shadow-[0_25px_70px_-12px_rgba(20,40,30,0.18),0_0_0_1px_rgba(226,236,229,0.8)] flex flex-col h-full max-h-full overflow-hidden pointer-events-auto relative"
+              >
                 {/* Top Accent Gradient Line */}
                 <div
                   className={`h-1.5 w-full shrink-0 ${
@@ -2607,7 +2617,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                         }`}
                       />
                     </span>
-                    <h3 className="text-xs sm:text-sm font-extrabold text-[#2D3748] tracking-tight">
+                    <h3 id="drawer-event-title" className="text-xs sm:text-sm font-extrabold text-[#2D3748] tracking-tight">
                       {activeDrawerEvent.isMainEvent
                         ? "Target Event Details"
                         : activeDrawerEvent.runOfShowItem

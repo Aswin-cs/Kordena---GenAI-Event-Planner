@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { geminiConfig } from "@/config/gemini";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { sanitizeString, clampNumber, safeErrorResponse } from "@/lib/security";
 
 export interface AiEvaluationOption {
   id: string;
@@ -74,6 +76,14 @@ export interface AiEvaluationResponse {
 }
 
 export async function POST(request: Request) {
+  // 1. Rate limiting protection
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 30,
+    windowSeconds: 60,
+    bucketPrefix: "ai:evaluate",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     const body = await request.json();
     const {
@@ -89,11 +99,11 @@ export async function POST(request: Request) {
       plannedItems = [],
     } = body;
 
-    const trimmedName = String(eventName).trim() || "Untitled Event";
-    const resolvedGuestCount = Math.max(1, Number(guestCount) || 100);
-    const resolvedBudget = Math.max(0, Number(budget) || 250000);
-    const resolvedType = String(eventType).trim() || "Conference";
-    const resolvedTier = String(tier).trim() || "Starter";
+    const trimmedName = sanitizeString(eventName, 120) || "Untitled Event";
+    const resolvedGuestCount = clampNumber(guestCount, 1, 1_000_000, 100);
+    const resolvedBudget = clampNumber(budget, 0, 1_000_000_000, 250000);
+    const resolvedType = sanitizeString(eventType, 50) || "Conference";
+    const resolvedTier = sanitizeString(tier, 50) || "Starter";
     const perGuest = Math.round(resolvedBudget / resolvedGuestCount);
 
     // Collect planning points from either planningItems or plannedItems

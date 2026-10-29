@@ -65,8 +65,17 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-[#F4F7F5] p-1.5 rounded-2xl border border-[#E2ECE5]">
+          <div
+            role="tablist"
+            aria-label="Timeline navigation"
+            className="flex items-center gap-2 bg-[#F4F7F5] p-1.5 rounded-2xl border border-[#E2ECE5]"
+          >
             <button
+              type="button"
+              role="tab"
+              id="tab-alerts"
+              aria-selected={activeSubTab === "alerts"}
+              aria-controls="alerts-panel"
               onClick={() => setActiveSubTab("alerts")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeSubTab === "alerts"
@@ -77,6 +86,11 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
               Calendar Alerts ({event.alerts.filter((a) => !a.completed).length})
             </button>
             <button
+              type="button"
+              role="tab"
+              id="tab-schedule"
+              aria-selected={activeSubTab === "schedule"}
+              aria-controls="schedule-panel"
               onClick={() => setActiveSubTab("schedule")}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeSubTab === "schedule"
@@ -92,7 +106,12 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
 
       {/* VIEW 1: CALENDAR ALERTS */}
       {activeSubTab === "alerts" && (
-        <div className="space-y-4">
+        <div
+          role="tabpanel"
+          id="alerts-panel"
+          aria-labelledby="tab-alerts"
+          className="space-y-4"
+        >
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-bold uppercase tracking-wider text-[#718096]">
               Critical Milestone Calendar Alerts
@@ -161,6 +180,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
                       e.stopPropagation();
                       toggleAlert(alert.id);
                     }}
+                    aria-label={`${alert.completed ? "Mark alert unresolved" : "Acknowledge and clear alert"}: ${alert.title}`}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                       alert.completed
                         ? "bg-[#F4F7F5] text-[#718096] border border-[#E2ECE5]"
@@ -178,7 +198,12 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
 
       {/* VIEW 2: RUN OF SHOW SCHEDULE */}
       {activeSubTab === "schedule" && (
-        <div className="space-y-4">
+        <div
+          role="tabpanel"
+          id="schedule-panel"
+          aria-labelledby="tab-schedule"
+          className="space-y-4"
+        >
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-bold uppercase tracking-wider text-[#718096]">
               Day-of Operational Sequence

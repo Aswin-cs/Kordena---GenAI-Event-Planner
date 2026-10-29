@@ -6,10 +6,13 @@
 const path = require("node:path");
 const fs = require("node:fs");
 
-// Initialize jiti TypeScript/ESM runtime
+// Initialize jiti TypeScript/ESM runtime with tsconfig alias mapping
 const jiti = require("jiti")(process.cwd(), {
   cache: false,
   debug: false,
+  alias: {
+    "@": process.cwd(),
+  },
 });
 
 const testFiles = [
@@ -18,6 +21,8 @@ const testFiles = [
   "./tests/gemini-config.test.ts",
   "./tests/auth-provider.test.ts",
   "./tests/tasks-toggle-api.test.ts",
+  "./tests/security.test.ts",
+  "./tests/a11y.test.ts",
 ];
 
 console.log("=================================================");

@@ -386,6 +386,9 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
       {/* Floating Modern AI Copilot Window */}
       {isOpen && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Kordena AI Copilot"
           className={`fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
             isExpanded
               ? "w-[840px] max-w-[calc(100vw-1.5rem)] h-[680px] max-h-[90vh]"
@@ -558,7 +561,12 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
             {/* Left Chat Pane */}
             <div className="flex-1 flex flex-col min-w-0">
               {/* Messages Container */}
-              <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-3.5 text-xs">
+              <div
+                role="log"
+                aria-live="polite"
+                aria-relevant="additions"
+                className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-3.5 text-xs"
+              >
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -679,6 +687,7 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                   ref={inputRef}
                   type="text"
                   placeholder="Ask about countdown prep, run of show, budget..."
+                  aria-label="Ask Kordena Copilot a question or request an edit"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   disabled={loading}

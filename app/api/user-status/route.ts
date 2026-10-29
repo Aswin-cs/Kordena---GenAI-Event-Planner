@@ -5,6 +5,13 @@ import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import UserStatus, { EventType } from "@/models/UserStatus.model";
 import User from "@/models/User";
+import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  escapeRegex,
+  sanitizeString,
+  clampNumber,
+  safeErrorResponse,
+} from "@/lib/security";
 
 const VALID_EVENT_TYPES: EventType[] = [
   "Birthday",
@@ -48,6 +55,14 @@ function sanitizeEventType(type?: string): EventType {
  * Stores event status details submitted from the Stepper into UserStatus collection.
  */
 export async function POST(request: Request) {
+  // 1. Rate limiting protection
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 60,
+    windowSeconds: 60,
+    bucketPrefix: "user-status:post",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     const body = await request.json();
     const {
@@ -74,8 +89,8 @@ export async function POST(request: Request) {
       userId: explicitUserId,
     } = body;
 
-    // Validate event name
-    const trimmedEventName = (eventName || "").trim();
+    // Validate and sanitize event name (max 120 chars)
+    const trimmedEventName = sanitizeString(eventName, 120);
     if (!trimmedEventName) {
       return NextResponse.json(
         { success: false, message: "Event name is required" },
@@ -86,7 +101,7 @@ export async function POST(request: Request) {
     // Connect to MongoDB
     await connectToDatabase();
 
-    // Resolve User ID: from NextAuth session, explicit request body, or fallback guest user
+    // Resolve User ID: prioritize verified NextAuth session
     let resolvedUserId: mongoose.Types.ObjectId | null = null;
     const session = await getServerSession(authOptions);
 
@@ -96,14 +111,18 @@ export async function POST(request: Request) {
         resolvedUserId = dbUser._id;
       } else {
         const newUser = await User.create({
-          name: session.user.name || "Event Planner",
+          name: sanitizeString(session.user.name, 100) || "Event Planner",
           email: session.user.email.toLowerCase(),
           image: session.user.image || "",
         });
         resolvedUserId = newUser._id;
       }
     } else if (explicitUserId && mongoose.Types.ObjectId.isValid(explicitUserId)) {
-      resolvedUserId = new mongoose.Types.ObjectId(explicitUserId);
+      // Allow explicit ID only if user exists in DB
+      const existingUser = await User.findById(explicitUserId);
+      if (existingUser) {
+        resolvedUserId = existingUser._id;
+      }
     }
 
     // If still no authenticated user, resolve or create a default guest/planner user
@@ -118,16 +137,10 @@ export async function POST(request: Request) {
       resolvedUserId = defaultUser._id;
     }
 
-    // Resolve and validate numeric fields
-    const resolvedBudget = Number(budget ?? eventBudget);
-    if (isNaN(resolvedBudget) || resolvedBudget < 0) {
-      return NextResponse.json(
-        { success: false, message: "A valid non-negative budget is required" },
-        { status: 400 }
-      );
-    }
-
-    const resolvedGuestCount = Math.max(1, Number(guestCount) || 100);
+    // Resolve and clamp numeric fields to safe bounds
+    const rawBudget = budget ?? eventBudget;
+    const resolvedBudget = clampNumber(rawBudget, 0, 1_000_000_000, 250000);
+    const resolvedGuestCount = clampNumber(guestCount, 1, 1_000_000, 100);
 
     // Resolve date (supports endDate or eventDate string e.g. "2026-11-15")
     const dateInput = endDate || eventDate;
@@ -186,13 +199,13 @@ export async function POST(request: Request) {
       tier: tier && ["Starter", "Basic", "Professional"].includes(tier) ? tier : "Starter",
       budget: resolvedBudget,
       guestCount: resolvedGuestCount,
-      plannedItems: Array.isArray(plannedItems) ? plannedItems : [],
+      plannedItems: Array.isArray(plannedItems) ? plannedItems.slice(0, 50) : [],
       endDate: parsedDate,
       evaluationSummary: resolvedEvaluationSummary,
       budgetBreakdown: resolvedBudgetBreakdown,
       prepCalendarTasks: resolvedPrepCalendarTasks,
       dayOfRunOfShow: resolvedDayOfRunOfShow,
-      requirements: resolvedRequirements,
+      requirements: resolvedRequirements.slice(0, 50),
       aiResponse: aiResponse && typeof aiResponse === "object" ? aiResponse : {},
     });
 
@@ -205,22 +218,23 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("Error storing user status:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: error?.message || "Failed to store user status",
-      },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Failed to store user status");
   }
 }
 
 /**
  * GET /api/user-status
- * Fetches the user statuses for the authenticated user, or latest statuses.
+ * Fetches the user statuses strictly for the authenticated user (isolated per account).
  */
 export async function GET(request: Request) {
+  // Rate limiting check
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 100,
+    windowSeconds: 60,
+    bucketPrefix: "user-status:get",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     await connectToDatabase();
 
@@ -231,6 +245,16 @@ export async function GET(request: Request) {
       const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
       if (dbUser) {
         filter = { userId: dbUser._id };
+      } else {
+        return NextResponse.json({ success: true, count: 0, userStatuses: [] });
+      }
+    } else {
+      // Unauthenticated / guest session: return blueprints associated only with the guest account
+      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
+      if (guestUser) {
+        filter = { userId: guestUser._id };
+      } else {
+        return NextResponse.json({ success: true, count: 0, userStatuses: [] });
       }
     }
 
@@ -246,76 +270,132 @@ export async function GET(request: Request) {
       userStatuses,
     });
   } catch (error: any) {
-    console.error("Error fetching user statuses:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: error?.message || "Failed to fetch user statuses",
-      },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Failed to fetch user statuses");
   }
 }
 
 /**
  * DELETE /api/user-status
- * Deletes a specific user status by ID.
+ * Deletes a specific user status by ID with strict ownership verification.
  */
 export async function DELETE(request: Request) {
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 30,
+    windowSeconds: 60,
+    bucketPrefix: "user-status:delete",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     await connectToDatabase();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    if (!id) {
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
-        { success: false, message: "Missing blueprint id" },
+        { success: false, message: "A valid blueprint id is required" },
         { status: 400 }
       );
     }
 
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      await UserStatus.findByIdAndDelete(id);
+    const session = await getServerSession(authOptions);
+    let authUserId: mongoose.Types.ObjectId | null = null;
+
+    if (session?.user?.email) {
+      const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
+      if (dbUser) authUserId = dbUser._id;
+    } else {
+      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
+      if (guestUser) authUserId = guestUser._id;
     }
+
+    if (!authUserId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Please sign in" },
+        { status: 401 }
+      );
+    }
+
+    const targetDoc = await UserStatus.findById(id);
+    if (!targetDoc) {
+      return NextResponse.json(
+        { success: false, message: "Blueprint not found" },
+        { status: 404 }
+      );
+    }
+
+    // Verify ownership: only the owner or assigned guest user may delete
+    if (!targetDoc.userId.equals(authUserId)) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden: You do not have permission to delete this blueprint" },
+        { status: 403 }
+      );
+    }
+
+    await UserStatus.findByIdAndDelete(id);
 
     return NextResponse.json({
       success: true,
       message: "Blueprint removed successfully",
     });
   } catch (error: any) {
-    console.error("Error deleting user status:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: error?.message || "Failed to delete user status",
-      },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Failed to delete user status");
   }
 }
 
 /**
  * PATCH /api/user-status
- * Updates budgetBreakdown or budget of an existing UserStatus document.
+ * Updates budgetBreakdown or budget of an existing UserStatus document with ownership check.
  */
 export async function PATCH(request: Request) {
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 60,
+    windowSeconds: 60,
+    bucketPrefix: "user-status:patch",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     await connectToDatabase();
     const body = await request.json();
     const { id, eventName, budgetBreakdown, budget, prepCalendarTasks, taskId, isCompleted } = body;
 
-    let targetDoc = null;
+    const session = await getServerSession(authOptions);
+    let authUserId: mongoose.Types.ObjectId | null = null;
+
+    if (session?.user?.email) {
+      const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
+      if (dbUser) authUserId = dbUser._id;
+    } else {
+      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
+      if (guestUser) authUserId = guestUser._id;
+    }
+
+    let targetDoc: any = null;
+
+    // 1. Try finding by ID
     if (id && mongoose.Types.ObjectId.isValid(id)) {
       targetDoc = await UserStatus.findById(id);
     } else if (eventName) {
-      targetDoc = await UserStatus.findOne({
-        eventName: (eventName || "").trim(),
-      }).sort({ createdAt: -1 });
+      // 2. Try finding by sanitized event name scoped to authenticated user
+      const safeEventName = escapeRegex(sanitizeString(eventName, 120));
+      const query: Record<string, any> = {
+        eventName: { $regex: new RegExp(`^${safeEventName}$`, "i") },
+      };
+      if (authUserId) query.userId = authUserId;
+      targetDoc = await UserStatus.findOne(query).sort({ updatedAt: -1 });
+
+      // Fallback if not found with userId and guest is allowed
+      if (!targetDoc) {
+        targetDoc = await UserStatus.findOne({
+          eventName: { $regex: new RegExp(`^${safeEventName}$`, "i") },
+        }).sort({ updatedAt: -1 });
+      }
     }
 
-    if (!targetDoc) {
-      // Fallback to latest document
-      targetDoc = await UserStatus.findOne().sort({ createdAt: -1 });
+    // 3. Fallback to user's latest document if no name or ID was passed
+    if (!targetDoc && authUserId) {
+      targetDoc = await UserStatus.findOne({ userId: authUserId }).sort({ updatedAt: -1 });
     }
 
     if (!targetDoc) {
@@ -325,11 +405,19 @@ export async function PATCH(request: Request) {
       );
     }
 
+    // Authorization verification
+    if (authUserId && !targetDoc.userId.equals(authUserId)) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden: You do not have permission to modify this blueprint" },
+        { status: 403 }
+      );
+    }
+
     if (Array.isArray(budgetBreakdown)) {
       targetDoc.budgetBreakdown = budgetBreakdown;
     }
-    if (typeof budget === "number" && !isNaN(budget) && budget >= 0) {
-      targetDoc.budget = budget;
+    if (typeof budget === "number" && !isNaN(budget)) {
+      targetDoc.budget = clampNumber(budget, 0, 1_000_000_000, targetDoc.budget);
     }
 
     // Support updating prepCalendarTasks array directly
@@ -367,14 +455,7 @@ export async function PATCH(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error("Error updating user status budget breakdown:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: error?.message || "Failed to update budget breakdown",
-      },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Failed to update budget breakdown");
   }
 }
 

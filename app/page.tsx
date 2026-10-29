@@ -555,10 +555,16 @@ export default function Home() {
 
           {/* View Mode Switcher + New Event Button */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-[#F4F7F5] p-1 rounded-2xl border border-[#E2ECE5]">
+            <nav
+              role="navigation"
+              aria-label="View Switcher"
+              className="flex items-center gap-1 bg-[#F4F7F5] p-1 rounded-2xl border border-[#E2ECE5]"
+            >
               <button
                 type="button"
                 onClick={() => setViewMode("stepper")}
+                aria-pressed={viewMode === "stepper"}
+                aria-label="Switch to Blueprint Stepper"
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   viewMode === "stepper"
                     ? "bg-white text-[#2D3748] shadow-xs border border-[#E2ECE5]"
@@ -571,6 +577,8 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setViewMode("calendar")}
+                aria-pressed={viewMode === "calendar"}
+                aria-label="Switch to Calendar UI"
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   viewMode === "calendar"
                     ? "bg-[#10B981] text-white shadow-xs shadow-[#10B981]/25"
@@ -583,11 +591,12 @@ export default function Home() {
                   <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
                 )}
               </button>
-            </div>
+            </nav>
 
             <button
               type="button"
               onClick={handleStartNewEvent}
+              aria-label="Create New Event Blueprint"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#10B981] hover:bg-[#059669] text-white shadow-xs shadow-[#10B981]/25 transition-all cursor-pointer group"
               title="Create New Event"
             >
@@ -623,6 +632,7 @@ export default function Home() {
 
             <button
               onClick={handleLogout}
+              aria-label="Sign out of account"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
               title="Sign Out"
             >
@@ -633,9 +643,9 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main Content Area with Skip Link Anchor (WCAG 2.4.1) */}
       {viewMode === "calendar" ? (
-        <main className="flex-1 p-3 sm:p-6 lg:p-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 p-3 sm:p-6 lg:p-8 outline-none">
           <EventCalendarView
             eventName={eventName || activeEvent?.title || "Annual Global Tech Summit 2026"}
             eventType={eventType || activeEvent?.eventType || "Conference"}
@@ -655,7 +665,7 @@ export default function Home() {
           />
         </main>
       ) : (
-        <main className="flex-1 flex flex-col items-center justify-start p-4 sm:p-8">
+        <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col items-center justify-start p-4 sm:p-8 outline-none">
           <div className="w-full max-w-4xl flex flex-col items-center">
             {/* Header Title */}
             <div className="text-center mb-6 space-y-1">

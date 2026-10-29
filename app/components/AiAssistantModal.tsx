@@ -42,6 +42,18 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   const [apiKey, setApiKey] = useState("");
   const [showKeyInput, setShowKeyInput] = useState(false);
 
+  // Keyboard navigation: Escape key closes modal (WCAG 2.1.1)
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSend = async (messageText?: string) => {
@@ -95,7 +107,12 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#2D3748]/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-[#FFFFFF] rounded-3xl w-full max-w-2xl h-[620px] max-h-[90vh] border border-[#E2ECE5] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-copilot-title"
+        className="bg-[#FFFFFF] rounded-3xl w-full max-w-2xl h-[620px] max-h-[90vh] border border-[#E2ECE5] shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"
+      >
         {/* Header */}
         <div className="px-6 py-4 bg-[#FFFFFF] border-b border-[#E2ECE5] flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -104,7 +121,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-[#2D3748]">
+                <h3 id="ai-copilot-title" className="text-sm sm:text-base font-bold text-[#2D3748]">
                   Kordena AI Copilot
                 </h3>
                 <span className="w-2 h-2 rounded-full bg-[#10B981] emerald-pulse" />
@@ -117,15 +134,19 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setShowKeyInput(!showKeyInput)}
               className="p-2 rounded-xl bg-[#F4F7F5] text-[#718096] hover:text-[#2D3748] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
               title="Configure Custom Gemini API Key"
+              aria-label="Configure Custom Gemini API Key"
             >
               <Key className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">API Key</span>
             </button>
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Close AI Copilot Dialog"
               className="w-8 h-8 rounded-full bg-[#F4F7F5] text-[#718096] hover:text-[#2D3748] flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -153,20 +174,23 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
         )}
 
         {/* Messages Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#F4F7F5]/50">
+        <div
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#F4F7F5]/50"
+        >
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex flex-col ${
-                msg.sender === "user" ? "items-end" : "items-start"
-              }`}
+              className={`flex flex-col ${msg.sender === "user" ? "items-end" : "items-start"
+                }`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
-                  msg.sender === "user"
+                className={`max-w-[85%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${msg.sender === "user"
                     ? "bg-[#10B981] text-white shadow-xs font-medium rounded-tr-none"
                     : "bg-[#FFFFFF] text-[#2D3748] border border-[#E2ECE5] shadow-2xs rounded-tl-none whitespace-pre-line"
-                }`}
+                  }`}
               >
                 {msg.text}
               </div>
@@ -189,6 +213,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
           {QUICK_PROMPTS.map((prompt, idx) => (
             <button
               key={idx}
+              type="button"
               onClick={() => handleSend(prompt)}
               className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F4F7F5] text-[#2D3748] border border-[#E2ECE5] hover:border-[#10B981] hover:text-[#059669] hover:bg-[#E6F7F0] transition-colors cursor-pointer"
             >
@@ -211,11 +236,13 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask anything about this event, timeline, drinks, speeches..."
+              aria-label="Ask Kordena Copilot anything about this event"
               className="flex-1 px-4 py-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs sm:text-sm text-[#2D3748] focus:bg-[#FFFFFF] focus:border-[#10B981] transition-all"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
+              aria-label="Send message"
               className="px-4 py-2.5 rounded-xl bg-[#10B981] text-white hover:bg-[#059669] disabled:opacity-40 transition-all cursor-pointer flex items-center justify-center shrink-0"
             >
               <Send className="w-4 h-4" />

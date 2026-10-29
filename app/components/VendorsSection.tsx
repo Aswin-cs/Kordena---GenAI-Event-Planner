@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Star, Mail, CheckCircle2, Sparkles, Building2, ExternalLink, Copy, Check } from "lucide-react";
 import { Vendor, EventPlan } from "../types";
 
@@ -17,6 +17,17 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
 }) => {
   const [draftedVendor, setDraftedVendor] = useState<Vendor | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Close modal on Escape key press (WCAG 2.1.2)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && draftedVendor) {
+        setDraftedVendor(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [draftedVendor]);
 
   const toggleStatus = (vendorId: string) => {
     const updated = event.vendors.map((v) => {
@@ -95,18 +106,25 @@ Kordena Event Planning Team`;
 
       {/* Inquiry Drafter Modal */}
       {draftedVendor && (
-        <div className="fixed inset-0 z-50 bg-[#2D3748]/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vendor-modal-title"
+          className="fixed inset-0 z-50 bg-[#2D3748]/50 backdrop-blur-xs flex items-center justify-center p-4"
+        >
           <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 max-w-xl w-full border border-[#E2ECE5] shadow-2xl space-y-4 animate-in zoom-in duration-150">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-[#10B981]" />
-                <h3 className="text-base font-bold text-[#2D3748]">
+                <h3 id="vendor-modal-title" className="text-base font-bold text-[#2D3748]">
                   AI Inquiry for {draftedVendor.name}
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setDraftedVendor(null)}
-                className="w-8 h-8 rounded-full bg-[#F4F7F5] text-[#718096] flex items-center justify-center font-bold"
+                aria-label="Close inquiry modal"
+                className="w-8 h-8 rounded-full bg-[#F4F7F5] text-[#718096] hover:text-[#2D3748] flex items-center justify-center font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -116,6 +134,7 @@ Kordena Event Planning Team`;
               readOnly
               rows={10}
               value={getInquiryText(draftedVendor)}
+              aria-label={`Inquiry email draft for ${draftedVendor.name}`}
               className="w-full p-4 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-mono text-[#2D3748] resize-none"
             />
 
@@ -125,7 +144,9 @@ Kordena Event Planning Team`;
               </span>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => copyToClipboard(getInquiryText(draftedVendor))}
+                  aria-label="Copy inquiry draft to clipboard"
                   className="px-4 py-2 rounded-xl bg-[#10B981] text-white text-xs font-semibold hover:bg-[#059669] flex items-center gap-1.5 cursor-pointer"
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -184,7 +205,9 @@ Kordena Event Planning Team`;
               <div className="flex items-center gap-2">
                 {/* Status cycle button */}
                 <button
+                  type="button"
                   onClick={() => toggleStatus(vendor.id)}
+                  aria-label={`Cycle status for ${vendor.name}. Current: ${vendor.status}`}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
                     vendor.status === "Booked"
                       ? "bg-[#E6F7F0] text-[#10B981] border-[#A7F3D0]"
@@ -199,7 +222,9 @@ Kordena Event Planning Team`;
 
                 {/* Draft Inquiry Email */}
                 <button
+                  type="button"
                   onClick={() => handleGenerateInquiry(vendor)}
+                  aria-label={`Draft inquiry email for ${vendor.name}`}
                   className="px-3 py-1.5 rounded-xl bg-[#F4F7F5] hover:bg-[#EBF3EE] text-[#2D3748] border border-[#E2ECE5] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   <Mail className="w-3.5 h-3.5 text-[#10B981]" />

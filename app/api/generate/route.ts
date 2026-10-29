@@ -1,15 +1,25 @@
 import { NextResponse } from "next/server";
 import { EventPlan } from "@/app/types";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { sanitizeString, clampNumber, safeErrorResponse } from "@/lib/security";
 
 export async function POST(request: Request) {
+  // 1. Rate limiting protection
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 30,
+    windowSeconds: 60,
+    bucketPrefix: "ai:generate",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     const body = await request.json();
     const { prompt, eventType, guestCount, budget, apiKey } = body;
 
-    const trimmedPrompt = (prompt || "").trim();
-    const resolvedGuestCount = Number(guestCount) || 120;
-    const resolvedBudget = Number(budget) || 25000;
-    const resolvedType = eventType || "Custom Event";
+    const trimmedPrompt = sanitizeString(prompt, 4000);
+    const resolvedGuestCount = clampNumber(guestCount, 1, 1_000_000, 120);
+    const resolvedBudget = clampNumber(budget, 0, 1_000_000_000, 25000);
+    const resolvedType = sanitizeString(eventType, 60) || "Custom Event";
 
     // If apiKey is provided or exists in environment, we could attempt Gemini API
     const geminiKey = apiKey || process.env.GEMINI_API_KEY;
@@ -89,11 +99,7 @@ Return ONLY valid JSON matching this TypeScript structure:
       source: "kordena-neural-engine",
     });
   } catch (error) {
-    console.error("Event generation failed:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to generate event blueprint" },
-      { status: 500 }
-    );
+    return safeErrorResponse(error, "Failed to generate event blueprint");
   }
 }
 

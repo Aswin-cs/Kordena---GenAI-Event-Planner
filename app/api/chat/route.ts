@@ -10,6 +10,8 @@ import UserStatus, {
 } from "@/models/UserStatus.model";
 import User from "@/models/User";
 import { geminiConfig } from "@/config/gemini";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { escapeRegex, sanitizeString, safeErrorResponse } from "@/lib/security";
 
 // Response Schema for Gemini distinguishing between standard Q&A vs Blueprint Edits
 const chatResponseSchema = {
@@ -126,8 +128,24 @@ const chatResponseSchema = {
 };
 
 export async function POST(request: Request) {
+  // 1. Rate limiting protection on AI Chat
+  const rateLimit = checkRateLimit(request, {
+    maxRequests: 30,
+    windowSeconds: 60,
+    bucketPrefix: "ai:chat",
+  });
+  if (!rateLimit.allowed) return rateLimit.response!;
+
   try {
     const { message, eventContext, apiKey } = await request.json();
+
+    const sanitizedMessage = sanitizeString(message, 4000);
+    if (!sanitizedMessage) {
+      return NextResponse.json(
+        { success: false, message: "A non-empty message is required" },
+        { status: 400 }
+      );
+    }
 
     const currentTasks: IPrepCalendarTask[] = eventContext?.prepCalendarTasks || [];
     const currentRunOfShow: IDayOfRunOfShowItem[] = eventContext?.dayOfRunOfShow || [];
@@ -225,8 +243,17 @@ CLASSIFICATION RULES:
       try {
         await connectToDatabase();
         const session = await getServerSession(authOptions);
+        let authUserId: mongoose.Types.ObjectId | null = null;
 
-        let targetDoc = null;
+        if (session?.user?.email) {
+          const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
+          if (dbUser) authUserId = dbUser._id;
+        } else {
+          const guestUser = await User.findOne({ email: "planner@kordena.ai" });
+          if (guestUser) authUserId = guestUser._id;
+        }
+
+        let targetDoc: any = null;
         if (
           eventContext?.userStatusId &&
           mongoose.Types.ObjectId.isValid(eventContext.userStatusId)
@@ -235,32 +262,22 @@ CLASSIFICATION RULES:
         }
 
         if (!targetDoc && (eventContext?.title || eventContext?.eventName)) {
-          const nameToMatch = (
-            eventContext?.title ||
-            eventContext?.eventName ||
-            ""
-          ).trim();
-          targetDoc = await UserStatus.findOne({ eventName: nameToMatch }).sort({
-            createdAt: -1,
+          const safeName = escapeRegex(
+            sanitizeString(eventContext?.title || eventContext?.eventName, 120)
+          );
+          const query: any = { eventName: { $regex: new RegExp(`^${safeName}$`, "i") } };
+          if (authUserId) query.userId = authUserId;
+          targetDoc = await UserStatus.findOne(query).sort({ updatedAt: -1 });
+        }
+
+        if (!targetDoc && authUserId) {
+          targetDoc = await UserStatus.findOne({ userId: authUserId }).sort({
+            updatedAt: -1,
           });
         }
 
-        if (!targetDoc && session?.user?.email) {
-          const dbUser = await User.findOne({
-            email: session.user.email.toLowerCase(),
-          });
-          if (dbUser) {
-            targetDoc = await UserStatus.findOne({ userId: dbUser._id }).sort({
-              createdAt: -1,
-            });
-          }
-        }
-
-        if (!targetDoc) {
-          targetDoc = await UserStatus.findOne().sort({ createdAt: -1 });
-        }
-
-        if (targetDoc) {
+        // Enforce ownership: only mutate if the target blueprint belongs to the caller
+        if (targetDoc && authUserId && targetDoc.userId.equals(authUserId)) {
           if (Array.isArray(replyData.updatedFields.budgetBreakdown)) {
             targetDoc.budgetBreakdown = replyData.updatedFields.budgetBreakdown;
           }

@@ -304,6 +304,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
               {/* CLEAR VISUAL FEEDBACK: ACCENT #10B981 */}
               <button
                 type="button"
+                role="checkbox"
+                aria-checked={task.completed}
+                aria-label={`Mark task ${task.title} as ${task.completed ? "pending" : "completed"}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleTask(task.id);

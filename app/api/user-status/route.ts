@@ -302,7 +302,7 @@ export async function PATCH(request: Request) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { id, eventName, budgetBreakdown, budget } = body;
+    const { id, eventName, budgetBreakdown, budget, prepCalendarTasks, taskId, isCompleted } = body;
 
     let targetDoc = null;
     if (id && mongoose.Types.ObjectId.isValid(id)) {
@@ -332,16 +332,38 @@ export async function PATCH(request: Request) {
       targetDoc.budget = budget;
     }
 
+    // Support updating prepCalendarTasks array directly
+    if (Array.isArray(prepCalendarTasks)) {
+      targetDoc.prepCalendarTasks = prepCalendarTasks;
+      targetDoc.markModified("prepCalendarTasks");
+    }
+
+    // Support single task toggle by taskId
+    if (taskId && Array.isArray(targetDoc.prepCalendarTasks)) {
+      const indexMatch = String(taskId).match(/^task-(\d+)$/i);
+      const parsedIdx = indexMatch ? parseInt(indexMatch[1], 10) : -1;
+
+      for (let i = 0; i < targetDoc.prepCalendarTasks.length; i++) {
+        const t = targetDoc.prepCalendarTasks[i];
+        if (t.id === taskId || i === parsedIdx) {
+          t.isCompleted = isCompleted !== undefined ? Boolean(isCompleted) : !Boolean(t.isCompleted);
+          break;
+        }
+      }
+      targetDoc.markModified("prepCalendarTasks");
+    }
+
     await targetDoc.save();
 
     return NextResponse.json({
       success: true,
-      message: "Budget breakdown updated successfully",
+      message: "Event status updated successfully",
       updated: {
         id: targetDoc._id,
         eventName: targetDoc.eventName,
         budget: targetDoc.budget,
         budgetBreakdown: targetDoc.budgetBreakdown,
+        prepCalendarTasks: targetDoc.prepCalendarTasks,
       },
     });
   } catch (error: any) {

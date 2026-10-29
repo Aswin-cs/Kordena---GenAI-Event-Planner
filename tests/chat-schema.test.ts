@@ -27,6 +27,7 @@ export interface ChatResponsePayload {
       estimatedCost: number;
       actionBrief: string;
       priority: "high" | "medium" | "low";
+      isCompleted?: boolean;
     }>;
     dayOfRunOfShow?: Array<{
       timeSlot: string;
@@ -153,6 +154,7 @@ test("Chat API Response Schema Validation", async (t) => {
             estimatedCost: 20000,
             actionBrief: "Ensure line arrays and stage monitor checks pass before evening.",
             priority: "high",
+            isCompleted: true,
           },
         ],
         budgetBreakdown: [

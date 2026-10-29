@@ -27,6 +27,7 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   TrendingUp,
   Users,
   ShieldAlert,
@@ -277,6 +278,31 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"calendar" | "tasks" | "runofshow" | "budget">("calendar");
   const [isCalendarSplitView, setIsCalendarSplitView] = useState<boolean>(true);
+  const [splitCompanionTab, setSplitCompanionTab] = useState<"budget" | "tasks" | "runofshow">("budget");
+
+  // User events list fetched from UserStatus model (/api/user-status)
+  const [allUserEvents, setAllUserEvents] = useState<any[]>([]);
+  const [currentEventIndex, setCurrentEventIndex] = useState<number>(0);
+  const [isEventDropdownOpen, setIsEventDropdownOpen] = useState<boolean>(false);
+  const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(false);
+
+  // Active event properties (supports switching between fetched events)
+  const [activeEventName, setActiveEventName] = useState<string>(eventName);
+  const [activeEventType, setActiveEventType] = useState<string>(eventType);
+  const [activeEventBudget, setActiveEventBudget] = useState<string>(eventBudget);
+  const [activeEventDate, setActiveEventDate] = useState<string>(eventDate);
+  const [activeTier, setActiveTier] = useState<string | undefined>(tier);
+  const [activeGuestCount, setActiveGuestCount] = useState<number | string | undefined>(guestCount);
+
+  // Keep active event properties in sync if initial props change
+  useEffect(() => {
+    setActiveEventName(eventName);
+    setActiveEventType(eventType);
+    setActiveEventBudget(eventBudget);
+    setActiveEventDate(eventDate);
+    setActiveTier(tier);
+    setActiveGuestCount(guestCount);
+  }, [eventName, eventType, eventBudget, eventDate, tier, guestCount]);
 
   // Smooth left pop-up drawer animation lifecycle
   useEffect(() => {
@@ -300,11 +326,19 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const [runOfShow, setRunOfShow] = useState<IDayOfRunOfShowItem[]>(initialRunOfShow || []);
   const [evalSummary, setEvalSummary] = useState<IEvaluationSummary | undefined>(initialSummary);
   const [budgetList, setBudgetList] = useState<IBudgetBreakdownItem[]>(initialBudget || []);
-  const [completedTaskIds, setCompletedTaskIds] = useState<Record<string, boolean>>({});
+  const [completedTaskIds, setCompletedTaskIds] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    (initialTasks || []).forEach((t, idx) => {
+      if (t.isCompleted) {
+        initial[t.id || `task-${idx}`] = true;
+      }
+    });
+    return initial;
+  });
 
   // Fallback default budget breakdown if event has no AI budget breakdown yet
   const defaultCategories = useMemo<IBudgetBreakdownItem[]>(() => {
-    const total = Number(eventBudget) || 100000;
+    const total = Number(activeEventBudget || eventBudget) || 100000;
     return [
       {
         category: "Venue & Infrastructure",
@@ -349,7 +383,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     ];
   }, [eventBudget]);
 
-  const targetBudget = Number(eventBudget) || 100000;
+  const targetBudget = Number(activeEventBudget || eventBudget) || 100000;
 
   // Helper to ensure each category has fixed, stable min & max bounds
   const normalizeBudgetItems = (items: IBudgetBreakdownItem[]): IBudgetBreakdownItem[] => {
@@ -465,39 +499,214 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     if (initialBudget && initialBudget.length > 0) setBudgetList(initialBudget);
   }, [initialTasks, initialRunOfShow, initialSummary, initialBudget]);
 
-  // If initial tasks are empty, try fetching latest saved UserStatus from database
-  useEffect(() => {
-    if (!initialTasks || initialTasks.length === 0) {
-      let isMounted = true;
-      fetch("/api/user-status")
-        .then((res) => res.json())
-        .then((data) => {
-          if (!isMounted || !data.success || !data.userStatuses?.length) return;
-          // Find matching event or use latest
-          const matched =
-            data.userStatuses.find(
-              (us: any) =>
-                us.eventName?.trim().toLowerCase() === eventName.trim().toLowerCase()
-            ) || data.userStatuses[0];
+  // Apply event document data to active calendar view
+  const applyEventData = (eventDoc: any) => {
+    if (!eventDoc) return;
+    setActiveEventName(eventDoc.eventName || "Untitled Event");
+    setActiveEventType(eventDoc.eventType || "Conference");
+    setActiveEventBudget(String(eventDoc.budget || 50000));
 
-          if (matched) {
-            if (matched.prepCalendarTasks?.length) setTasks(matched.prepCalendarTasks);
-            if (matched.dayOfRunOfShow?.length) setRunOfShow(matched.dayOfRunOfShow);
-            if (matched.evaluationSummary) setEvalSummary(matched.evaluationSummary);
-            if (matched.budgetBreakdown?.length) setBudgetList(matched.budgetBreakdown);
-          }
-        })
-        .catch((err) => console.warn("Could not load user-status for calendar:", err));
-      return () => {
-        isMounted = false;
-      };
+    let formattedDate = "";
+    if (eventDoc.endDate) {
+      const d = new Date(eventDoc.endDate);
+      if (!isNaN(d.getTime())) {
+        formattedDate = d.toISOString().split("T")[0];
+      }
     }
-  }, [initialTasks, eventName]);
+    const finalDateStr = formattedDate || new Date().toISOString().split("T")[0];
+    setActiveEventDate(finalDateStr);
+    setActiveTier(eventDoc.tier || "Starter");
+    setActiveGuestCount(eventDoc.guestCount || 100);
+
+    const newTasks: IPrepCalendarTask[] = eventDoc.prepCalendarTasks || [];
+    setTasks(newTasks);
+    setRunOfShow(eventDoc.dayOfRunOfShow || []);
+    setBudgetList(eventDoc.budgetBreakdown || []);
+    if (eventDoc.evaluationSummary) {
+      setEvalSummary(eventDoc.evaluationSummary);
+    }
+
+    // Sync task completion state
+    const newCompleted: Record<string, boolean> = {};
+    newTasks.forEach((t: IPrepCalendarTask, idx: number) => {
+      if (t.isCompleted) {
+        newCompleted[t.id || `task-${idx}`] = true;
+      }
+    });
+    setCompletedTaskIds(newCompleted);
+
+    // Update calendar focus date
+    if (finalDateStr) {
+      const parts = finalDateStr.split("-");
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 10, 0, 0);
+        if (!isNaN(d.getTime())) {
+          setCurrentDate(d);
+        }
+      }
+    }
+  };
+
+  // Effective list of user events: allUserEvents from DB with current draft included
+  const effectiveEvents = useMemo(() => {
+    if (!allUserEvents || allUserEvents.length === 0) {
+      return [
+        {
+          eventName: activeEventName || eventName,
+          eventType: activeEventType || eventType,
+          budget: Number(activeEventBudget || eventBudget),
+          endDate: activeEventDate || eventDate,
+          tier: activeTier || tier,
+          guestCount: activeGuestCount || guestCount,
+          prepCalendarTasks: tasks,
+          dayOfRunOfShow: runOfShow,
+          budgetBreakdown: budgetList,
+          evaluationSummary: evalSummary,
+        },
+      ];
+    }
+    const currentTitle = (activeEventName || eventName || "").trim().toLowerCase();
+    const hasCurrent = allUserEvents.some(
+      (ev) => ev.eventName?.trim().toLowerCase() === currentTitle
+    );
+    if (!hasCurrent && (activeEventName || eventName)) {
+      return [
+        {
+          eventName: activeEventName || eventName,
+          eventType: activeEventType || eventType,
+          budget: Number(activeEventBudget || eventBudget),
+          endDate: activeEventDate || eventDate,
+          tier: activeTier || tier,
+          guestCount: activeGuestCount || guestCount,
+          prepCalendarTasks: tasks,
+          dayOfRunOfShow: runOfShow,
+          budgetBreakdown: budgetList,
+          evaluationSummary: evalSummary,
+        },
+        ...allUserEvents,
+      ];
+    }
+    return allUserEvents;
+  }, [
+    allUserEvents,
+    activeEventName,
+    eventName,
+    activeEventType,
+    eventType,
+    activeEventBudget,
+    eventBudget,
+    activeEventDate,
+    eventDate,
+    activeTier,
+    tier,
+    activeGuestCount,
+    guestCount,
+    tasks,
+    runOfShow,
+    budgetList,
+    evalSummary,
+  ]);
+
+  // Fetch all user events from UserStatus collection on mount
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingEvents(true);
+    fetch("/api/user-status")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted || !data.success || !Array.isArray(data.userStatuses)) return;
+        const list = data.userStatuses;
+        setAllUserEvents(list);
+
+        // Find index matching current eventName
+        const targetName = (activeEventName || eventName || "").trim().toLowerCase();
+        const foundIdx = list.findIndex(
+          (us: any) => us.eventName?.trim().toLowerCase() === targetName
+        );
+
+        if (foundIdx !== -1) {
+          setCurrentEventIndex(foundIdx);
+          applyEventData(list[foundIdx]);
+        } else if (list.length > 0) {
+          setCurrentEventIndex(0);
+          applyEventData(list[0]);
+        }
+      })
+      .catch((err) => console.warn("Could not load user-status for calendar:", err))
+      .finally(() => {
+        if (isMounted) setIsLoadingEvents(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [eventName]);
+
+  // Event Switcher Navigation Handlers
+  const handleSelectEventIndex = (index: number) => {
+    const list = effectiveEvents;
+    if (index < 0 || index >= list.length) return;
+    setCurrentEventIndex(index);
+    applyEventData(list[index]);
+    setIsEventDropdownOpen(false);
+  };
+
+  const handlePrevEvent = () => {
+    const list = effectiveEvents;
+    if (list.length <= 1) return;
+    const nextIdx = currentEventIndex > 0 ? currentEventIndex - 1 : list.length - 1;
+    handleSelectEventIndex(nextIdx);
+  };
+
+  const handleNextEvent = () => {
+    const list = effectiveEvents;
+    if (list.length <= 1) return;
+    const nextIdx = currentEventIndex < list.length - 1 ? currentEventIndex + 1 : 0;
+    handleSelectEventIndex(nextIdx);
+  };
+
+  // Keyboard shortcut to switch between events: Alt + ArrowLeft / Alt + ArrowRight
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.altKey && e.key === "ArrowLeft") {
+        e.preventDefault();
+        handlePrevEvent();
+      } else if (e.altKey && e.key === "ArrowRight") {
+        e.preventDefault();
+        handleNextEvent();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [effectiveEvents, currentEventIndex]);
+
+  // Close event selector dropdown when clicking outside
+  useEffect(() => {
+    if (!isEventDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-event-dropdown]")) {
+        setIsEventDropdownOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => window.removeEventListener("mousedown", handleClickOutside);
+  }, [isEventDropdownOpen]);
 
   // Compute the parsed event Date
   const parsedEventDate = useMemo(() => {
-    if (!eventDate) return new Date();
-    const parts = eventDate.split("-");
+    const raw = activeEventDate || eventDate;
+    if (!raw) return new Date();
+    const parts = raw.split("-");
     if (parts.length === 3) {
       const year = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1;
@@ -505,17 +714,19 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       const d = new Date(year, month, day, 10, 0, 0);
       if (!isNaN(d.getTime())) return d;
     }
-    const fallback = new Date(eventDate);
+    const fallback = new Date(raw);
     return isNaN(fallback.getTime()) ? new Date() : fallback;
-  }, [eventDate]);
+  }, [activeEventDate, eventDate]);
 
   // Controlled date state so Next, Back, and Today buttons work properly
   const [currentDate, setCurrentDate] = useState<Date>(parsedEventDate);
 
   // Sync internal calendar date if parsedEventDate changes
   useEffect(() => {
-    setCurrentDate(parsedEventDate);
-  }, [parsedEventDate]);
+    if (parsedEventDate && !isNaN(parsedEventDate.getTime())) {
+      setCurrentDate(parsedEventDate);
+    }
+  }, [parsedEventDate.getTime()]);
 
   // Days until target event countdown
   const daysUntilEvent = useMemo(() => {
@@ -556,18 +767,71 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     setCurrentDate(newDate);
   };
 
-  // Toggle task completion
-  const handleToggleTaskCompleted = (taskId: string, e?: React.MouseEvent) => {
+  // Toggle task completion with instant optimistic UI + backend MongoDB persistence
+  const handleToggleTaskCompleted = async (taskId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const nextVal = !completedTaskIds[taskId];
+
+    // 1. Optimistic UI update
     setCompletedTaskIds((prev) => ({
       ...prev,
-      [taskId]: !prev[taskId],
+      [taskId]: nextVal,
     }));
+    setTasks((prev) =>
+      prev.map((t, idx) => {
+        const id = t.id || `task-${idx}`;
+        if (id === taskId) {
+          return { ...t, isCompleted: nextVal };
+        }
+        return t;
+      })
+    );
+
+    // 2. Sync in-memory allUserEvents
+    const currentDoc = effectiveEvents[currentEventIndex];
+    setAllUserEvents((prev) =>
+      prev.map((ev, idx) => {
+        if (idx === currentEventIndex) {
+          const updatedPrep = (ev.prepCalendarTasks || []).map((t: any, tIdx: number) => {
+            const id = t.id || `task-${tIdx}`;
+            if (id === taskId) {
+              return { ...t, isCompleted: nextVal };
+            }
+            return t;
+          });
+          return {
+            ...ev,
+            prepCalendarTasks: updatedPrep,
+          };
+        }
+        return ev;
+      })
+    );
+
+    // 3. Persist to MongoDB backend via dedicated /api/tasks/toggle route
+    try {
+      const res = await fetch("/api/tasks/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId,
+          isCompleted: nextVal,
+          eventName: activeEventName || eventName,
+          userStatusId: currentDoc?._id,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        console.warn("[Task Toggle] Backend warning:", data.message);
+      }
+    } catch (err) {
+      console.error("[Task Toggle] Failed to sync task completion with backend:", err);
+    }
   };
 
   // Build calendar events list: Main Event + Prep Calendar Tasks + Day-of-Run-of-Show
   const eventsList: CalendarEventItem[] = useMemo(() => {
-    const mainTitle = eventName.trim() || "Untitled Event";
+    const mainTitle = (activeEventName || eventName).trim() || "Untitled Event";
     const mainStart = new Date(parsedEventDate);
     mainStart.setHours(9, 0, 0, 0);
 
@@ -582,11 +846,11 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         start: mainStart,
         end: mainEnd,
         allDay: true,
-        type: eventType,
-        budget: eventBudget,
+        type: activeEventType || eventType,
+        budget: activeEventBudget || eventBudget,
         plan: selectedPlan,
         isMainEvent: true,
-        description: `Main Event Day for ${mainTitle}. Feasibility: ${evalSummary?.feasibilityAssessment || "High"}. Budget: ₹${Number(eventBudget || 0).toLocaleString("en-IN")}.`,
+        description: `Main Event Day for ${mainTitle}. Feasibility: ${evalSummary?.feasibilityAssessment || "High"}. Budget: ₹${Number(activeEventBudget || eventBudget || 0).toLocaleString("en-IN")}.`,
       },
     ];
 
@@ -663,8 +927,11 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     return items;
   }, [
     eventName,
+    activeEventName,
     eventType,
+    activeEventType,
     eventBudget,
+    activeEventBudget,
     selectedPlan,
     parsedEventDate,
     tasks,
@@ -1055,10 +1322,94 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           </button>
 
           <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-extrabold text-[#2D3748] tracking-tight">
-                {eventName || "Annual Global Tech Summit 2026"}
+                {activeEventName || eventName || "Annual Global Tech Summit 2026"}
               </h1>
+
+              {/* Event Switcher: Previous & Next Buttons */}
+              {effectiveEvents.length > 1 ? (
+                <div
+                  data-event-dropdown
+                  className="relative inline-flex items-center gap-1 bg-[#F4F7F5] border border-[#E2ECE5] p-1 rounded-2xl shadow-2xs"
+                >
+                  <button
+                    type="button"
+                    onClick={handlePrevEvent}
+                    className="p-1 sm:p-1.5 rounded-xl hover:bg-[#FFFFFF] text-[#4A5568] hover:text-[#10B981] transition-all cursor-pointer shadow-2xs active:scale-95 group"
+                    title={`Previous Event (${effectiveEvents[(currentEventIndex - 1 + effectiveEvents.length) % effectiveEvents.length]?.eventName || "Previous"}) [Alt+←]`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsEventDropdownOpen((prev) => !prev)}
+                    className="px-2 py-0.5 rounded-lg hover:bg-white text-[11px] font-extrabold text-[#2D3748] flex items-center gap-1 transition-all cursor-pointer select-none"
+                    title="Click to view all events"
+                  >
+                    <CalendarDays className="w-3.5 h-3.5 text-[#10B981]" />
+                    <span>{currentEventIndex + 1} of {effectiveEvents.length}</span>
+                    <ChevronDown className="w-3 h-3 text-[#718096]" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNextEvent}
+                    className="p-1 sm:p-1.5 rounded-xl hover:bg-[#FFFFFF] text-[#4A5568] hover:text-[#10B981] transition-all cursor-pointer shadow-2xs active:scale-95 group"
+                    title={`Next Event (${effectiveEvents[(currentEventIndex + 1) % effectiveEvents.length]?.eventName || "Next"}) [Alt+→]`}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  {/* Dropdown Menu of All Events */}
+                  {isEventDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#E2ECE5] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="px-3 py-1.5 border-b border-[#E2ECE5] mb-1 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#718096]">
+                          Saved Event Blueprints ({effectiveEvents.length})
+                        </span>
+                        <span className="text-[10px] text-[#A0AEC0]">Alt + ← / →</span>
+                      </div>
+                      <div className="max-h-60 overflow-y-auto space-y-1">
+                        {effectiveEvents.map((ev, idx) => {
+                          const isSelected = idx === currentEventIndex;
+                          const evDateStr = ev.endDate ? new Date(ev.endDate).toLocaleDateString() : "";
+                          return (
+                            <button
+                              key={ev._id || `ev-${idx}`}
+                              type="button"
+                              onClick={() => handleSelectEventIndex(idx)}
+                              className={`w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between cursor-pointer ${
+                                isSelected
+                                  ? "bg-[#E6F7F0] text-[#059669] font-bold border border-[#A7F3D0]"
+                                  : "hover:bg-[#F4F7F5] text-[#2D3748]"
+                              }`}
+                            >
+                              <div className="min-w-0 pr-2">
+                                <p className="text-xs font-bold truncate">
+                                  {ev.eventName || "Untitled Event"}
+                                </p>
+                                <p className="text-[10px] text-[#718096] truncate">
+                                  {ev.eventType || "Event"} {evDateStr ? `• ${evDateStr}` : ""}
+                                </p>
+                              </div>
+                              {isSelected && (
+                                <Check className="w-3.5 h-3.5 text-[#059669] shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 bg-[#F4F7F5] border border-[#E2ECE5] px-2.5 py-1 rounded-2xl text-[11px] font-bold text-[#718096]">
+                  <CalendarDays className="w-3.5 h-3.5 text-[#10B981]" />
+                  <span>1 Active Blueprint</span>
+                </div>
+              )}
 
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
                 <span className="relative flex h-2 w-2">
@@ -1113,101 +1464,123 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         </div>
       </div>
 
-      {/* Executive 4-Card KPI Telemetry Matrix */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Target Date */}
-        <div className="bg-[#FFFFFF] p-4 rounded-3xl border border-[#E2ECE5] shadow-2xs space-y-2">
-          <div className="flex items-center justify-between text-[#718096]">
-            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
-              <CalendarIcon className="w-3.5 h-3.5 text-[#10B981]" /> Target Date
-            </span>
-            <span className="text-[10px] font-semibold bg-[#F4F7F5] px-2 py-0.5 rounded-full border border-[#E2ECE5]">
-              {eventType}
-            </span>
+      {/* Executive Horizon Telemetry Ribbon (Sleek, high-density SaaS layout) */}
+      <div className="bg-[#FFFFFF] rounded-2xl sm:rounded-3xl border border-[#E2ECE5] shadow-xs p-3 sm:p-4 transition-all">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E2ECE5] gap-3 sm:gap-0">
+          {/* Segment 1: Target Event Horizon */}
+          <div className="sm:px-4 first:sm:pl-1 flex flex-col justify-between py-1">
+            <div className="flex items-center justify-between text-[#718096] mb-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+                <CalendarIcon className="w-3.5 h-3.5 text-[#10B981]" /> Target Date
+              </span>
+              <span className="text-[10px] font-semibold bg-[#F4F7F5] px-2 py-0.5 rounded-full border border-[#E2ECE5]">
+                {activeEventType || eventType || "Event"}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-extrabold text-[#2D3748] tracking-tight">
+                {format(parsedEventDate, "EEE, MMM dd, yyyy")}
+              </p>
+              {daysUntilEvent !== undefined && (
+                <span className="text-[10px] font-bold text-[#1D4ED8] bg-[#EFF6FF] px-1.5 py-0.5 rounded-md border border-[#93C5FD]">
+                  {daysUntilEvent > 0 ? `${daysUntilEvent}d to go` : daysUntilEvent === 0 ? "Today" : "Concluded"}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-[#059669] font-medium mt-1">
+              <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
+              <span>Master Schedule Locked</span>
+            </div>
           </div>
-          <p className="text-sm font-extrabold text-[#2D3748] truncate">
-            {format(parsedEventDate, "EEE, MMM dd, yyyy")}
-          </p>
-          <div className="flex items-center gap-1.5 text-[11px] text-[#059669] font-semibold">
-            <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
-            <span>Master Schedule Locked</span>
-          </div>
-        </div>
 
-        {/* Card 2: Blueprint Profile & Vibe */}
-        <div className="bg-[#FFFFFF] p-4 rounded-3xl border border-[#E2ECE5] shadow-2xs space-y-2">
-          <div className="flex items-center justify-between text-[#718096]">
-            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#3B82F6]" /> Experience Tier
-            </span>
-            <span className="text-[10px] font-extrabold text-[#059669] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
-              {tier} Tier
-            </span>
+          {/* Segment 2: Blueprint Profile & Feasibility */}
+          <div className="sm:px-4 flex flex-col justify-between py-1">
+            <div className="flex items-center justify-between text-[#718096] mb-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#3B82F6]" /> Blueprint Tier
+              </span>
+              <span className="text-[10px] font-extrabold text-[#059669] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
+                {activeTier || tier || "Starter"}
+              </span>
+            </div>
+            <p className="text-xs font-bold text-[#2D3748] truncate">
+              {evalSummary?.eventVibe ||
+                `Optimized for ${activeGuestCount || guestCount || 100} guests`}
+            </p>
+            <div className="flex items-center gap-1.5 text-[11px] text-[#2563EB] font-medium mt-1">
+              <TrendingUp className="w-3 h-3 text-[#3B82F6]" />
+              <span>
+                Feasibility: {evalSummary?.feasibilityAssessment || "Verified"}
+              </span>
+            </div>
           </div>
-          <p className="text-sm font-extrabold text-[#2D3748] truncate">
-            {evalSummary?.eventVibe || "High-Energy Executive Experience"}
-          </p>
-          <div className="flex items-center gap-1.5 text-[11px] text-[#718096]">
-            <TrendingUp className="w-3 h-3 text-[#3B82F6]" />
-            <span>Feasibility: {evalSummary?.feasibilityAssessment ? "Verified" : "Aligned"}</span>
-          </div>
-        </div>
 
-        {/* Card 3: Total Budget Health */}
-        <div className="bg-[#FFFFFF] p-4 rounded-3xl border border-[#E2ECE5] shadow-2xs space-y-2">
-          <div className="flex items-center justify-between text-[#718096]">
-            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
-              <IndianRupee className="w-3.5 h-3.5 text-[#10B981]" /> Budget Health
-            </span>
-            <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                budgetDelta > 0
-                  ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
+          {/* Segment 3: Budget Velocity */}
+          <div className="sm:px-4 flex flex-col justify-between py-1">
+            <div className="flex items-center justify-between text-[#718096] mb-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+                <IndianRupee className="w-3.5 h-3.5 text-[#10B981]" /> Budget Health
+              </span>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  budgetDelta > 0
+                    ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
+                    : budgetDelta === 0
+                    ? "bg-[#EFF6FF] text-[#1D4ED8] border-[#93C5FD]"
+                    : "bg-[#FEF2F2] text-[#B91C1C] border-[#FCA5A5]"
+                }`}
+              >
+                {budgetDelta > 0
+                  ? `₹${budgetDelta.toLocaleString("en-IN")} Buffer`
                   : budgetDelta === 0
-                  ? "bg-[#EFF6FF] text-[#1D4ED8] border-[#93C5FD]"
-                  : "bg-[#FEF2F2] text-[#B91C1C] border-[#FCA5A5]"
-              }`}
-            >
-              {budgetDelta > 0
-                ? `+₹${budgetDelta.toLocaleString("en-IN")} Buffer`
-                : budgetDelta === 0
-                ? "Balanced"
-                : "Over Budget"}
-            </span>
+                  ? "Balanced"
+                  : `+₹${Math.abs(budgetDelta).toLocaleString("en-IN")} Over`}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm font-extrabold text-[#2D3748]">
+                ₹{targetBudget.toLocaleString("en-IN")}
+              </p>
+              <span className="text-[10px] text-[#718096]">
+                ₹{totalAllocated.toLocaleString("en-IN")} mapped
+              </span>
+            </div>
+            <div className="w-full bg-[#E2ECE5] h-1.5 rounded-full overflow-hidden mt-1.5">
+              <div
+                className={`h-full transition-all duration-300 rounded-full ${
+                  budgetDelta < 0 ? "bg-rose-500" : "bg-[#10B981]"
+                }`}
+                style={{
+                  width: `${Math.min(100, (totalAllocated / Math.max(1, targetBudget)) * 100)}%`,
+                }}
+              />
+            </div>
           </div>
-          <p className="text-sm font-extrabold text-[#2D3748]">
-            ₹{targetBudget.toLocaleString("en-IN")}
-          </p>
-          <div className="w-full bg-[#E2ECE5] h-1.5 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                budgetDelta < 0 ? "bg-rose-500" : "bg-[#10B981]"
-              }`}
-              style={{
-                width: `${Math.min(100, (totalAllocated / Math.max(1, targetBudget)) * 100)}%`,
-              }}
-            />
-          </div>
-        </div>
 
-        {/* Card 4: Preparation Progress Velocity */}
-        <div className="bg-[#FFFFFF] p-4 rounded-3xl border border-[#E2ECE5] shadow-2xs space-y-2">
-          <div className="flex items-center justify-between text-[#718096]">
-            <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" /> Task Velocity
-            </span>
-            <span className="text-[10px] font-bold text-[#10B981] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
-              {completionPercent}% Done
-            </span>
-          </div>
-          <p className="text-sm font-extrabold text-[#2D3748]">
-            {completedCount} of {tasks.length} Tasks Finished
-          </p>
-          <div className="w-full bg-[#E2ECE5] h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-[#10B981] h-full rounded-full transition-all duration-500"
-              style={{ width: `${completionPercent}%` }}
-            />
+          {/* Segment 4: Task Velocity */}
+          <div className="sm:px-4 last:sm:pr-1 flex flex-col justify-between py-1">
+            <div className="flex items-center justify-between text-[#718096] mb-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]" /> Prep Velocity
+              </span>
+              <span className="text-[10px] font-extrabold text-[#059669] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
+                {completionPercent}% Done
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm font-extrabold text-[#2D3748]">
+                {completedCount} of {tasks.length} Done
+              </p>
+              <span className="text-[10px] text-[#718096]">
+                {tasks.length - completedCount} pending
+              </span>
+            </div>
+            <div className="w-full bg-[#E2ECE5] h-1.5 rounded-full overflow-hidden mt-1.5">
+              <div
+                className="bg-[#10B981] h-full rounded-full transition-all duration-300"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1346,10 +1719,21 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleCalendarToday}
-                  className="px-3 py-1.5 rounded-xl bg-[#F4F7F5] hover:bg-[#E2ECE5] border border-[#E2ECE5] text-xs font-extrabold text-[#2D3748] transition-all cursor-pointer shadow-2xs"
+                  onClick={() => setCurrentDate(new Date())}
+                  className="px-3 py-1.5 rounded-xl bg-[#F4F7F5] hover:bg-[#E2ECE5] border border-[#E2ECE5] text-xs font-bold text-[#2D3748] transition-all cursor-pointer shadow-2xs"
+                  title="Jump to Today's Date"
                 >
                   Today
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentDate(new Date(parsedEventDate))}
+                  className="px-3 py-1.5 rounded-xl bg-[#E6F7F0] hover:bg-[#D1FAE5] border border-[#A7F3D0] text-xs font-extrabold text-[#059669] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                  title="Jump to Target Event Month"
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  <span>Target Month</span>
                 </button>
 
                 <div className="flex items-center gap-0.5 bg-[#F4F7F5] p-0.5 rounded-xl border border-[#E2ECE5]">
@@ -1419,6 +1803,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             {/* Big Calendar Canvas */}
             <div className="h-[640px] w-full calendar-container">
               <Calendar
+                toolbar={false}
                 localizer={localizer}
                 events={eventsList}
                 startAccessor="start"
@@ -1438,39 +1823,84 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             </div>
           </div>
 
-          {/* Right Companion: Budget Breakdown Allocator Panel (when in split mode) */}
+          {/* Right Companion: Operations Deck (when in split mode) */}
           {isCalendarSplitView && (
-            <div className="xl:col-span-4 bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-md space-y-5 xl:sticky xl:top-6">
-              {/* Header */}
-              <div className="flex items-center justify-between pb-3 border-b border-[#E2ECE5] gap-2">
+            <div className="xl:col-span-4 bg-[#FFFFFF] rounded-3xl p-5 sm:p-6 border border-[#E2ECE5] shadow-md space-y-4 xl:sticky xl:top-6">
+              {/* Operations Deck Header & Micro-Tabs */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#E2ECE5] gap-2.5">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-[#E6F7F0] text-[#10B981] flex items-center justify-center font-bold">
-                    <SlidersHorizontal className="w-4 h-4" />
+                    {splitCompanionTab === "budget" ? (
+                      <SlidersHorizontal className="w-4 h-4" />
+                    ) : splitCompanionTab === "tasks" ? (
+                      <ListChecks className="w-4 h-4" />
+                    ) : (
+                      <Zap className="w-4 h-4" />
+                    )}
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-[#2D3748]">Budget Allocator</h2>
+                    <h2 className="text-base font-bold text-[#2D3748]">Operations Deck</h2>
                     <p className="text-[11px] text-[#718096]">
-                      Fine-tune allocations with Elastic Slider
+                      {splitCompanionTab === "budget"
+                        ? "Fine-tune allocations with Elastic Slider"
+                        : splitCompanionTab === "tasks"
+                        ? "Live countdown radar & milestone sync"
+                        : "Day-of execution schedule & timing"}
                     </p>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleResetBudget}
-                  className="p-1.5 rounded-xl text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] border border-transparent hover:border-[#E2ECE5] transition-all cursor-pointer flex items-center gap-1 text-xs"
-                  title="Reset to Original Values"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline text-[11px] font-semibold">Reset</span>
-                </button>
+                {/* Micro Tab Switcher */}
+                <div className="flex items-center gap-1 bg-[#F4F7F5] p-1 rounded-xl border border-[#E2ECE5] text-xs self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setSplitCompanionTab("budget")}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      splitCompanionTab === "budget"
+                        ? "bg-white text-[#059669] shadow-2xs font-extrabold border border-[#A7F3D0]"
+                        : "text-[#718096] hover:text-[#2D3748]"
+                    }`}
+                    title="Budget Breakdown Allocator"
+                  >
+                    <IndianRupee className="w-3 h-3" />
+                    <span>Budget</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSplitCompanionTab("tasks")}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      splitCompanionTab === "tasks"
+                        ? "bg-white text-[#059669] shadow-2xs font-extrabold border border-[#A7F3D0]"
+                        : "text-[#718096] hover:text-[#2D3748]"
+                    }`}
+                    title="Countdown Prep Tasks Radar"
+                  >
+                    <ListChecks className="w-3 h-3" />
+                    <span>Tasks ({tasks.length})</span>
+                  </button>
+                  {runOfShow.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSplitCompanionTab("runofshow")}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                        splitCompanionTab === "runofshow"
+                          ? "bg-white text-[#059669] shadow-2xs font-extrabold border border-[#A7F3D0]"
+                          : "text-[#718096] hover:text-[#2D3748]"
+                      }`}
+                      title="Day-of Run of Show"
+                    >
+                      <Zap className="w-3 h-3" />
+                      <span>Day-of ({runOfShow.length})</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Current Event / Selected Milestone Context */}
               <div className="p-3.5 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold tracking-wider text-[#718096]">
-                    Target Blueprint
+                    Active Blueprint
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#059669]">
                     <IndianRupee className="w-3 h-3 text-[#10B981]" />
@@ -1478,7 +1908,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   </span>
                 </div>
                 <p className="text-xs font-extrabold text-[#2D3748] truncate">
-                  {eventName || "Current Event"}
+                  {activeEventName || eventName || "Current Event"}
                 </p>
                 {selectedEvent ? (
                   <div className="pt-2 mt-1.5 border-t border-[#E2ECE5] flex items-center justify-between text-[11px]">
@@ -1491,162 +1921,295 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                       onClick={() => setSelectedEvent(null)}
                       className="text-[10px] text-[#718096] hover:text-[#2D3748] underline ml-2 shrink-0 cursor-pointer"
                     >
-                      Clear Selection
+                      Clear
                     </button>
                   </div>
                 ) : (
                   <p className="text-[10px] text-[#718096]">
-                    Click any calendar task to highlight its department allocation.
+                    Click any calendar event to focus details here.
                   </p>
                 )}
               </div>
 
-              {/* Budget Health Progress */}
-              <div className="space-y-2 p-3.5 rounded-2xl bg-gradient-to-br from-[#F0FDF4] to-[#FFFFFF] border border-[#A7F3D0]">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-[#2D3748]">Total Allocated:</span>
-                  <span className="font-extrabold text-sm text-[#2D3748]">
-                    ₹{totalAllocated.toLocaleString("en-IN")}
-                  </span>
-                </div>
+              {/* TAB 1: BUDGET BREAKDOWN ALLOCATOR */}
+              {splitCompanionTab === "budget" && (
+                <div className="space-y-4">
+                  {/* Budget Health Progress */}
+                  <div className="space-y-2 p-3.5 rounded-2xl bg-gradient-to-br from-[#F0FDF4] to-[#FFFFFF] border border-[#A7F3D0]">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-[#2D3748]">Total Allocated:</span>
+                      <span className="font-extrabold text-sm text-[#2D3748]">
+                        ₹{totalAllocated.toLocaleString("en-IN")}
+                      </span>
+                    </div>
 
-                <div className="w-full h-2 rounded-full bg-[#E2ECE5] overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 rounded-full ${
-                      budgetDelta < 0 ? "bg-rose-500" : "bg-[#10B981]"
-                    }`}
-                    style={{
-                      width: `${Math.min(100, (totalAllocated / Math.max(1, targetBudget)) * 100)}%`,
-                    }}
-                  />
-                </div>
+                    <div className="w-full h-2 rounded-full bg-[#E2ECE5] overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 rounded-full ${
+                          budgetDelta < 0 ? "bg-rose-500" : "bg-[#10B981]"
+                        }`}
+                        style={{
+                          width: `${Math.min(100, (totalAllocated / Math.max(1, targetBudget)) * 100)}%`,
+                        }}
+                      />
+                    </div>
 
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-[#718096]">
-                    {((totalAllocated / Math.max(1, targetBudget)) * 100).toFixed(0)}% of target budget
-                  </span>
-                  <span
-                    className={`font-bold px-2 py-0.5 rounded-md border text-[10px] ${
-                      budgetDelta > 0
-                        ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
-                        : budgetDelta === 0
-                        ? "bg-[#EFF6FF] text-[#1D4ED8] border-[#93C5FD]"
-                        : "bg-[#FEF2F2] text-[#B91C1C] border-[#FCA5A5]"
-                    }`}
-                  >
-                    {budgetDelta > 0
-                      ? `₹${budgetDelta.toLocaleString("en-IN")} Buffer`
-                      : budgetDelta === 0
-                      ? "Balanced"
-                      : `+₹${Math.abs(budgetDelta).toLocaleString("en-IN")} Over`}
-                  </span>
-                </div>
-              </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-[#718096]">
+                        {((totalAllocated / Math.max(1, targetBudget)) * 100).toFixed(0)}% of target budget
+                      </span>
+                      <span
+                        className={`font-bold px-2 py-0.5 rounded-md border text-[10px] ${
+                          budgetDelta > 0
+                            ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
+                            : budgetDelta === 0
+                            ? "bg-[#EFF6FF] text-[#1D4ED8] border-[#93C5FD]"
+                            : "bg-[#FEF2F2] text-[#B91C1C] border-[#FCA5A5]"
+                        }`}
+                      >
+                        {budgetDelta > 0
+                          ? `₹${budgetDelta.toLocaleString("en-IN")} Buffer`
+                          : budgetDelta === 0
+                          ? "Balanced"
+                          : `+₹${Math.abs(budgetDelta).toLocaleString("en-IN")} Over`}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Categories with ElasticSlider */}
-              <div className="space-y-3 max-h-[440px] overflow-y-auto pr-1">
-                {editableBudget.map((item, index) => {
-                  const meta = getCategoryMeta(item.category);
-                  const CategoryIcon = meta.icon;
-                  const isDepartmentMatch =
-                    selectedEvent?.department &&
-                    item.category.toLowerCase().includes(selectedEvent.department.toLowerCase());
+                  {/* Categories with ElasticSlider */}
+                  <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                    {editableBudget.map((item, index) => {
+                      const meta = getCategoryMeta(item.category);
+                      const CategoryIcon = meta.icon;
+                      const isDepartmentMatch =
+                        selectedEvent?.department &&
+                        item.category.toLowerCase().includes(selectedEvent.department.toLowerCase());
 
-                  const minBound = Math.max(0, item.sliderMin ?? 0);
-                  const maxBound = Math.max(minBound + 5000, item.sliderMax ?? Math.round(targetBudget * 0.6));
+                      const minBound = Math.max(0, item.sliderMin ?? 0);
+                      const maxBound = Math.max(minBound + 5000, item.sliderMax ?? Math.round(targetBudget * 0.6));
 
-                  return (
-                    <div
-                      key={`${item.category}-${index}`}
-                      className={`p-3 rounded-2xl border transition-all ${
-                        isDepartmentMatch
-                          ? "bg-[#F0FDF4] border-[#10B981] shadow-xs ring-1 ring-[#10B981]/30"
-                          : "bg-[#FFFFFF] hover:bg-[#F9FBFA] border-[#E2ECE5]"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className={`p-1.5 rounded-xl border shrink-0 ${meta.color}`}>
-                            <CategoryIcon className="w-3.5 h-3.5" />
-                          </span>
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-bold text-[#2D3748] truncate">
-                              {item.category}
-                            </h4>
-                            {item.spendStrategy && (
-                              <p className="text-[10px] text-[#718096] line-clamp-1">
-                                {item.spendStrategy}
-                              </p>
-                            )}
+                      return (
+                        <div
+                          key={`${item.category}-${index}`}
+                          className={`p-3 rounded-2xl border transition-all ${
+                            isDepartmentMatch
+                              ? "bg-[#F0FDF4] border-[#10B981] shadow-xs ring-1 ring-[#10B981]/30"
+                              : "bg-[#FFFFFF] hover:bg-[#F9FBFA] border-[#E2ECE5]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className={`p-1.5 rounded-xl border shrink-0 ${meta.color}`}>
+                                <CategoryIcon className="w-3.5 h-3.5" />
+                              </span>
+                              <div className="min-w-0">
+                                <h4 className="text-xs font-bold text-[#2D3748] truncate">
+                                  {item.category}
+                                </h4>
+                                {item.spendStrategy && (
+                                  <p className="text-[10px] text-[#718096] line-clamp-1">
+                                    {item.spendStrategy}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <span className="text-xs font-extrabold text-[#10B981] block">
+                                ₹{Number(item.allocatedAmount).toLocaleString("en-IN")}
+                              </span>
+                              <span className="text-[10px] text-[#718096] font-semibold">
+                                {item.percentage}%
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="py-1">
+                            <ElasticSlider
+                              value={item.allocatedAmount}
+                              startingValue={minBound}
+                              maxValue={maxBound}
+                              stepSize={500}
+                              isStepped={true}
+                              thickness={8}
+                              activeThickness={14}
+                              thumb={true}
+                              thumbColor="#10B981"
+                              valuePosition="bubble"
+                              rangeColor="#10B981"
+                              trackColor="#E2ECE5"
+                              leftIcon={<IndianRupee className="w-3.5 h-3.5 text-[#10B981]" />}
+                              rightIcon={<TrendingUp className="w-3.5 h-3.5 text-[#10B981]" />}
+                              formatValue={(val) => `₹${Math.round(val).toLocaleString("en-IN")}`}
+                              onChange={(newVal) => handleCategoryBudgetChange(index, newVal)}
+                              className="w-full"
+                            />
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        <div className="text-right shrink-0">
-                          <span className="text-xs font-extrabold text-[#10B981] block">
-                            ₹{Number(item.allocatedAmount).toLocaleString("en-IN")}
+                  {/* Save Budget Action */}
+                  <div className="pt-2 border-t border-[#E2ECE5] flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleResetBudget}
+                      className="p-2.5 rounded-2xl text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] border border-[#E2ECE5] transition-all cursor-pointer flex items-center justify-center shrink-0"
+                      title="Reset to Original Values"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSavingBudget}
+                      onClick={handleSaveBudget}
+                      className={`flex-1 py-2.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs ${
+                        saveSuccess
+                          ? "bg-[#059669] text-white"
+                          : "bg-[#10B981] hover:bg-[#059669] text-white shadow-[#10B981]/20"
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {isSavingBudget ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Saving Allocations...</span>
+                        </>
+                      ) : saveSuccess ? (
+                        <>
+                          <Check className="w-4 h-4 stroke-[2.5]" />
+                          <span>Allocations Saved!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Save Allocations</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: TASKS RADAR CHECKLIST */}
+              {splitCompanionTab === "tasks" && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs pb-1">
+                    <span className="text-[#718096] font-medium">
+                      {completedCount} of {tasks.length} Completed
+                    </span>
+                    <span className="font-extrabold text-[#059669] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0] text-[10px]">
+                      {completionPercent}%
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                    {tasks.map((task, idx) => {
+                      const taskId = task.id || `task-${idx}`;
+                      const isDone = !!completedTaskIds[taskId];
+                      const meta = getCategoryMeta(task.department || "");
+                      const CategoryIcon = meta.icon;
+                      const pMeta = getPriorityMeta(task.priority);
+
+                      return (
+                        <div
+                          key={taskId}
+                          onClick={() => handleToggleTaskCompleted(taskId)}
+                          className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 ${
+                            isDone
+                              ? "bg-[#F9FBFA] border-[#E2ECE5] opacity-75"
+                              : "bg-white hover:bg-[#F4F7F5] border-[#E2ECE5] shadow-2xs"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleTaskCompleted(taskId, e)}
+                            className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-all ${
+                              isDone
+                                ? "bg-[#10B981] border-[#10B981] text-white shadow-2xs"
+                                : "border-[#CBD5E1] bg-white hover:border-[#10B981]"
+                            }`}
+                          >
+                            {isDone && <Check className="w-3 h-3 stroke-[3]" />}
+                          </button>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1 mb-0.5">
+                              <h4
+                                className={`text-xs font-bold truncate ${
+                                  isDone
+                                    ? "line-through text-[#718096]"
+                                    : "text-[#2D3748]"
+                                }`}
+                              >
+                                {task.title}
+                              </h4>
+                              <span
+                                className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-full border shrink-0 ${pMeta.badge}`}
+                              >
+                                {task.priority || "Normal"}
+                              </span>
+                            </div>
+
+                            <p className="text-[10px] text-[#718096] line-clamp-1">
+                              {task.actionBrief || (task as any).description}
+                            </p>
+
+                            <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[#718096]">
+                              <span className="flex items-center gap-1 font-medium">
+                                <CategoryIcon className="w-3 h-3 text-[#10B981]" />
+                                {task.department || "General"}
+                              </span>
+                              <span>•</span>
+                              <span className="font-mono">
+                                T-{task.daysBeforeEvent || 0}d
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: RUN OF SHOW TIMELINE */}
+              {splitCompanionTab === "runofshow" && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs pb-1">
+                    <span className="text-[#718096] font-medium">Day-of Schedule</span>
+                    <span className="font-extrabold text-[#7E22CE] bg-[#F3E8FF] px-2 py-0.5 rounded-full border border-[#D8B4FE] text-[10px]">
+                      {runOfShow.length} Items
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                    {runOfShow.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-2xl bg-white border border-[#E2ECE5] shadow-2xs space-y-1"
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] font-mono font-bold text-[#7E22CE] bg-[#F3E8FF] px-2 py-0.5 rounded-md border border-[#D8B4FE]">
+                            {item.timeSlot || "TBD"}
                           </span>
-                          <span className="text-[10px] text-[#718096] font-semibold">
-                            {item.percentage}%
+                          <span className="text-[10px] font-semibold text-[#718096] bg-[#F4F7F5] px-2 py-0.5 rounded-md border border-[#E2ECE5]">
+                            {item.departmentInCharge || "Operations"}
                           </span>
                         </div>
+                        <h4 className="text-xs font-extrabold text-[#2D3748]">
+                          {item.activity}
+                        </h4>
+                        {item.operationalNotes && (
+                          <p className="text-[10px] text-[#718096] line-clamp-2">
+                            {item.operationalNotes}
+                          </p>
+                        )}
                       </div>
-
-                      <div className="py-1">
-                        <ElasticSlider
-                          value={item.allocatedAmount}
-                          startingValue={minBound}
-                          maxValue={maxBound}
-                          stepSize={500}
-                          isStepped={true}
-                          thickness={8}
-                          activeThickness={14}
-                          thumb={true}
-                          thumbColor="#10B981"
-                          valuePosition="bubble"
-                          rangeColor="#10B981"
-                          trackColor="#E2ECE5"
-                          leftIcon={<IndianRupee className="w-3.5 h-3.5 text-[#10B981]" />}
-                          rightIcon={<TrendingUp className="w-3.5 h-3.5 text-[#10B981]" />}
-                          formatValue={(val) => `₹${Math.round(val).toLocaleString("en-IN")}`}
-                          onChange={(newVal) => handleCategoryBudgetChange(index, newVal)}
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Save Budget Action */}
-              <div className="pt-2 border-t border-[#E2ECE5]">
-                <button
-                  type="button"
-                  disabled={isSavingBudget}
-                  onClick={handleSaveBudget}
-                  className={`w-full py-2.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs ${
-                    saveSuccess
-                      ? "bg-[#059669] text-white"
-                      : "bg-[#10B981] hover:bg-[#059669] text-white shadow-[#10B981]/20"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {isSavingBudget ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Saving Allocations...</span>
-                    </>
-                  ) : saveSuccess ? (
-                    <>
-                      <Check className="w-4 h-4 stroke-[2.5]" />
-                      <span>Allocations Saved</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      <span>Save & Sync Allocations</span>
-                    </>
-                  )}
-                </button>
-              </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -2354,12 +2917,12 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         onToggle={() => setIsAiChatOpen((prev) => !prev)}
         onClose={() => setIsAiChatOpen(false)}
         eventContext={{
-          title: eventName,
-          eventType,
-          eventBudget,
-          eventDate,
-          tier,
-          guestCount,
+          title: activeEventName || eventName,
+          eventType: activeEventType || eventType,
+          eventBudget: activeEventBudget || eventBudget,
+          eventDate: activeEventDate || eventDate,
+          tier: activeTier || tier,
+          guestCount: activeGuestCount || guestCount,
           prepCalendarTasks: tasks,
           dayOfRunOfShow: runOfShow,
           budgetBreakdown: budgetList,
@@ -2376,6 +2939,18 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           if (updatedFields.budgetBreakdown) {
             setBudgetList(updatedFields.budgetBreakdown);
           }
+          // Update in-memory allUserEvents list
+          setAllUserEvents((prev) =>
+            prev.map((ev, idx) => {
+              if (idx === currentEventIndex) {
+                return {
+                  ...ev,
+                  ...updatedFields,
+                };
+              }
+              return ev;
+            })
+          );
         }}
         onFocusDate={handleFocusCalendar}
       />

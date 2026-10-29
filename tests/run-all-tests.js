@@ -17,6 +17,7 @@ const testFiles = [
   "./tests/chat-schema.test.ts",
   "./tests/gemini-config.test.ts",
   "./tests/auth-provider.test.ts",
+  "./tests/tasks-toggle-api.test.ts",
 ];
 
 console.log("=================================================");

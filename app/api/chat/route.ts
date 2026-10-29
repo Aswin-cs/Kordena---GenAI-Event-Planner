@@ -78,6 +78,7 @@ const chatResponseSchema = {
               estimatedCost: { type: "number" },
               actionBrief: { type: "string" },
               priority: { type: "string", enum: ["high", "medium", "low"] },
+              isCompleted: { type: "boolean" },
             },
             required: [
               "id",

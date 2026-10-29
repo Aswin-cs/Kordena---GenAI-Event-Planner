@@ -39,6 +39,7 @@ export interface IPrepCalendarTask {
   estimatedCost: number;
   actionBrief: string;
   priority: "high" | "medium" | "low";
+  isCompleted?: boolean;
 }
 
 export interface IDayOfRunOfShowItem {
@@ -67,6 +68,22 @@ export interface IUserStatus extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export const PrepCalendarTaskSchema = new Schema(
+  {
+    id: { type: String },
+    title: { type: String },
+    department: { type: String },
+    actionType: { type: String },
+    daysBeforeEvent: { type: Number },
+    scheduledDate: { type: String },
+    estimatedCost: { type: Number },
+    actionBrief: { type: String },
+    priority: { type: String },
+    isCompleted: { type: Boolean, default: false },
+  },
+  { _id: false, strict: false }
+);
 
 const UserStatusSchema = new Schema<IUserStatus>(
   {
@@ -134,7 +151,7 @@ const UserStatusSchema = new Schema<IUserStatus>(
       default: [],
     },
     prepCalendarTasks: {
-      type: [Object],
+      type: [PrepCalendarTaskSchema],
       default: [],
     },
     dayOfRunOfShow: {

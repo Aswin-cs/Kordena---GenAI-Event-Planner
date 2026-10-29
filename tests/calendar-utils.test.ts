@@ -170,6 +170,19 @@ test("Calendar Utils - calculateCompletionMetrics", async (t) => {
     assert.strictEqual(result.percentage, 100);
   });
 
+  await t.test("recognizes isCompleted property directly on tasks", () => {
+    const tasksWithCompleted = [
+      { id: "task-1", title: "Task 1", isCompleted: true },
+      { id: "task-2", title: "Task 2", isCompleted: false },
+      { id: "task-3", title: "Task 3", isCompleted: true },
+      { id: "task-4", title: "Task 4" },
+    ];
+    const result = calculateCompletionMetrics(tasksWithCompleted);
+    assert.strictEqual(result.total, 4);
+    assert.strictEqual(result.completed, 2);
+    assert.strictEqual(result.percentage, 50);
+  });
+
   await t.test("returns 0 when task list is empty", () => {
     const result = calculateCompletionMetrics([], {});
     assert.strictEqual(result.total, 0);

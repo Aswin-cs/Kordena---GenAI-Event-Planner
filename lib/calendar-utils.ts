@@ -126,7 +126,7 @@ export function calculateBudgetMetrics(
  * Calculates task completion metrics and velocity percentage.
  */
 export function calculateCompletionMetrics(
-  tasks: Array<{ id?: string; taskId?: string }> = [],
+  tasks: Array<{ id?: string; taskId?: string; isCompleted?: boolean }> = [],
   completedTaskIds: Record<string, boolean> = {}
 ): {
   total: number;
@@ -140,7 +140,10 @@ export function calculateCompletionMetrics(
 
   const completed = tasks.filter((t, idx) => {
     const id = t.id || t.taskId || `task-${idx}`;
-    return Boolean(completedTaskIds[id]);
+    if (completedTaskIds[id] !== undefined) {
+      return Boolean(completedTaskIds[id]);
+    }
+    return Boolean(t.isCompleted);
   }).length;
 
   const percentage = Math.round((completed / total) * 100);

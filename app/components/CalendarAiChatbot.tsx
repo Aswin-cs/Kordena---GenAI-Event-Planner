@@ -360,16 +360,12 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
           <button
             type="button"
             onClick={onToggle}
-            className="cursor-pointer flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-[#10B981] via-[#059669] to-[#047857] text-white shadow-[0_12px_35px_-5px_rgba(16,185,129,0.5),0_0_0_1px_rgba(255,255,255,0.2)] hover:shadow-[0_18px_45px_-5px_rgba(16,185,129,0.7)] hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
+            className="cursor-pointer flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#10B981] hover:bg-[#059669] text-white shadow-lg shadow-[#10B981]/30 border border-white/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 backdrop-blur-md"
             aria-label="Open AI Calendar Copilot"
           >
-            <div className="relative">
-              <Sparkles className="w-4 h-4 text-white animate-pulse" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
-            </div>
-
-            <span className="font-extrabold text-xs sm:text-sm tracking-tight drop-shadow-xs">
-              AI Calendar Copilot
+            <Sparkles className="w-4 h-4 text-white" />
+            <span className="font-extrabold text-xs tracking-tight">
+              AI Copilot
             </span>
 
             {/* Keyboard shortcut badge */}
@@ -378,7 +374,7 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
             </span>
 
             {highPriorityTasks.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] bg-red-500/90 text-white font-extrabold px-2 py-0.5 rounded-full shadow-xs">
+              <span className="inline-flex items-center gap-1 text-[10px] bg-rose-500 text-white font-extrabold px-2 py-0.5 rounded-full shadow-xs">
                 <Flame className="w-3 h-3" />
                 {highPriorityTasks.length} Urgent
               </span>

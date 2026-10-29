@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import Stepper, { Step } from "./Stepper";
 import { EventCalendarView } from "./EventCalendarView";
 import { EventHistories } from "./EventHistories";
 import { initialEvents } from "../mockData";
 import { EventPlan } from "../types";
-import { Sparkles, ArrowRight, Plus, IndianRupee, Loader2, AlertCircle, X } from "lucide-react";
+import { Sparkles, ArrowRight, Plus, IndianRupee, Loader2, AlertCircle, X, Lock } from "lucide-react";
 import { AiEvaluationStepper } from "./AiEvaluationStepper";
 import { AiEvaluationResponse } from "../api/ai-evaluate/route";
 
@@ -39,7 +39,10 @@ interface LandingPageProps {
   onOpenSignup?: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = () => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSignup }) => {
+  const { data: session, status: authStatus } = useSession();
+  const isAuthenticated = authStatus === "authenticated";
+
   // Stepper input states
   const [eventName, setEventName] = useState("");
   const [eventType, setEventType] = useState("Conference");
@@ -196,6 +199,11 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
   };
 
   const handleTriggerAiEvaluation = async () => {
+    if (!isAuthenticated) {
+      setAiEvalError("Sign in required: AI Event Evaluation requires an authenticated account. Please sign in with Google to evaluate your event parameters and generate your milestone calendar.");
+      return;
+    }
+
     setIsAiEvaluating(true);
     setAiEvalError(null);
 
@@ -217,6 +225,12 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
       });
 
       const data = await response.json();
+      if (response.status === 401 || data.code === "UNAUTHORIZED") {
+        setAiEvalError(data.message || "Unauthorized: Sign in required to evaluate event architecture with Kordena AI.");
+        setIsAiEvaluating(false);
+        return;
+      }
+
       if (!data.success) {
         throw new Error(data.message || "Failed to analyze event with AI");
       }
@@ -505,13 +519,25 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                   <p className="mt-0.5">{aiEvalError}</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => handleTriggerAiEvaluation()}
-                className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-700 cursor-pointer shrink-0 ml-3 text-[11px]"
-              >
-                Retry
-              </button>
+              <div className="flex items-center gap-2 shrink-0 ml-3">
+                {!isAuthenticated && (
+                  <button
+                    type="button"
+                    onClick={() => signIn("google", { callbackUrl: "/" })}
+                    className="px-3 py-1.5 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700 cursor-pointer text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Sign In with Google</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleTriggerAiEvaluation()}
+                  className="px-2.5 py-1.5 rounded-xl bg-rose-600 text-white font-bold hover:bg-rose-700 cursor-pointer text-xs transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
             </div>
           )}
 
@@ -549,14 +575,14 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
             onFinalStepCompleted={handleTriggerAiEvaluation}
             backButtonText="Back"
             nextButtonText="Continue"
-              orientation="vertical"
-              width={640}
-              completeButtonText="Submit to AI Evaluation →"
-              theme="light"
-              accentColor="#10B981"
-              radius={24}
-              className="border border-[#E2ECE5] shadow-xl bg-white/95"
-            >
+            orientation="vertical"
+            width={640}
+            completeButtonText={isAuthenticated ? "Submit to AI Evaluation →" : "Sign In & Evaluate with AI 🔒"}
+            theme="light"
+            accentColor="#10B981"
+            radius={24}
+            className="border border-[#E2ECE5] shadow-xl bg-white/95"
+          >
               {/* Step 1: Event Details Input (Event Name, Event Type, Budget, Date, Guests) */}
               <Step title="Event Info">
                 <div className="space-y-4 py-1">
@@ -886,6 +912,35 @@ export const LandingPage: React.FC<LandingPageProps> = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Auth Session Status & AI Notice */}
+                  {!isAuthenticated ? (
+                    <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                          <Lock className="w-4 h-4 text-amber-700" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-amber-900">Sign in required for AI evaluation</p>
+                          <p className="text-amber-700">Kordena AI evaluation synthesizes personalized countdown milestones and day-of schedules. Sign in to evaluate.</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => signIn("google", { callbackUrl: "/" })}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700 transition shrink-0 cursor-pointer shadow-xs"
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2.5">
+                      <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>
+                        Signed in as <strong>{session?.user?.name || session?.user?.email}</strong>. AI Evaluation will synthesize and save your event blueprint.
+                      </span>
+                    </div>
+                  )}
                 </div>
               </Step>
             </Stepper>

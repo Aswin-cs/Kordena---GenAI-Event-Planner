@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { EventPlan } from "@/app/types";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { sanitizeString, clampNumber, safeErrorResponse } from "@/lib/security";
+import {
+  sanitizeString,
+  clampNumber,
+  safeErrorResponse,
+  requireAuthSession,
+} from "@/lib/security";
 
 export async function POST(request: Request) {
   // 1. Rate limiting protection
@@ -11,6 +16,14 @@ export async function POST(request: Request) {
     bucketPrefix: "ai:generate",
   });
   if (!rateLimit.allowed) return rateLimit.response!;
+
+  // 2. Strict Authentication Guard - Lock route for unauthorized users
+  const auth = await requireAuthSession(
+    "Unauthorized: You must be signed in to generate event plans with AI."
+  );
+  if (!auth.authorized) {
+    return auth.response!;
+  }
 
   try {
     const body = await request.json();

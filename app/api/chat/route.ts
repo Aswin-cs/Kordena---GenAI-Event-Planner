@@ -11,7 +11,12 @@ import UserStatus, {
 import User from "@/models/User";
 import { geminiConfig } from "@/config/gemini";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { escapeRegex, sanitizeString, safeErrorResponse } from "@/lib/security";
+import {
+  escapeRegex,
+  sanitizeString,
+  safeErrorResponse,
+  requireAuthSession,
+} from "@/lib/security";
 
 // Response Schema for Gemini distinguishing between standard Q&A vs Blueprint Edits
 const chatResponseSchema = {
@@ -135,6 +140,14 @@ export async function POST(request: Request) {
     bucketPrefix: "ai:chat",
   });
   if (!rateLimit.allowed) return rateLimit.response!;
+
+  // 2. Strict Authentication Guard - Lock route for unauthorized users
+  const auth = await requireAuthSession(
+    "Unauthorized: You must be signed in to converse with Kordena AI Copilot."
+  );
+  if (!auth.authorized) {
+    return auth.response!;
+  }
 
   try {
     const { message, eventContext, apiKey } = await request.json();

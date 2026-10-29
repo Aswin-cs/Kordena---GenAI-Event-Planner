@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { geminiConfig } from "@/config/gemini";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { sanitizeString, clampNumber, safeErrorResponse } from "@/lib/security";
+import {
+  sanitizeString,
+  clampNumber,
+  safeErrorResponse,
+  requireAuthSession,
+} from "@/lib/security";
 
 export interface AiEvaluationOption {
   id: string;
@@ -83,6 +88,14 @@ export async function POST(request: Request) {
     bucketPrefix: "ai:evaluate",
   });
   if (!rateLimit.allowed) return rateLimit.response!;
+
+  // 2. Strict Authentication Guard - Lock route for unauthorized users
+  const auth = await requireAuthSession(
+    "Unauthorized: You must be signed in to evaluate event blueprints with AI."
+  );
+  if (!auth.authorized) {
+    return auth.response!;
+  }
 
   try {
     const body = await request.json();

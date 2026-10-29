@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bot, Send, Sparkles, X, Key, Check, Loader2 } from "lucide-react";
+import { Bot, Send, Sparkles, X, Key, Check, Loader2, Lock } from "lucide-react";
+import { useSession, signIn } from "next-auth/react";
 import { EventPlan } from "../types";
 
 interface AiAssistantModalProps {
@@ -29,6 +30,9 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   onClose,
   event,
 }) => {
+  const { data: session, status: authStatus } = useSession();
+  const isAuthenticated = authStatus === "authenticated";
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "msg-0",
@@ -69,6 +73,19 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+
+    // Guard against unauthenticated invocation before dispatching network request
+    if (!isAuthenticated) {
+      const lockMsg: ChatMessage = {
+        id: `msg-${Date.now() + 1}`,
+        sender: "kordena",
+        text: "Kordena AI Copilot is locked for unauthorized sessions. Please sign in to consult with AI.",
+        timestamp: "Just now",
+      };
+      setMessages((prev) => [...prev, lockMsg]);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -83,6 +100,18 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
       });
 
       const data = await res.json();
+
+      if (res.status === 401 || data.code === "UNAUTHORIZED") {
+        const unauthMsg: ChatMessage = {
+          id: `msg-${Date.now() + 1}`,
+          sender: "kordena",
+          text: data.message || "Unauthorized: You must be signed in to converse with Kordena AI Copilot.",
+          timestamp: "Just now",
+        };
+        setMessages((prev) => [...prev, unauthMsg]);
+        return;
+      }
+
       const botMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         sender: "kordena",
@@ -124,7 +153,13 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                 <h3 id="ai-copilot-title" className="text-sm sm:text-base font-bold text-[#2D3748]">
                   Kordena AI Copilot
                 </h3>
-                <span className="w-2 h-2 rounded-full bg-[#10B981] emerald-pulse" />
+                {isAuthenticated ? (
+                  <span className="w-2 h-2 rounded-full bg-[#10B981] emerald-pulse" />
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                    <Lock className="w-2.5 h-2.5" /> Locked
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-[#718096]">
                 Context: {event.title}
@@ -153,6 +188,25 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Unauthenticated Lock Warning Banner */}
+        {!isAuthenticated && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex items-center justify-between text-xs text-amber-900 shrink-0">
+            <div className="flex items-center gap-2">
+              <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+              <span>
+                <strong>AI Copilot is Locked:</strong> Sign in with Google to interact with AI.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => signIn("google", { callbackUrl: "/" })}
+              className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] cursor-pointer shadow-2xs"
+            >
+              Sign In
+            </button>
+          </div>
+        )}
 
         {/* Optional Custom API Key accordion */}
         {showKeyInput && (

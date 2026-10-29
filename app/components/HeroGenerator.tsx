@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sparkles, Wand2, Users, DollarSign, ArrowRight, Loader2, RefreshCw } from "lucide-react";
+import { Sparkles, Wand2, Users, DollarSign, ArrowRight, Loader2, RefreshCw, Lock } from "lucide-react";
+import { useSession, signIn } from "next-auth/react";
 import { EventPlan } from "../types";
 
 interface HeroGeneratorProps {
@@ -46,12 +47,16 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { data: session, status: authStatus } = useSession();
+  const isAuthenticated = authStatus === "authenticated";
+
   const [prompt, setPrompt] = useState("");
   const [eventType, setEventType] = useState("Corporate Gala");
   const [guestCount, setGuestCount] = useState<number>(120);
   const [budget, setBudget] = useState<number>(35000);
   const [loading, setLoading] = useState(false);
   const [generationStep, setGenerationStep] = useState(0);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const steps = [
     "Analyzing serene sage & mint design aesthetics...",
@@ -65,6 +70,12 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
     if (e) e.preventDefault();
     if (!prompt.trim()) return;
 
+    if (!isAuthenticated) {
+      setAuthError("Sign in required: Generating event blueprints with AI requires an authenticated account.");
+      return;
+    }
+
+    setAuthError(null);
     setLoading(true);
     setGenerationStep(0);
 
@@ -91,14 +102,20 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
       const data = await res.json();
       clearInterval(interval);
 
+      if (res.status === 401 || data.code === "UNAUTHORIZED") {
+        setAuthError(data.message || "Unauthorized: Please sign in to generate plans with AI.");
+        return;
+      }
+
       if (data.success && data.plan) {
         onPlanGenerated(data.plan);
         setPrompt("");
         onClose();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Generation error:", err);
       clearInterval(interval);
+      setAuthError(err?.message || "Failed to generate event blueprint. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -160,6 +177,43 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
 
         {/* Form */}
         <form onSubmit={handleGenerate} className="mt-5 space-y-4">
+          {!isAuthenticated && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                  <Lock className="w-4 h-4 text-amber-700" />
+                </div>
+                <div>
+                  <p className="font-semibold text-amber-900">Sign In Required</p>
+                  <p className="text-amber-700">AI blueprint synthesis is locked for guest sessions. Sign in with Google to generate custom schedules and vendor plans.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => signIn("google", { callbackUrl: "/" })}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700 transition shrink-0 cursor-pointer shadow-xs"
+              >
+                Sign In
+              </button>
+            </div>
+          )}
+
+          {authError && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{authError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => signIn("google", { callbackUrl: "/" })}
+                className="px-3 py-1 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-700 shrink-0 cursor-pointer text-xs"
+              >
+                Sign In
+              </button>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[#718096] mb-1.5">
               Event Vision & Prompt
@@ -266,6 +320,11 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   Generating Plan...
+                </>
+              ) : !isAuthenticated ? (
+                <>
+                  <Lock className="w-4 h-4" />
+                  Sign In & Synthesize Blueprint
                 </>
               ) : (
                 <>

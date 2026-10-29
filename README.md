@@ -171,17 +171,17 @@ The core document model, `UserStatus` (`models/UserStatus.model.ts`), has been o
 
 ## 7. API Route Reference
 
-| Method | Endpoint | Description | Rate Limit |
-|---|---|---|---|
-| `POST` | `/api/generate` | Generates a full draft event plan from a prompt | 20 req / min |
-| `POST` | `/api/ai-evaluate` | Performs structured Gemini evaluation of event parameters | 20 req / min |
-| `POST` | `/api/chat` | Kordena AI Copilot interactive chat and blueprint editing | 30 req / min |
-| `GET` | `/api/user-status` | Fetches saved blueprints for the authenticated account | 100 req / min |
-| `POST` | `/api/user-status` | Stores a completed event blueprint from the Stepper | 60 req / min |
-| `PATCH` | `/api/user-status` | Updates budget allocations or specific blueprint sections | 60 req / min |
-| `DELETE` | `/api/user-status` | Deletes a blueprint by ID with ownership verification | 30 req / min |
-| `POST` | `/api/tasks/toggle` | Toggles or updates isCompleted on a prep calendar task | 120 req / min |
-| `ALL` | `/api/auth/[...nextauth]` | NextAuth session authentication endpoints | Unthrottled |
+| Method | Endpoint | Description | Auth Required | Rate Limit |
+|---|---|---|---|---|
+| `POST` | `/api/generate` | Generates a full draft event plan from a prompt | Yes (401 if unauthorized) | 30 req / min |
+| `POST` | `/api/ai-evaluate` | Performs structured Gemini evaluation of event parameters | Yes (401 if unauthorized) | 30 req / min |
+| `POST` | `/api/chat` | Kordena AI Copilot interactive chat and blueprint editing | Yes (401 if unauthorized) | 30 req / min |
+| `GET` | `/api/user-status` | Fetches saved blueprints for the authenticated account | Isolated per account | 100 req / min |
+| `POST` | `/api/user-status` | Stores a completed event blueprint from the Stepper | Yes | 60 req / min |
+| `PATCH` | `/api/user-status` | Updates budget allocations or specific blueprint sections | Yes (ownership enforced) | 60 req / min |
+| `DELETE` | `/api/user-status` | Deletes a blueprint by ID with ownership verification | Yes (ownership enforced) | 30 req / min |
+| `POST` | `/api/tasks/toggle` | Toggles or updates isCompleted on a prep calendar task | Yes (ownership enforced) | 120 req / min |
+| `ALL` | `/api/auth/[...nextauth]` | NextAuth session authentication endpoints | Public | Unthrottled |
 
 ---
 

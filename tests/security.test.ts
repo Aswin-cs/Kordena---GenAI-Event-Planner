@@ -143,3 +143,63 @@ test("Next.js Security Headers Configuration", async (t) => {
     assert.equal(contentTypeOptions?.value, "nosniff");
   });
 });
+
+test("AI Route Authorization Lock Guard (Backend Security)", async (t) => {
+  const { requireAuthSession } = await import("../lib/security");
+  const { POST: postGenerate } = await import("../app/api/generate/route");
+  const { POST: postAiEvaluate } = await import("../app/api/ai-evaluate/route");
+  const { POST: postChat } = await import("../app/api/chat/route");
+
+  await t.test("requireAuthSession rejects unauthenticated access with 401", async () => {
+    const authResult = await requireAuthSession();
+    assert.equal(authResult.authorized, false);
+    assert.ok(authResult.response);
+    assert.equal(authResult.response.status, 401);
+
+    const body = await authResult.response.json();
+    assert.equal(body.success, false);
+    assert.equal(body.code, "UNAUTHORIZED");
+  });
+
+  await t.test("POST /api/generate blocks unauthorized requests with 401", async () => {
+    const fakeReq = new Request("http://localhost:3000/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "A luxury gala" }),
+    });
+
+    const res = await postGenerate(fakeReq);
+    assert.equal(res.status, 401);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "UNAUTHORIZED");
+  });
+
+  await t.test("POST /api/ai-evaluate blocks unauthorized requests with 401", async () => {
+    const fakeReq = new Request("http://localhost:3000/api/ai-evaluate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventName: "Tech Summit" }),
+    });
+
+    const res = await postAiEvaluate(fakeReq);
+    assert.equal(res.status, 401);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "UNAUTHORIZED");
+  });
+
+  await t.test("POST /api/chat blocks unauthorized requests with 401", async () => {
+    const fakeReq = new Request("http://localhost:3000/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "Hello AI" }),
+    });
+
+    const res = await postChat(fakeReq);
+    assert.equal(res.status, 401);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.equal(data.code, "UNAUTHORIZED");
+  });
+});

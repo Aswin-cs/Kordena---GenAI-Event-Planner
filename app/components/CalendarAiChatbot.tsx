@@ -28,7 +28,9 @@ import {
   Compass,
   CheckCircle2,
   Layers,
+  Lock,
 } from "lucide-react";
+import { useSession, signIn } from "next-auth/react";
 import {
   IPrepCalendarTask,
   IDayOfRunOfShowItem,
@@ -72,6 +74,7 @@ interface ChatMessage {
   actionType?: "milestones" | "budget" | "timeline" | "brief";
   isEditApplied?: boolean;
   savedToDb?: boolean;
+  isUnauthorized?: boolean;
 }
 
 type ModeFilter = "all" | "milestones" | "run-of-show" | "budget" | "vendors";
@@ -127,6 +130,9 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
   onEventStatusUpdated,
   onFocusDate,
 }) => {
+  const { data: session, status: authStatus } = useSession();
+  const isAuthenticated = authStatus === "authenticated";
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: "msg-welcome",
@@ -227,6 +233,20 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+
+    // Frontend Check: Guard against unauthenticated invocation before dispatching network request
+    if (!isAuthenticated) {
+      const lockMsg: ChatMessage = {
+        id: `msg-${Date.now() + 1}`,
+        sender: "kordena",
+        text: "Kordena AI Copilot is currently locked for unauthorized sessions. Please sign in to ask questions, optimize dates, or modify blueprints.",
+        timestamp: "Just now",
+        isUnauthorized: true,
+      };
+      setMessages((prev) => [...prev, lockMsg]);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -252,6 +272,18 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
       });
 
       const data = await res.json();
+
+      if (res.status === 401 || data.code === "UNAUTHORIZED") {
+        const unauthMsg: ChatMessage = {
+          id: `msg-${Date.now() + 1}`,
+          sender: "kordena",
+          text: data.message || "Unauthorized: You must be signed in to converse with Kordena AI Copilot.",
+          timestamp: "Just now",
+          isUnauthorized: true,
+        };
+        setMessages((prev) => [...prev, unauthMsg]);
+        return;
+      }
 
       if (data.isEditApplied && data.updatedFields) {
         onEventStatusUpdated?.(data.updatedFields);
@@ -363,7 +395,11 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
             className="cursor-pointer flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#10B981] hover:bg-[#059669] text-white shadow-lg shadow-[#10B981]/30 border border-white/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 backdrop-blur-md"
             aria-label="Open AI Calendar Copilot"
           >
-            <Sparkles className="w-4 h-4 text-white" />
+            {isAuthenticated ? (
+              <Sparkles className="w-4 h-4 text-white" />
+            ) : (
+              <Lock className="w-4 h-4 text-amber-200" />
+            )}
             <span className="font-extrabold text-xs tracking-tight">
               AI Copilot
             </span>
@@ -373,11 +409,17 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
               Ctrl+J
             </span>
 
-            {highPriorityTasks.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] bg-rose-500 text-white font-extrabold px-2 py-0.5 rounded-full shadow-xs">
-                <Flame className="w-3 h-3" />
-                {highPriorityTasks.length} Urgent
+            {!isAuthenticated ? (
+              <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500 text-white font-extrabold px-2 py-0.5 rounded-full shadow-xs">
+                Locked
               </span>
+            ) : (
+              highPriorityTasks.length > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] bg-rose-500 text-white font-extrabold px-2 py-0.5 rounded-full shadow-xs">
+                  <Flame className="w-3 h-3" />
+                  {highPriorityTasks.length} Urgent
+                </span>
+              )
             )}
           </button>
         </div>
@@ -560,6 +602,25 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
           <div className="flex-1 flex overflow-hidden">
             {/* Left Chat Pane */}
             <div className="flex-1 flex flex-col min-w-0">
+              {/* Unauthenticated Lock Warning Banner */}
+              {!isAuthenticated && (
+                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between text-xs text-amber-900 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>
+                      <strong>AI Copilot is Locked:</strong> Sign in with Google to query AI or apply schedule edits.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => signIn("google", { callbackUrl: "/" })}
+                    className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] cursor-pointer shadow-2xs"
+                  >
+                    Sign In
+                  </button>
+                </div>
+              )}
+
               {/* Messages Container */}
               <div
                 role="log"
@@ -592,6 +653,23 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                         <div>{renderFormattedText(msg.text)}</div>
                       ) : (
                         <p className="whitespace-pre-wrap">{msg.text}</p>
+                      )}
+
+                      {/* Unauthorized Action Callout */}
+                      {msg.isUnauthorized && (
+                        <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2 text-amber-900 text-[11px] font-semibold">
+                            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>Authentication required to execute AI tasks.</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => signIn("google", { callbackUrl: "/" })}
+                            className="px-3 py-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <span>Sign In with Google</span>
+                          </button>
+                        </div>
                       )}
 
                       {/* Bot Response Actions Footer */}
@@ -686,7 +764,11 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder="Ask about countdown prep, run of show, budget..."
+                  placeholder={
+                    isAuthenticated
+                      ? "Ask about countdown prep, run of show, budget..."
+                      : "Sign in with Google to query AI Copilot..."
+                  }
                   aria-label="Ask Kordena Copilot a question or request an edit"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -698,12 +780,19 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                   disabled={!input.trim() || loading}
                   className={`p-2.5 rounded-2xl transition-all cursor-pointer shadow-xs ${
                     input.trim() && !loading
-                      ? "bg-[#10B981] hover:bg-[#059669] text-white active:scale-95"
+                      ? isAuthenticated
+                        ? "bg-[#10B981] hover:bg-[#059669] text-white active:scale-95"
+                        : "bg-amber-600 hover:bg-amber-700 text-white active:scale-95"
                       : "bg-[#F4F7F5] text-[#CBD5E1] cursor-not-allowed border border-[#E2ECE5]"
                   }`}
                   aria-label="Send Message"
+                  title={!isAuthenticated ? "Sign In Required" : "Send Message"}
                 >
-                  <Send className="w-4 h-4" />
+                  {!isAuthenticated ? (
+                    <Lock className="w-4 h-4" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                 </button>
               </form>
             </div>

@@ -39,6 +39,56 @@ export function clampNumber(
 }
 
 /**
+ * Verifies that the incoming request has a valid authenticated NextAuth session.
+ * If unauthorized, returns a 401 Unauthorized NextResponse.
+ * If authorized, returns { authorized: true, session, userEmail, userName }.
+ */
+export async function requireAuthSession(
+  customMessage = "Unauthorized: You must be signed in to access AI features."
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+      return {
+        authorized: false as const,
+        session: null,
+        response: NextResponse.json(
+          {
+            success: false,
+            message: customMessage,
+            code: "UNAUTHORIZED",
+          },
+          { status: 401 }
+        ),
+      };
+    }
+    return {
+      authorized: true as const,
+      session,
+      userEmail: session.user.email.toLowerCase().trim(),
+      userName: session.user.name || "Event Planner",
+      response: null,
+    };
+  } catch (err: any) {
+    if (!err?.message?.includes("outside a request scope")) {
+      console.warn("[Security] Auth session check failed:", err?.message || err);
+    }
+    return {
+      authorized: false as const,
+      session: null,
+      response: NextResponse.json(
+        {
+          success: false,
+          message: customMessage,
+          code: "UNAUTHORIZED",
+        },
+        { status: 401 }
+      ),
+    };
+  }
+}
+
+/**
  * Retrieves the authenticated database User document from the NextAuth session.
  * Prevents client-side user impersonation or IDOR attacks.
  */

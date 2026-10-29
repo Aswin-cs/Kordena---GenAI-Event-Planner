@@ -53,7 +53,9 @@ import {
   CalendarRange,
   Flame,
   LayoutGrid,
+  Lock,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import {
   IPrepCalendarTask,
   IDayOfRunOfShowItem,
@@ -271,6 +273,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   onBackToStepper,
   onNewEvent,
 }) => {
+  const { data: session, status: authStatus } = useSession();
+  const isAuthenticated = authStatus === "authenticated";
+
   const [currentView, setCurrentView] = useState<View>("month");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -1457,10 +1462,19 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             type="button"
             onClick={() => setIsAiChatOpen(true)}
             className="p-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#10B981] to-[#059669] hover:from-[#059669] hover:to-[#047857] text-white transition-all cursor-pointer flex items-center gap-2 shrink-0 shadow-sm shadow-[#10B981]/25 font-extrabold text-xs group"
-            title="Open AI Calendar Copilot (Ctrl+J)"
+            title={isAuthenticated ? "Open AI Calendar Copilot (Ctrl+J)" : "AI Calendar Copilot (Sign In Required)"}
           >
-            <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            {isAuthenticated ? (
+              <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            ) : (
+              <Lock className="w-4 h-4 text-amber-200" />
+            )}
             <span>Ask AI Copilot</span>
+            {!isAuthenticated && (
+              <span className="inline-flex items-center text-[10px] bg-amber-500/90 text-white font-extrabold px-1.5 py-0.5 rounded-full">
+                Locked
+              </span>
+            )}
             <span className="hidden sm:inline-block text-[9px] font-mono bg-white/20 px-1.5 py-0.5 rounded-md border border-white/20">
               Ctrl+J
             </span>

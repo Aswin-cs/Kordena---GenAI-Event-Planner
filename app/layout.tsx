@@ -19,7 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <body className="min-h-full flex flex-col bg-[#F4F7F5] text-[#2D3748] antialiased selection:bg-[#10B981]/20 selection:text-[#10B981]">
+      <body className="min-h-full flex flex-col bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#10B981]/20 selection:text-[#059669]">
         {/* Skip to Main Content Link for Keyboard Accessibility (WCAG 2.4.1) */}
         <a
           href="#main-content"

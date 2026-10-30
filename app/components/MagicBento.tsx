@@ -43,33 +43,33 @@ const THEMES: Record<'dark' | 'light', Record<string, string | number>> = {
     '--mb-spot-alpha': 0.07
   },
   light: {
-    '--mb-surface': 'linear-gradient(180deg, #ffffff 0%, #f7f7f9 100%)',
-    '--mb-edge': 'rgba(24, 24, 27, 0.08)',
+    '--mb-surface': 'linear-gradient(180deg, #FFFFFF 0%, #FCFDFC 100%)',
+    '--mb-edge': '#E7EDE9',
     '--mb-highlight': 'rgba(255, 255, 255, 1)',
-    '--mb-shadow': '0 24px 48px -30px rgba(24, 24, 27, 0.28), 0 8px 18px -14px rgba(24, 24, 27, 0.16)',
-    '--mb-tile': 'linear-gradient(180deg, #ffffff 0%, #f6f6f8 100%)',
-    '--mb-tile-edge': 'rgba(24, 24, 27, 0.08)',
+    '--mb-shadow': '0 24px 48px -32px rgba(14, 42, 36, 0.18), 0 8px 18px -14px rgba(14, 42, 36, 0.08)',
+    '--mb-tile': 'linear-gradient(180deg, #FFFFFF 0%, #F5EFE2 100%)',
+    '--mb-tile-edge': '#E7EDE9',
     '--mb-tile-highlight': 'rgba(255, 255, 255, 1)',
-    '--mb-tile-shadow': '0 4px 10px -5px rgba(24, 24, 27, 0.22)',
-    '--mb-well': 'rgba(24, 24, 27, 0.025)',
-    '--mb-well-edge': 'rgba(24, 24, 27, 0.06)',
-    '--mb-ink': '#18181b',
-    '--mb-muted': 'rgba(24, 24, 27, 0.6)',
-    '--mb-faint': 'rgba(24, 24, 27, 0.3)',
-    '--mb-line': 'rgba(24, 24, 27, 0.08)',
-    '--mb-secondary': '#71717a',
-    '--mb-secondary-ink': '#ffffff',
-    '--mb-cursor-stroke': '#ffffff',
-    '--mb-ring': '#ffffff',
-    '--mb-focus': 'rgba(24, 24, 27, 0.4)',
-    '--mb-glow-alpha': 0.5,
-    '--mb-spot-alpha': 0.035
+    '--mb-tile-shadow': '0 4px 12px -4px rgba(14, 42, 36, 0.1)',
+    '--mb-well': '#F5EFE2',
+    '--mb-well-edge': '#E7EDE9',
+    '--mb-ink': '#0E2A24',
+    '--mb-muted': '#7B8C86',
+    '--mb-faint': '#A4B3AD',
+    '--mb-line': '#E7EDE9',
+    '--mb-secondary': '#7D6230',
+    '--mb-secondary-ink': '#0E2A24',
+    '--mb-cursor-stroke': '#0E2A24',
+    '--mb-ring': '#B08D4F',
+    '--mb-focus': 'rgba(176, 141, 79, 0.4)',
+    '--mb-glow-alpha': 0.6,
+    '--mb-spot-alpha': 0.05
   }
 };
 
 const INK: Record<'dark' | 'light', [number, number, number]> = {
   dark: [244, 244, 245],
-  light: [24, 24, 27]
+  light: [14, 42, 36]
 };
 const MIN_CELL = 150;
 const MIN_PAIR = 200;
@@ -1186,3 +1186,4 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
 };
 
 export default MagicBento;
+          

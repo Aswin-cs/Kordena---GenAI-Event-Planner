@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle2, Circle, Plus, Sparkles, Filter, User, Calendar, Check } from "lucide-react";
+import { CheckCircle2, Plus, Sparkles, Check, X } from "lucide-react";
 import { TaskItem, EventPlan } from "../types";
 
 interface TasksSectionProps {
@@ -37,7 +37,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
       if (task.id === taskId) {
         const nextState = !task.completed;
         if (nextState) {
-          showToast(`Completed: "${task.title.slice(0, 30)}..." ✨`);
+          showToast(`Completed: ${task.title.slice(0, 30)}${task.title.length > 30 ? "…" : ""}`);
         }
         return { ...task, completed: nextState };
       }
@@ -63,7 +63,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
     onUpdateTasks([newTask, ...event.tasks]);
     setNewTitle("");
     setShowAddModal(false);
-    showToast("New milestone task registered!");
+    showToast("Task added to your checklist");
   };
 
   const handleAiSuggestTasks = () => {
@@ -98,7 +98,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
     ];
 
     onUpdateTasks([...aiTasks, ...event.tasks]);
-    showToast("Kordena AI generated 3 optimized event tasks! 🌿");
+    showToast("Copilot added 3 suggested tasks");
   };
 
   const filteredTasks = event.tasks.filter((task) => {
@@ -109,276 +109,186 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
     return task.category === activeFilter;
   });
 
+  const STATUS_FILTERS = ["All", "Pending", "Completed", "High Priority"];
+  const CATEGORY_FILTERS = ["Venue", "Catering", "Program", "Decor", "Guests"];
+  const pending = totalCount - completedCount;
+
   return (
-    <div className="space-y-6 relative">
-      {/* Toast Notification */}
+    <div className="ktask">
+      {/* Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#FFFFFF] border-2 border-[#10B981] text-[#2D3748] px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 animate-in slide-in-from-bottom duration-200">
-          <div className="w-5 h-5 rounded-full bg-[#10B981] text-white flex items-center justify-center shrink-0">
-            <Check className="w-3 h-3 stroke-3" />
-          </div>
-          <span className="text-xs font-bold">{toastMessage}</span>
+        <div className="ktask-toast" role="status">
+          <span><Check className="w-3 h-3" /></span>
+          {toastMessage}
         </div>
       )}
 
-      {/* Top Banner: Task Summary & Action Bar */}
-      <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 border border-[#E2ECE5] shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header */}
+      <header className="ktask-head">
+        <div className="ktask-headrow">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#718096]">
-                Operational Execution
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0]">
-                {pct}% Complete
-              </span>
-            </div>
-            <h2 className="text-2xl font-bold text-[#2D3748]">
-              Milestone Checklist & Tasks
+            <h2 className="ktask-title">
+              Tasks<span>{pct}%</span>
             </h2>
-            <p className="text-xs sm:text-sm text-[#718096]">
-              Clear visual feedback in mint green (#10B981) for fulfilled commitments
+            <p className="ktask-sub">
+              {completedCount} of {totalCount} complete · {pending} pending
             </p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleAiSuggestTasks}
-              className="px-3.5 py-2.5 rounded-xl bg-[#E6F7F0] border border-[#A7F3D0] text-xs sm:text-sm font-semibold text-[#059669] hover:bg-[#A7F3D0]/70 flex items-center gap-1.5 transition-all cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-[#10B981]" /> AI Suggest Tasks
+          <div className="ktask-actions">
+            <button type="button" onClick={handleAiSuggestTasks} className="ktask-btn ktask-btn--gold">
+              <Sparkles className="w-4 h-4" /> Suggest with AI
             </button>
-            <button
-              onClick={() => setShowAddModal(!showAddModal)}
-              className="px-4 py-2.5 rounded-xl bg-[#10B981] text-white text-xs sm:text-sm font-semibold hover:bg-[#059669] flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-            >
-              <Plus className="w-4 h-4" /> Add Task
+            <button type="button" onClick={() => setShowAddModal(!showAddModal)} className="ktask-btn ktask-btn--ink">
+              <Plus className="w-4 h-4" /> Add task
             </button>
           </div>
         </div>
 
-        {/* Visual Progress Bar for Tasks */}
-        <div className="space-y-2 bg-[#F4F7F5] p-4 rounded-2xl border border-[#E2ECE5]">
-          <div className="flex justify-between items-center text-xs font-semibold text-[#2D3748]">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-              {completedCount} of {totalCount} completed
-            </span>
-            <span className="text-[#10B981] font-bold">
-              {totalCount - completedCount} tasks pending
-            </span>
-          </div>
-
-          {/* ACCENT VISUAL FEEDBACK: #10B981 */}
-          <div className="w-full h-3 bg-[#FFFFFF] rounded-full overflow-hidden border border-[#E2ECE5]">
-            <div
-              className="h-full bg-[#10B981] rounded-full progress-fill"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Filter Pills */}
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {["All", "Pending", "Completed", "High Priority", "Venue", "Catering", "Program", "Decor", "Guests"].map(
-            (cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveFilter(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  activeFilter === cat
-                    ? "bg-[#10B981] text-white shadow-xs"
-                    : "bg-[#F4F7F5] text-[#2D3748] border border-[#E2ECE5] hover:border-[#10B981]/50"
-                }`}
-              >
-                {cat}
-              </button>
-            )
-          )}
-        </div>
-      </div>
-
-      {/* Add Task Modal / Collapse */}
-      {showAddModal && (
-        <form
-          onSubmit={handleAddTask}
-          className="bg-[#FFFFFF] rounded-3xl p-6 border border-[#10B981]/50 shadow-md animate-in fade-in space-y-4"
+        <div
+          className="ktask-progress"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={pct}
+          aria-label="Task completion"
         >
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-[#2D3748]">
-              Create New Event Milestone Task
-            </h3>
-            <button
-              type="button"
-              onClick={() => setShowAddModal(false)}
-              className="text-[#718096] hover:text-[#2D3748] text-xs font-bold"
-            >
-              Cancel
+          <i style={{ width: `${pct}%` }} />
+        </div>
+
+        <div className="ktask-filters">
+          <div className="ktask-seg" role="group" aria-label="Status filter">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={activeFilter === f}
+                onClick={() => setActiveFilter(f)}
+                className={activeFilter === f ? "is-active" : ""}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          <div className="ktask-cats" role="group" aria-label="Category filter">
+            {CATEGORY_FILTERS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={activeFilter === f}
+                onClick={() => setActiveFilter(activeFilter === f ? "All" : f)}
+                className={activeFilter === f ? "is-active" : ""}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      {/* Add task form */}
+      {showAddModal && (
+        <form onSubmit={handleAddTask} className="ktask-form">
+          <div className="ktask-formhead">
+            <h3>New task</h3>
+            <button type="button" onClick={() => setShowAddModal(false)} aria-label="Close form">
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-[#718096] mb-1">
-              Task Description
-            </label>
+          <label>
+            <span>What needs to happen?</span>
             <input
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="e.g., Review emergency exit plan with pavilion manager"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-sm text-[#2D3748] focus:bg-[#FFFFFF] focus:border-[#10B981]"
+              placeholder="e.g. Review emergency exit plan with the venue manager"
               required
+              autoFocus
             />
-          </div>
+          </label>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-[#718096] mb-1">
-                Category
-              </label>
-              <select
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value as any)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-sm text-[#2D3748] focus:bg-[#FFFFFF] focus:border-[#10B981]"
-              >
-                <option value="Venue">Venue</option>
-                <option value="Catering">Catering</option>
-                <option value="Program">Program</option>
-                <option value="Decor">Decor</option>
-                <option value="Guests">Guests</option>
+          <div className="ktask-formgrid">
+            <label>
+              <span>Category</span>
+              <select value={newCategory} onChange={(e) => setNewCategory(e.target.value as TaskItem["category"])}>
+                {CATEGORY_FILTERS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#718096] mb-1">
-                Priority
-              </label>
-              <select
-                value={newPriority}
-                onChange={(e) => setNewPriority(e.target.value as any)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-sm text-[#2D3748] focus:bg-[#FFFFFF] focus:border-[#10B981]"
-              >
+            </label>
+            <label>
+              <span>Priority</span>
+              <select value={newPriority} onChange={(e) => setNewPriority(e.target.value as TaskItem["priority"])}>
                 <option value="High">High</option>
                 <option value="Medium">Medium</option>
                 <option value="Low">Low</option>
               </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-[#718096] mb-1">
-                Target Deadline
-              </label>
+            </label>
+            <label>
+              <span>Deadline</span>
               <input
                 type="text"
                 value={newDeadline}
                 onChange={(e) => setNewDeadline(e.target.value)}
-                placeholder="e.g., Nov 10, 2026"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-sm text-[#2D3748] focus:bg-[#FFFFFF] focus:border-[#10B981]"
+                placeholder="e.g. Nov 10, 2026"
               />
-            </div>
+            </label>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-xl bg-[#10B981] text-white text-xs font-semibold hover:bg-[#059669] cursor-pointer"
-            >
-              Add to Checklist
-            </button>
+          <div className="ktask-formfoot">
+            <button type="submit" className="ktask-btn ktask-btn--ink">Add to checklist</button>
           </div>
         </form>
       )}
 
-      {/* Task List */}
-      <div className="space-y-3">
+      {/* Task list */}
+      <div className="ktask-list" role="list">
         {filteredTasks.map((task) => (
           <div
             key={task.id}
+            role="listitem"
             onClick={() => toggleTask(task.id)}
-            className={`group bg-[#FFFFFF] rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer flex items-center justify-between gap-4 ${
-              task.completed
-                ? "border-[#A7F3D0] bg-[#FFFFFF]/80"
-                : "border-[#E2ECE5] hover:border-[#10B981]/60 hover:shadow-xs"
-            }`}
+            className={`ktask-row ktask-row--${task.priority.toLowerCase()} ${task.completed ? "is-done" : ""}`}
           >
-            {/* Left: Interactive Checkbox & Details */}
-            <div className="flex items-start sm:items-center gap-3.5">
-              {/* CLEAR VISUAL FEEDBACK: ACCENT #10B981 */}
-              <button
-                type="button"
-                role="checkbox"
-                aria-checked={task.completed}
-                aria-label={`Mark task ${task.title} as ${task.completed ? "pending" : "completed"}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleTask(task.id);
-                }}
-                className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all mt-0.5 sm:mt-0 ${
-                  task.completed
-                    ? "bg-[#10B981] text-white shadow-xs scale-105"
-                    : "border-2 border-[#CBD5E1] group-hover:border-[#10B981] bg-[#F4F7F5]"
-                }`}
-              >
-                {task.completed && <Check className="w-4 h-4 stroke-3 text-white" />}
-              </button>
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={task.completed}
+              aria-label={`Mark task ${task.title} as ${task.completed ? "pending" : "completed"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleTask(task.id);
+              }}
+              className="ktask-check"
+            >
+              {task.completed && <Check className="w-3.5 h-3.5" />}
+            </button>
 
-              <div className="space-y-1">
-                <p
-                  className={`text-sm font-semibold transition-all ${
-                    task.completed
-                      ? "line-through text-[#718096]"
-                      : "text-[#2D3748] group-hover:text-[#10B981]"
-                  }`}
-                >
-                  {task.title}
-                </p>
-
-                <div className="flex flex-wrap items-center gap-2 text-xs text-[#718096]">
-                  <span className="px-2 py-0.5 rounded-md bg-[#F4F7F5] border border-[#E2ECE5] font-medium">
-                    {task.category}
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 font-medium">
-                    <Calendar className="w-3 h-3 text-[#10B981]" /> {task.deadline}
-                  </span>
-                  {task.assignee && (
-                    <>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <User className="w-3 h-3 text-[#718096]" /> {task.assignee}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
+            <div className="ktask-info">
+              <p className="ktask-name">{task.title}</p>
+              <p className="ktask-meta">
+                <span className="ktask-cat">{task.category}</span>
+                <span>{task.deadline}</span>
+                {task.assignee && <span>{task.assignee}</span>}
+              </p>
             </div>
 
-            {/* Right: Status and Priority Pills */}
-            <div className="flex items-center gap-2 shrink-0">
-              {task.completed ? (
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0] flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Fulfilled
-                </span>
-              ) : (
-                <span
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                    task.priority === "High"
-                      ? "bg-amber-50 text-amber-700 border border-amber-200"
-                      : "bg-[#F4F7F5] text-[#718096] border border-[#E2ECE5]"
-                  }`}
-                >
-                  {task.priority} Priority
-                </span>
-              )}
-            </div>
+            {task.completed ? (
+              <span className="ktask-state">Done</span>
+            ) : (
+              <span className={`ktask-prio ktask-prio--${task.priority.toLowerCase()}`}>
+                <i />
+                {task.priority}
+              </span>
+            )}
           </div>
         ))}
 
         {filteredTasks.length === 0 && (
-          <div className="p-12 text-center bg-[#FFFFFF] rounded-3xl border border-[#E2ECE5]">
-            <CheckCircle2 className="w-10 h-10 text-[#10B981] mx-auto mb-2 opacity-80" />
-            <p className="text-sm font-bold text-[#2D3748]">No tasks found</p>
-            <p className="text-xs text-[#718096] mt-1">
-              Switch filter view or create a new milestone task.
-            </p>
+          <div className="ktask-empty">
+            <CheckCircle2 className="w-8 h-8" />
+            <p>Nothing here</p>
+            <span>Try another filter, or add a new task.</span>
           </div>
         )}
       </div>

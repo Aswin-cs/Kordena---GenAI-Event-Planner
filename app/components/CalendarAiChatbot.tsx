@@ -2,32 +2,18 @@
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
-  Bot,
   Send,
   Sparkles,
   X,
   RotateCcw,
-  Key,
   Check,
-  CheckCheck,
   Copy,
   Maximize2,
   Minimize2,
-  Calendar as CalendarIcon,
   Clock,
-  IndianRupee,
-  AlertTriangle,
   Flame,
   ArrowRight,
-  ShieldCheck,
-  Zap,
-  Sliders,
-  ExternalLink,
-  ChevronRight,
-  FileText,
-  Compass,
   CheckCircle2,
-  Layers,
   Lock,
 } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
@@ -79,13 +65,16 @@ interface ChatMessage {
 
 type ModeFilter = "all" | "milestones" | "run-of-show" | "budget" | "vendors";
 
-const MODE_TABS: { id: ModeFilter; label: string; icon: React.ElementType }[] = [
-  { id: "all", label: "All Intelligence", icon: Compass },
-  { id: "milestones", label: "Countdown Tasks", icon: Zap },
-  { id: "run-of-show", label: "Run of Show", icon: Clock },
-  { id: "budget", label: "Budget Allocator", icon: IndianRupee },
-  { id: "vendors", label: "Vendor Protocols", icon: FileText },
+const MODE_TABS: { id: ModeFilter; label: string }[] = [
+  { id: "all", label: "Overview" },
+  { id: "milestones", label: "Tasks" },
+  { id: "run-of-show", label: "Event day" },
+  { id: "budget", label: "Budget" },
+  { id: "vendors", label: "Vendors" },
 ];
+
+// Strip the leading emoji from the suggestion strings
+const cleanPrompt = (p: string) => p.replace(/^[^A-Za-z0-9]+/, "").trim();
 
 const QUICK_PROMPTS: Record<ModeFilter, string[]> = {
   all: [
@@ -152,8 +141,6 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
   const [thinkingStep, setThinkingStep] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ModeFilter>("all");
-  const [apiKey, setApiKey] = useState("");
-  const [showKeyInput, setShowKeyInput] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -267,7 +254,6 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
             budgetBreakdown: eventContext.budgetBreakdown,
             evaluationSummary: eventContext.evaluationSummary,
           },
-          apiKey: apiKey.trim() || undefined,
         }),
       });
 
@@ -336,316 +322,146 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
     ]);
   };
 
-  // Render markdown-like bold, bullet points, and headers with rich UI tokens
+  // Render markdown-like bold, bullet points, and numbered lines
   const renderFormattedText = (raw: string) => {
     const lines = raw.split("\n");
     return lines.map((line, i) => {
-      // Bullet points
       if (line.startsWith("• ") || line.startsWith("- ") || line.startsWith("* ")) {
         const clean = line.replace(/^[•\-*]\s*/, "");
         return (
-          <div key={i} className="flex items-start gap-2 my-1 text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] mt-1.5 shrink-0" />
-            <span className="leading-relaxed">{renderInlineFormatting(clean)}</span>
+          <div key={i} className="kchat-li">
+            <span className="kchat-li-dot" />
+            <span>{renderInlineFormatting(clean)}</span>
           </div>
         );
       }
-      // Numbered items
       if (/^\d+\.\s/.test(line)) {
         return (
-          <div key={i} className="my-1.5 pl-1 text-xs leading-relaxed">
+          <div key={i} className="kchat-num">
             {renderInlineFormatting(line)}
           </div>
         );
       }
-      // Section breaks
-      if (line.trim() === "") {
-        return <div key={i} className="h-2" />;
-      }
-      return (
-        <p key={i} className="my-0.5 text-xs leading-relaxed">
-          {renderInlineFormatting(line)}
-        </p>
-      );
+      if (line.trim() === "") return <div key={i} className="h-2" />;
+      return <p key={i} className="kchat-p">{renderInlineFormatting(line)}</p>;
     });
   };
 
   const renderInlineFormatting = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return (
-          <strong key={index} className="font-extrabold text-[#1A202C]">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      return part;
-    });
+    return parts.map((part, index) =>
+      part.startsWith("**") && part.endsWith("**") ? (
+        <strong key={index}>{part.slice(2, -2)}</strong>
+      ) : (
+        part
+      )
+    );
   };
+
+  const urgentCount = highPriorityTasks.length;
+  const showStarters = messages.length <= 1 && !loading;
 
   return (
     <>
-      {/* Floating Trigger Pill (When Chat is Closed) */}
+      {/* Floating trigger */}
       {!isOpen && (
-        <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 group">
-          <button
-            type="button"
-            onClick={onToggle}
-            className="cursor-pointer flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-[#10B981] hover:bg-[#059669] text-white shadow-lg shadow-[#10B981]/30 border border-white/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 backdrop-blur-md"
-            aria-label="Open AI Calendar Copilot"
-          >
-            {isAuthenticated ? (
-              <Sparkles className="w-4 h-4 text-white" />
-            ) : (
-              <Lock className="w-4 h-4 text-amber-200" />
-            )}
-            <span className="font-extrabold text-xs tracking-tight">
-              AI Copilot
-            </span>
-
-            {/* Keyboard shortcut badge */}
-            <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] font-mono bg-white/20 px-1.5 py-0.5 rounded-md border border-white/20">
-              Ctrl+J
-            </span>
-
-            {!isAuthenticated ? (
-              <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500 text-white font-extrabold px-2 py-0.5 rounded-full shadow-xs">
-                Locked
+        <button type="button" onClick={onToggle} className="kchat-fab" aria-label="Open AI Calendar Copilot">
+          {isAuthenticated ? <Sparkles className="w-4 h-4 kchat-gold" /> : <Lock className="w-4 h-4 kchat-gold" />}
+          <span>Copilot</span>
+          {!isAuthenticated ? (
+            <span className="kchat-badge">Locked</span>
+          ) : (
+            urgentCount > 0 && (
+              <span className="kchat-badge kchat-badge--alert">
+                <Flame className="w-3 h-3" />
+                {urgentCount} urgent
               </span>
-            ) : (
-              highPriorityTasks.length > 0 && (
-                <span className="inline-flex items-center gap-1 text-[10px] bg-rose-500 text-white font-extrabold px-2 py-0.5 rounded-full shadow-xs">
-                  <Flame className="w-3 h-3" />
-                  {highPriorityTasks.length} Urgent
-                </span>
-              )
-            )}
-          </button>
-        </div>
+            )
+          )}
+          <kbd className="kchat-kbd">Ctrl J</kbd>
+        </button>
       )}
 
-      {/* Floating Modern AI Copilot Window */}
+      {/* Copilot window */}
       {isOpen && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Kordena AI Copilot"
-          className={`fixed bottom-3 right-3 sm:bottom-5 sm:right-5 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            isExpanded
-              ? "w-[840px] max-w-[calc(100vw-1.5rem)] h-[680px] max-h-[90vh]"
-              : "w-[440px] max-w-[calc(100vw-1.5rem)] h-[620px] max-h-[85vh]"
-          } bg-[#FFFFFF]/95 backdrop-blur-2xl rounded-3xl border border-[#E2ECE5] shadow-[0_25px_70px_-15px_rgba(20,40,30,0.28),0_0_0_1px_rgba(226,236,229,0.9),0_10px_30px_rgba(0,0,0,0.05)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5`}
+          className={`kchat ${isExpanded ? "kchat--wide" : ""}`}
         >
-          {/* Top Multi-Chromatics Accent Bar */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 shrink-0" />
-
-          {/* Copilot Header */}
-          <div className="px-5 py-3.5 bg-[#FFFFFF] border-b border-[#E2ECE5] flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#10B981] to-[#059669] text-white flex items-center justify-center shadow-xs">
-                  <Bot className="w-4 h-4" />
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-extrabold text-[#2D3748] tracking-tight">
-                    Kordena AI Copilot
-                  </h3>
-                  <span className="text-[10px] font-bold text-[#059669] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
-                    Operations
-                  </span>
-                </div>
-                <p className="text-[10px] text-[#718096]">
-                  Synchronized with Production Calendar
-                </p>
-              </div>
+          {/* Header */}
+          <header className="kchat-head">
+            <span className="kchat-mark" aria-hidden="true">
+              <Sparkles className="w-4 h-4" />
+            </span>
+            <div className="kchat-headtext">
+              <h3>Copilot</h3>
+              <p>
+                {eventContext.title || "Your event"}
+                {eventContext.eventDate ? ` · ${eventContext.eventDate}` : ""}
+                {` · ₹${targetBudgetNum.toLocaleString("en-IN")}`}
+              </p>
             </div>
-
-            {/* Header Controls */}
-            <div className="flex items-center gap-1.5">
-              {/* Expand / Minimize Window */}
+            <div className="kchat-tools">
               <button
                 type="button"
                 onClick={() => setIsExpanded((prev) => !prev)}
-                className="hidden md:inline-flex p-1.5 rounded-xl text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] border border-transparent hover:border-[#E2ECE5] transition-all cursor-pointer"
-                title={isExpanded ? "Collapse to Compact View" : "Expand to Operations Canvas"}
-                aria-label="Toggle Window Size"
+                className="kchat-ghost kchat-ghost--md"
+                title={isExpanded ? "Collapse" : "Expand with live canvas"}
+                aria-label="Toggle window size"
               >
-                {isExpanded ? (
-                  <Minimize2 className="w-3.5 h-3.5" />
-                ) : (
-                  <Maximize2 className="w-3.5 h-3.5" />
-                )}
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
-
-              {/* Reset Thread */}
-              <button
-                type="button"
-                onClick={handleResetChat}
-                className="p-1.5 rounded-xl text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] border border-transparent hover:border-[#E2ECE5] transition-all cursor-pointer"
-                title="Restart Chat Conversation"
-                aria-label="Restart Conversation"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
+              <button type="button" onClick={handleResetChat} className="kchat-ghost" title="Start over" aria-label="Restart conversation">
+                <RotateCcw className="w-4 h-4" />
               </button>
-
-              {/* API Key Modal Toggle */}
-              <button
-                type="button"
-                onClick={() => setShowKeyInput((prev) => !prev)}
-                className={`p-1.5 rounded-xl transition-all cursor-pointer border ${
-                  showKeyInput || apiKey
-                    ? "bg-[#E6F7F0] text-[#059669] border-[#A7F3D0]"
-                    : "text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] border-transparent hover:border-[#E2ECE5]"
-                }`}
-                title="Configure Custom Gemini API Key"
-                aria-label="Custom API Key"
-              >
-                <Key className="w-3.5 h-3.5" />
-              </button>
-
-              {/* Close Button */}
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1.5 rounded-xl text-[#718096] hover:text-[#2D3748] hover:bg-[#F4F7F5] transition-colors cursor-pointer border border-transparent hover:border-[#E2ECE5] flex items-center gap-1"
-                title="Close Copilot (Esc / Ctrl+J)"
-                aria-label="Close Chat"
-              >
+              <button type="button" onClick={onClose} className="kchat-ghost" title="Close (Esc)" aria-label="Close chat">
                 <X className="w-4 h-4" />
-                <kbd className="text-[9px] font-mono text-[#718096] bg-[#F4F7F5] px-1 py-0.5 rounded border border-[#E2ECE5] hidden sm:inline-block">
-                  ESC
-                </kbd>
               </button>
             </div>
-          </div>
+          </header>
 
-          {/* Optional Gemini API Key Drawer */}
-          {showKeyInput && (
-            <div className="px-5 py-2.5 bg-[#F4F7F5] border-b border-[#E2ECE5] text-xs space-y-2 animate-in fade-in duration-150">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-[11px] text-[#2D3748] flex items-center gap-1">
-                  <Key className="w-3 h-3 text-[#10B981]" /> Optional Gemini API Key:
-                </span>
-                <span className="text-[10px] text-[#718096]">Stored in memory</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 text-xs bg-white rounded-lg border border-[#E2ECE5] focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKeyInput(false)}
-                  className="px-2.5 py-1.5 bg-[#10B981] text-white rounded-lg font-bold text-xs hover:bg-[#059669] cursor-pointer"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          )}
 
-          {/* Telemetry Context Bar */}
-          <div className="px-5 py-2 bg-[#FAFCFB] border-b border-[#E2ECE5] flex items-center justify-between text-[11px] text-[#718096] shrink-0">
-            <div className="flex items-center gap-2 truncate">
-              <span className="w-2 h-2 rounded-full bg-[#10B981] shrink-0" />
-              <span className="font-bold text-[#2D3748] truncate max-w-[210px]">
-                {eventContext.title || "Target Event Blueprint"}
-              </span>
-            </div>
+          {/* Scope tabs */}
+          <nav className="kchat-tabs" role="tablist" aria-label="Copilot focus">
+            {MODE_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeFilter === tab.id}
+                onClick={() => setActiveFilter(tab.id)}
+                className={activeFilter === tab.id ? "is-active" : ""}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
 
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="flex items-center gap-1">
-                <CalendarIcon className="w-3 h-3 text-[#10B981]" />
-                {eventContext.eventDate ? eventContext.eventDate : "Schedule Active"}
-              </span>
-              <span className="text-[#CBD5E1]">•</span>
-              <span className="font-extrabold text-[#059669]">
-                ₹{targetBudgetNum.toLocaleString("en-IN")}
-              </span>
-            </div>
-          </div>
-
-          {/* Mode Capability Filter Tabs */}
-          <div className="px-4 py-2 bg-[#FFFFFF] border-b border-[#E2ECE5] overflow-x-auto no-scrollbar shrink-0">
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
-              {MODE_TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeFilter === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveFilter(tab.id)}
-                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-[#10B981] text-white shadow-2xs"
-                        : "bg-[#F4F7F5] text-[#718096] hover:text-[#2D3748] hover:bg-[#E2ECE5]"
-                    }`}
-                  >
-                    <Icon className="w-3 h-3" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Main Dual-Pane or Single-Pane Layout */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* Left Chat Pane */}
-            <div className="flex-1 flex flex-col min-w-0">
-              {/* Unauthenticated Lock Warning Banner */}
+          <div className="kchat-main">
+            <section className="kchat-col">
               {!isAuthenticated && (
-                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between text-xs text-amber-900 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>
-                      <strong>AI Copilot is Locked:</strong> Sign in with Google to query AI or apply schedule edits.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => signIn("google", { callbackUrl: "/" })}
-                    className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] cursor-pointer shadow-2xs"
-                  >
-                    Sign In
-                  </button>
+                <div className="kchat-lock">
+                  <Lock className="w-4 h-4 shrink-0" />
+                  <span>Sign in to ask questions or edit your schedule.</span>
+                  <button type="button" onClick={() => signIn("google", { callbackUrl: "/" })}>Sign in</button>
                 </div>
               )}
 
-              {/* Messages Container */}
-              <div
-                role="log"
-                aria-live="polite"
-                aria-relevant="additions"
-                className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-3.5 text-xs"
-              >
+              <div role="log" aria-live="polite" aria-relevant="additions" className="kchat-log">
                 {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex flex-col ${
-                      msg.sender === "user" ? "items-end" : "items-start"
-                    } group`}
-                  >
-                    <div
-                      className={`max-w-[90%] rounded-2xl p-3.5 relative shadow-2xs leading-relaxed ${
-                        msg.sender === "user"
-                          ? "bg-gradient-to-r from-[#10B981] to-[#059669] text-white rounded-br-xs font-medium"
-                          : "bg-[#F8FAFA] text-[#2D3748] border border-[#E2ECE5] rounded-bl-xs"
-                      }`}
-                    >
+                  <article key={msg.id} className={`kchat-msg ${msg.sender === "user" ? "kchat-msg--user" : "kchat-msg--bot"}`}>
+                    {msg.sender === "kordena" && (
+                      <span className="kchat-avatar" aria-hidden="true">
+                        <Sparkles className="w-3 h-3" />
+                      </span>
+                    )}
+                    <div className="kchat-body">
                       {msg.isEditApplied && (
-                        <div className="mb-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E6F7F0] border border-[#A7F3D0] text-[#059669] text-[10px] font-extrabold shadow-2xs">
-                          <CheckCircle2 className="w-3 h-3 text-[#059669]" />
-                          <span>Blueprint Updated & Saved to DB</span>
+                        <div className="kchat-applied">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Schedule updated and saved</span>
                         </div>
                       )}
 
@@ -655,263 +471,155 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                         <p className="whitespace-pre-wrap">{msg.text}</p>
                       )}
 
-                      {/* Unauthorized Action Callout */}
                       {msg.isUnauthorized && (
-                        <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                          <div className="flex items-center gap-2 text-amber-900 text-[11px] font-semibold">
-                            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                            <span>Authentication required to execute AI tasks.</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => signIn("google", { callbackUrl: "/" })}
-                            className="px-3 py-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold transition-all shadow-2xs cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            <span>Sign In with Google</span>
-                          </button>
-                        </div>
+                        <button type="button" className="kchat-cta" onClick={() => signIn("google", { callbackUrl: "/" })}>
+                          Sign in with Google
+                        </button>
                       )}
 
-                      {/* Bot Response Actions Footer */}
                       {msg.sender === "kordena" && (
-                        <div className="pt-2 mt-2 border-t border-[#E2ECE5]/60 flex items-center justify-between text-[10px] text-[#718096]">
-                          <span className="font-mono">{msg.timestamp}</span>
-
-                          <div className="flex items-center gap-2">
-                            {/* Copy Draft button */}
-                            <button
-                              type="button"
-                              onClick={() => handleCopyMessage(msg.id, msg.text)}
-                              className="hover:text-[#2D3748] cursor-pointer flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded hover:bg-[#E2ECE5]"
-                              title="Copy AI Output"
-                            >
-                              {copiedMsgId === msg.id ? (
-                                <>
-                                  <Check className="w-3 h-3 text-[#059669]" />
-                                  <span className="text-[#059669] font-bold">Copied</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3 h-3" />
-                                  <span>Copy</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
+                        <footer className="kchat-meta">
+                          <span>{msg.timestamp}</span>
+                          <button type="button" onClick={() => handleCopyMessage(msg.id, msg.text)} title="Copy reply">
+                            {copiedMsgId === msg.id ? (
+                              <>
+                                <Check className="w-3 h-3" /> Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" /> Copy
+                              </>
+                            )}
+                          </button>
+                        </footer>
                       )}
                     </div>
-
-                    {msg.sender === "user" && (
-                      <span className="text-[10px] text-[#718096] mt-1 mr-1 font-mono">
-                        {msg.timestamp}
-                      </span>
-                    )}
-                  </div>
+                    {msg.sender === "user" && <span className="kchat-time">{msg.timestamp}</span>}
+                  </article>
                 ))}
 
-                {/* Agentic Reasoning Tracker */}
                 {loading && (
-                  <div className="p-3.5 bg-gradient-to-br from-[#F0FDF4] to-[#FFFFFF] border border-[#A7F3D0] rounded-2xl w-fit max-w-[85%] shadow-2xs space-y-2 animate-in fade-in duration-150">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                      </span>
-                      <span className="text-[11px] font-extrabold text-[#059669] uppercase tracking-wider">
-                        Copilot Reasoning
-                      </span>
-                    </div>
+                  <div className="kchat-think" role="status">
+                    <span className="kchat-dots"><i /><i /><i /></span>
+                    <span>{THINKING_STEPS[thinkingStep]}</span>
+                  </div>
+                )}
 
-                    <p className="text-xs text-[#2D3748] font-semibold">
-                      {THINKING_STEPS[thinkingStep]}
-                    </p>
-
-                    <div className="w-full bg-[#A7F3D0]/40 rounded-full h-1 overflow-hidden">
-                      <div className="bg-[#10B981] h-1 rounded-full animate-pulse w-3/4" />
-                    </div>
+                {showStarters && (
+                  <div className="kchat-starters">
+                    <p>Try asking</p>
+                    {QUICK_PROMPTS[activeFilter].map((prompt, idx) => (
+                      <button key={idx} type="button" onClick={() => handleSend(cleanPrompt(prompt))}>
+                        <span>{cleanPrompt(prompt)}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    ))}
                   </div>
                 )}
 
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Quick Prompt Suggestions */}
-              <div className="px-4 py-2 bg-[#FAFCFB] border-t border-[#E2ECE5] overflow-x-auto no-scrollbar shrink-0">
-                <div className="flex items-center gap-1.5 whitespace-nowrap">
+              {!showStarters && (
+                <div className="kchat-chips">
                   {QUICK_PROMPTS[activeFilter].map((prompt, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSend(prompt)}
-                      disabled={loading}
-                      className="px-2.5 py-1 rounded-xl bg-white border border-[#E2ECE5] text-[11px] font-medium text-[#4A5568] hover:text-[#10B981] hover:border-[#A7F3D0] hover:bg-[#F0FDF4] transition-all cursor-pointer shadow-2xs"
-                    >
-                      {prompt}
+                    <button key={idx} type="button" disabled={loading} onClick={() => handleSend(cleanPrompt(prompt))}>
+                      {cleanPrompt(prompt)}
                     </button>
                   ))}
                 </div>
-              </div>
+              )}
 
-              {/* Message Input Form */}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSend();
                 }}
-                className="p-3 bg-[#FFFFFF] border-t border-[#E2ECE5] flex items-center gap-2 shrink-0"
+                className="kchat-composer"
               >
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder={
-                    isAuthenticated
-                      ? "Ask about countdown prep, run of show, budget..."
-                      : "Sign in with Google to query AI Copilot..."
-                  }
+                  placeholder={isAuthenticated ? "Ask about tasks, timing or budget" : "Sign in to ask Copilot"}
                   aria-label="Ask Kordena Copilot a question or request an edit"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   disabled={loading}
-                  className="flex-1 px-3.5 py-2.5 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs font-medium text-[#2D3748] placeholder-[#718096] focus:outline-hidden focus:ring-1 focus:ring-[#10B981]"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || loading}
-                  className={`p-2.5 rounded-2xl transition-all cursor-pointer shadow-xs ${
-                    input.trim() && !loading
-                      ? isAuthenticated
-                        ? "bg-[#10B981] hover:bg-[#059669] text-white active:scale-95"
-                        : "bg-amber-600 hover:bg-amber-700 text-white active:scale-95"
-                      : "bg-[#F4F7F5] text-[#CBD5E1] cursor-not-allowed border border-[#E2ECE5]"
-                  }`}
-                  aria-label="Send Message"
-                  title={!isAuthenticated ? "Sign In Required" : "Send Message"}
+                  aria-label="Send message"
+                  title={!isAuthenticated ? "Sign in required" : "Send"}
                 >
-                  {!isAuthenticated ? (
-                    <Lock className="w-4 h-4" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
+                  {!isAuthenticated ? <Lock className="w-4 h-4" /> : <Send className="w-4 h-4" />}
                 </button>
               </form>
-            </div>
+            </section>
 
-            {/* Right Pane: Live Operations Canvas (When Expanded) */}
+            {/* Live canvas (expanded) */}
             {isExpanded && (
-              <div className="w-[360px] border-l border-[#E2ECE5] bg-[#FAFCFB] flex flex-col overflow-y-auto p-4 space-y-4 shrink-0 text-xs">
-                <div className="flex items-center justify-between pb-2 border-b border-[#E2ECE5]">
-                  <div className="flex items-center gap-1.5 font-extrabold text-[#2D3748]">
-                    <Layers className="w-3.5 h-3.5 text-[#10B981]" />
-                    <span>Operations Canvas</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-[#059669] bg-[#E6F7F0] px-2 py-0.5 rounded-full border border-[#A7F3D0]">
-                    Real-time
-                  </span>
-                </div>
+              <aside className="kchat-canvas">
+                <h4>Live canvas</h4>
 
-                {/* Urgent Milestones Radar */}
-                <div className="p-3 bg-white rounded-2xl border border-[#E2ECE5] shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-[#718096] tracking-wider flex items-center gap-1">
-                      <Flame className="w-3 h-3 text-red-500" /> Urgent Milestones
-                    </span>
-                    <span className="text-[10px] font-bold text-red-600">
-                      {highPriorityTasks.length} High Priority
-                    </span>
+                <section>
+                  <div className="kchat-canvas-row">
+                    <span>Needs attention</span>
+                    <b>{urgentCount} high priority</b>
                   </div>
-
-                  {highPriorityTasks.length === 0 ? (
-                    <p className="text-[11px] text-[#718096]">
-                      All critical countdown paths are verified.
-                    </p>
+                  {urgentCount === 0 ? (
+                    <p className="kchat-muted">Every critical task is on track.</p>
                   ) : (
-                    <div className="space-y-1.5">
-                      {highPriorityTasks.slice(0, 3).map((task) => (
-                        <div
-                          key={task.id}
-                          className="p-2 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] flex items-center justify-between gap-2"
+                    highPriorityTasks.slice(0, 3).map((task) => (
+                      <div key={task.id} className="kchat-task">
+                        <div className="min-w-0">
+                          <p className="truncate">{task.title}</p>
+                          <span>{task.daysBeforeEvent} days before · {task.department}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSend(`Review high priority task: "${task.title}" and suggest risk mitigation.`)}
+                          title="Ask Copilot about this task"
+                          aria-label={`Ask Copilot about ${task.title}`}
                         >
-                          <div className="truncate">
-                            <p className="text-[11px] font-bold text-[#991B1B] truncate">
-                              {task.title}
-                            </p>
-                            <span className="text-[10px] text-[#B91C1C]">
-                              T - {task.daysBeforeEvent} Days ({task.department})
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleSend(
-                                `Review high priority task: "${task.title}" and suggest risk mitigation.`
-                              )
-                            }
-                            className="p-1 rounded-lg bg-white text-[#991B1B] hover:bg-red-50 transition-colors cursor-pointer shrink-0"
-                            title="Analyze with AI"
-                          >
-                            <Sparkles className="w-3 h-3 text-red-500" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
                   )}
-                </div>
+                </section>
 
-                {/* Budget Health Overview */}
-                <div className="p-3 bg-white rounded-2xl border border-[#E2ECE5] shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-[#718096] tracking-wider flex items-center gap-1">
-                      <IndianRupee className="w-3 h-3 text-[#10B981]" /> Budget Health
-                    </span>
-                    <span className="text-[11px] font-extrabold text-[#059669]">
-                      ₹{targetBudgetNum.toLocaleString("en-IN")}
-                    </span>
+                <section>
+                  <div className="kchat-canvas-row">
+                    <span>Budget</span>
+                    <b>₹{targetBudgetNum.toLocaleString("en-IN")}</b>
                   </div>
+                  {(eventContext.budgetBreakdown || []).slice(0, 4).map((item, idx) => (
+                    <div key={idx} className="kchat-bar">
+                      <div>
+                        <span className="truncate">{item.category}</span>
+                        <b>{item.percentage}%</b>
+                      </div>
+                      <i><u style={{ width: `${item.percentage}%` }} /></i>
+                    </div>
+                  ))}
+                </section>
 
-                  <div className="space-y-1.5 pt-1">
-                    {(eventContext.budgetBreakdown || []).slice(0, 4).map((item, idx) => (
-                      <div key={idx} className="space-y-1">
-                        <div className="flex items-center justify-between text-[10px] text-[#4A5568]">
-                          <span className="truncate">{item.category}</span>
-                          <span className="font-bold">{item.percentage}%</span>
-                        </div>
-                        <div className="w-full bg-[#F4F7F5] rounded-full h-1 overflow-hidden">
-                          <div
-                            className="bg-[#10B981] h-1 rounded-full"
-                            style={{ width: `${item.percentage}%` }}
-                          />
-                        </div>
+                {(eventContext.dayOfRunOfShow || []).length > 0 && (
+                  <section>
+                    <div className="kchat-canvas-row">
+                      <span>Event day</span>
+                      <Clock className="w-3.5 h-3.5" />
+                    </div>
+                    {(eventContext.dayOfRunOfShow || []).slice(0, 3).map((ros, idx) => (
+                      <div key={idx} className="kchat-ros">
+                        <span className="truncate">{ros.activity}</span>
+                        <time>{ros.timeSlot || "TBD"}</time>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                {/* Day-of Run of Show Quick Glance */}
-                {(eventContext.dayOfRunOfShow || []).length > 0 && (
-                  <div className="p-3 bg-white rounded-2xl border border-[#E2ECE5] shadow-2xs space-y-2">
-                    <span className="text-[10px] uppercase font-bold text-[#718096] tracking-wider flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-[#3B82F6]" /> Day-of Execution Highlights
-                    </span>
-
-                    <div className="space-y-1.5">
-                      {(eventContext.dayOfRunOfShow || []).slice(0, 3).map((ros, idx) => (
-                        <div
-                          key={idx}
-                          className="p-1.5 rounded-xl bg-[#F8FAFC] border border-[#E2ECE5] text-[11px] flex items-center justify-between gap-1"
-                        >
-                          <span className="font-bold text-[#2D3748] truncate">
-                            {ros.activity}
-                          </span>
-                          <span className="text-[10px] font-mono text-[#718096] shrink-0">
-                            {ros.timeSlot || "TBD"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  </section>
                 )}
-              </div>
+              </aside>
             )}
           </div>
         </div>

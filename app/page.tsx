@@ -532,21 +532,21 @@ export default function Home() {
 
   // 3. AUTHENTICATED: Simple Navbar with Profile Picture + Custom Event Stepper
   return (
-    <div className="min-h-screen flex flex-col bg-[#F4F7F5] text-[#2D3748]">
-      {/* Simple Authenticated Navbar */}
-      <header className="sticky top-0 z-40 w-full bg-[#FFFFFF]/90 backdrop-blur-md border-b border-[#E2ECE5] shadow-xs">
+    <div className="min-h-screen flex flex-col bg-[#FCFDFC] text-[#24352F]">
+      {/* Editorial Luxury Authenticated Navbar */}
+      <header className="sticky top-0 z-40 w-full bg-[#FCFDFC]/90 backdrop-blur-md border-b border-[#E7EDE9] shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Brand */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#10B981] to-[#34D399] flex items-center justify-center text-white shadow-xs shadow-[#10B981]/25">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-full bg-[#0E2A24] text-[#F3E7C9] flex items-center justify-center font-bold shadow-xs">
+              <Sparkles className="w-4 h-4 text-[#F3E7C9]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-bold tracking-tight text-[#2D3748]">
+                <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#0E2A24]">
                   Kordena
                 </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/40">
                   Event Studio
                 </span>
               </div>
@@ -554,21 +554,21 @@ export default function Home() {
           </div>
 
           {/* View Mode Switcher + New Event Button */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <nav
               role="navigation"
               aria-label="View Switcher"
-              className="flex items-center gap-1 bg-[#F4F7F5] p-1 rounded-2xl border border-[#E2ECE5]"
+              className="flex items-center gap-1 bg-[#E7EDE9]/50 p-1 rounded-full border border-[#E7EDE9]"
             >
               <button
                 type="button"
                 onClick={() => setViewMode("stepper")}
                 aria-pressed={viewMode === "stepper"}
                 aria-label="Switch to Blueprint Stepper"
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   viewMode === "stepper"
-                    ? "bg-white text-[#2D3748] shadow-xs border border-[#E2ECE5]"
-                    : "text-[#718096] hover:text-[#2D3748]"
+                    ? "bg-[#0E2A24] text-[#F3E7C9] shadow-xs"
+                    : "text-[#7B8C86] hover:text-[#0E2A24]"
                 }`}
               >
                 <span>Blueprint Stepper</span>
@@ -579,16 +579,16 @@ export default function Home() {
                 onClick={() => setViewMode("calendar")}
                 aria-pressed={viewMode === "calendar"}
                 aria-label="Switch to Calendar UI"
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   viewMode === "calendar"
-                    ? "bg-[#10B981] text-white shadow-xs shadow-[#10B981]/25"
-                    : "text-[#718096] hover:text-[#2D3748]"
+                    ? "bg-[#0E2A24] text-[#F3E7C9] shadow-xs"
+                    : "text-[#7B8C86] hover:text-[#0E2A24]"
                 }`}
               >
                 <CalendarIcon className="w-3.5 h-3.5" />
                 <span>Calendar UI</span>
                 {isCompleted && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-[#B08D4F] animate-pulse" />
                 )}
               </button>
             </nav>
@@ -597,7 +597,7 @@ export default function Home() {
               type="button"
               onClick={handleStartNewEvent}
               aria-label="Create New Event Blueprint"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-[#10B981] hover:bg-[#059669] text-white shadow-xs shadow-[#10B981]/25 transition-all cursor-pointer group"
+              className="h-9 px-4 rounded-full bg-[#F5EFE2] hover:bg-[#ede3cf] text-[#7D6230] border border-[#B08D4F] font-bold text-xs shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 group"
               title="Create New Event"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
@@ -607,24 +607,24 @@ export default function Home() {
 
           {/* User Profile & Logout */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5]">
+            <div className="flex items-center gap-2.5 px-3 py-1 rounded-full bg-[#F5EFE2]/60 border border-[#E7EDE9]">
               {activeUser?.image ? (
                 <img
                   src={activeUser.image}
                   alt={activeUser.name || "User Avatar"}
                   referrerPolicy="no-referrer"
-                  className="w-8 h-8 rounded-full object-cover border border-[#A7F3D0] shadow-2xs"
+                  className="w-7 h-7 rounded-full object-cover border border-[#B08D4F]/40 shadow-2xs"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-[#10B981] text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                <div className="w-7 h-7 rounded-full bg-[#0E2A24] text-[#F3E7C9] flex items-center justify-center font-bold text-xs shadow-2xs">
                   {activeUser?.name ? activeUser.name[0].toUpperCase() : "U"}
                 </div>
               )}
               <div className="text-left hidden sm:block">
-                <p className="text-xs font-bold text-[#2D3748] leading-tight">
+                <p className="text-xs font-bold text-[#0E2A24] leading-tight">
                   {activeUser?.name || "Active Planner"}
                 </p>
-                <p className="text-[11px] text-[#718096] leading-tight">
+                <p className="text-[10px] text-[#7B8C86] leading-tight">
                   {activeUser?.email || "planner@kordena.ai"}
                 </p>
               </div>
@@ -633,7 +633,7 @@ export default function Home() {
             <button
               onClick={handleLogout}
               aria-label="Sign out of account"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-[#B5473C] hover:bg-[#FDF2F0] border border-transparent hover:border-[#B5473C]/20 transition-all cursor-pointer"
               title="Sign Out"
             >
               <LogOut className="w-4 h-4" />
@@ -668,26 +668,30 @@ export default function Home() {
         <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col items-center justify-start p-4 sm:p-8 outline-none">
           <div className="w-full max-w-4xl flex flex-col items-center">
             {/* Header Title */}
-            <div className="text-center mb-6 space-y-1">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2D3748] tracking-tight">
+            <div className="text-center mb-6 space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/40 mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-[#B08D4F]" />
+                <span>Kordena Event Studio</span>
+              </span>
+              <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl font-medium text-[#0E2A24] tracking-tight">
                 Create Your Event Blueprint
               </h1>
-              <p className="text-xs sm:text-sm text-[#718096]">
+              <p className="text-xs sm:text-sm text-[#7B8C86]">
                 Input your event parameters to configure your AI architecture.
               </p>
             </div>
 
             {isCompleted && (
-              <div className="w-full mb-6 p-4 rounded-2xl bg-[#E6F7F0] border border-[#A7F3D0] text-[#059669] flex items-center justify-between text-xs animate-in fade-in">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+              <div className="w-full mb-6 p-4 rounded-2xl bg-[#F5EFE2] border border-[#B08D4F]/30 text-[#0E2A24] flex items-center justify-between text-xs animate-in fade-in shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#B08D4F] shrink-0" />
                   <span>
                     Blueprint for <strong>{eventName || "your event"}</strong> marked on calendar!
                   </span>
                 </div>
                 <button
                   onClick={() => setViewMode("calendar")}
-                  className="px-3 py-1 rounded-lg bg-[#10B981] text-white text-[11px] font-bold hover:bg-[#059669] cursor-pointer shadow-2xs"
+                  className="px-3.5 py-1.5 rounded-full bg-[#0E2A24] text-[#F3E7C9] text-[11px] font-bold hover:bg-[#163D34] cursor-pointer shadow-xs transition-colors"
                 >
                   View Calendar UI →
                 </button>
@@ -696,18 +700,18 @@ export default function Home() {
 
             {/* AI Evaluation Error Alert */}
             {aiEvalError && (
-              <div className="w-full mb-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start justify-between text-xs animate-in fade-in">
+              <div className="w-full mb-4 p-4 rounded-2xl bg-[#FDF2F0] border border-[#B5473C]/20 text-[#B5473C] flex items-start justify-between text-xs animate-in fade-in shadow-2xs">
                 <div className="flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <AlertCircle className="w-4 h-4 text-[#B5473C] shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold">AI Evaluation Notice:</span>
-                    <p className="mt-0.5">{aiEvalError}</p>
+                    <p className="mt-0.5 text-[#24352F]">{aiEvalError}</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleTriggerAiEvaluation()}
-                  className="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-700 cursor-pointer shrink-0 ml-3 text-[11px]"
+                  className="px-3 py-1 rounded-full bg-[#B5473C] text-white font-bold hover:bg-[#9B3C33] cursor-pointer shrink-0 ml-3 text-[11px] transition-colors"
                 >
                   Retry
                 </button>
@@ -716,24 +720,24 @@ export default function Home() {
 
             {/* AI Evaluation Loading Overlay Modal */}
             {isAiEvaluating && (
-              <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-                <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-[#E2ECE5] flex flex-col items-center text-center space-y-4 animate-in fade-in zoom-in-95">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#10B981] to-[#34D399] flex items-center justify-center text-white shadow-lg shadow-[#10B981]/30 animate-pulse">
-                    <Sparkles className="w-7 h-7 text-white" />
+              <div className="fixed inset-0 z-50 bg-[#0E2A24]/40 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-[#FCFDFC] rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-2xl border border-[#E7EDE9] flex flex-col items-center text-center space-y-4 animate-in fade-in zoom-in-95">
+                  <div className="w-14 h-14 rounded-full bg-[#0E2A24] flex items-center justify-center text-[#F3E7C9] shadow-lg shadow-[#0E2A24]/20">
+                    <Sparkles className="w-7 h-7 text-[#F3E7C9] animate-pulse" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-[#2D3748]">
+                    <h3 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#0E2A24]">
                       Kordena AI is Evaluating Your Event
                     </h3>
-                    <p className="text-xs sm:text-sm text-[#718096] mt-1">
-                      Analyzing parameters for <strong>{eventName || "your event"}</strong> ({eventType}, {guestCount} guests, ₹{Number(eventBudget || 250000).toLocaleString("en-IN")})...
+                    <p className="text-xs sm:text-sm text-[#7B8C86] mt-1.5 leading-relaxed">
+                      Analyzing parameters for <strong className="text-[#0E2A24]">{eventName || "your event"}</strong> ({eventType}, {guestCount} guests, ₹{Number(eventBudget || 250000).toLocaleString("en-IN")})...
                     </p>
                   </div>
-                  <div className="w-full bg-[#F4F7F5] h-2 rounded-full overflow-hidden border border-[#E2ECE5]">
-                    <div className="h-full bg-gradient-to-r from-[#10B981] to-[#34D399] rounded-full animate-pulse w-3/4" />
+                  <div className="w-full bg-[#E7EDE9] h-2 rounded-full overflow-hidden border border-[#E7EDE9]">
+                    <div className="h-full bg-gradient-to-r from-[#0E2A24] to-[#B08D4F] rounded-full animate-pulse w-3/4" />
                   </div>
-                  <p className="text-[11px] text-[#059669] font-semibold flex items-center gap-1.5">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <p className="text-[11px] text-[#0E2A24] font-semibold flex items-center gap-1.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B08D4F]" />
                     Synthesizing production schedule, countdown milestones & budget breakdown...
                   </p>
                 </div>
@@ -748,49 +752,51 @@ export default function Home() {
               onFinalStepCompleted={handleTriggerAiEvaluation}
               backButtonText="Back"
               nextButtonText="Continue"
-                orientation="vertical"
-                width={640}
-                completeButtonText="Submit to AI Evaluation →"
-                theme="light"
-                accentColor="#10B981"
-                radius={24}
-                className="border border-[#E2ECE5] shadow-xl bg-white/95"
-              >
+              orientation="vertical"
+              width={640}
+              completeButtonText="Submit to AI Evaluation →"
+              theme="light"
+              accentColor="#0E2A24"
+              radius={28}
+              className="border border-[#E7EDE9] shadow-[0_24px_48px_-32px_rgba(14,42,36,0.18)] bg-[#FCFDFC] rounded-[28px] p-2 sm:p-4"
+            >
                 {/* Step 1: Event Details Input (Event Name, Event Type, Budget, Date) */}
                 <Step title="Event Info">
                   <div className="space-y-4 py-1">
                     <div>
-                      <h3 className="text-lg font-bold text-[#2D3748]">Event Parameters</h3>
-                      <p className="text-xs sm:text-sm text-[#718096]">
+                      <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#0E2A24]">
+                        Event Parameters
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#7B8C86]">
                         Enter the name, type, budget, and date for your event.
                       </p>
                     </div>
 
-                    <div className="space-y-3 pt-1">
+                    <div className="space-y-3.5 pt-1">
                       {/* 1. Event Name */}
                       <div>
-                        <label className="block text-xs font-semibold text-[#2D3748] mb-1">
-                          Event Name <span className="text-rose-500">*</span>
+                        <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                          Event Name <span className="text-[#B5473C]">*</span>
                         </label>
                         <input
                           type="text"
                           placeholder="e.g. Annual Global Tech Summit 2026"
                           value={eventName}
                           onChange={(e) => setEventName(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
+                          className="w-full px-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] placeholder:text-[#7B8C86]/60 focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all shadow-2xs"
                           required
                         />
                       </div>
 
                       {/* 2. Event Type */}
                       <div>
-                        <label className="block text-xs font-semibold text-[#2D3748] mb-1">
-                          Event Type <span className="text-rose-500">*</span>
+                        <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                          Event Type <span className="text-[#B5473C]">*</span>
                         </label>
                         <select
                           value={eventType}
                           onChange={(e) => setEventType(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors cursor-pointer"
+                          className="w-full px-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all cursor-pointer shadow-2xs"
                         >
                           <option value="Conference">Conference / Summit</option>
                           <option value="Wedding">Wedding & Reception</option>
@@ -805,11 +811,11 @@ export default function Home() {
 
                       {/* 3. Budget */}
                       <div>
-                        <label className="block text-xs font-semibold text-[#2D3748] mb-1">
-                          Estimated Budget (₹) <span className="text-rose-500">*</span>
+                        <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                          Estimated Budget (₹) <span className="text-[#B5473C]">*</span>
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#718096] text-xs font-bold">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7B8C86] text-xs font-bold">
                             ₹
                           </span>
                           <input
@@ -817,7 +823,7 @@ export default function Home() {
                             placeholder="e.g. 500000"
                             value={eventBudget}
                             onChange={(e) => setEventBudget(e.target.value)}
-                            className="w-full pl-7 pr-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
+                            className="w-full pl-8 pr-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] placeholder:text-[#7B8C86]/60 focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all shadow-2xs"
                             min="0"
                             step="5000"
                           />
@@ -826,28 +832,28 @@ export default function Home() {
 
                       {/* 4. Date of the Event */}
                       <div>
-                        <label className="block text-xs font-semibold text-[#2D3748] mb-1">
-                          Date of the Event <span className="text-rose-500">*</span>
+                        <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                          Date of the Event <span className="text-[#B5473C]">*</span>
                         </label>
                         <input
                           type="date"
                           value={eventDate}
                           onChange={(e) => setEventDate(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors cursor-pointer"
+                          className="w-full px-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all cursor-pointer shadow-2xs"
                         />
                       </div>
 
                       {/* 5. Estimated Guest Count */}
                       <div>
-                        <label className="block text-xs font-semibold text-[#2D3748] mb-1">
-                          Estimated Guest Count <span className="text-rose-500">*</span>
+                        <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                          Estimated Guest Count <span className="text-[#B5473C]">*</span>
                         </label>
                         <input
                           type="number"
                           placeholder="e.g. 150"
                           value={guestCount}
                           onChange={(e) => setGuestCount(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] focus:outline-none focus:border-[#10B981] transition-colors"
+                          className="w-full px-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] placeholder:text-[#7B8C86]/60 focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all shadow-2xs"
                           min="1"
                           step="10"
                         />
@@ -855,8 +861,8 @@ export default function Home() {
 
                       {/* 6. Package Tier */}
                       <div>
-                        <label className="block text-xs font-semibold text-[#2D3748] mb-1">
-                          Package Tier <span className="text-[#10B981] font-normal">(Starter, Basic, Professional)</span>
+                        <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                          Package Tier <span className="text-[#B08D4F] font-normal">(Starter, Basic, Professional)</span>
                         </label>
                         <div className="grid grid-cols-3 gap-2">
                           {(["Starter", "Basic", "Professional"] as const).map((t) => (
@@ -864,10 +870,10 @@ export default function Home() {
                               key={t}
                               type="button"
                               onClick={() => setEventTier(t)}
-                              className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                              className={`py-2 px-3 rounded-full text-xs font-bold border transition-all text-center cursor-pointer ${
                                 eventTier === t
-                                  ? "border-[#10B981] bg-[#E6F7F0] text-[#059669] shadow-2xs"
-                                  : "border-[#E2ECE5] bg-white text-[#718096] hover:bg-[#F4F7F5]"
+                                  ? "border-[#0E2A24] bg-[#0E2A24] text-[#F3E7C9] shadow-xs"
+                                  : "border-[#E7EDE9] bg-white text-[#7B8C86] hover:bg-[#F5EFE2] hover:text-[#0E2A24]"
                               }`}
                             >
                               {t}
@@ -883,20 +889,22 @@ export default function Home() {
                 <Step title="Planning">
                   <div className="space-y-4 py-1">
                     <div>
-                      <h3 className="text-lg font-bold text-[#2D3748]">Planning Requirements</h3>
-                      <p className="text-xs sm:text-sm text-[#718096]">
+                      <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#0E2A24]">
+                        Planning Requirements
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#7B8C86]">
                         Specify the essential items, services, or sub-arrangements needed for your event.
                       </p>
                     </div>
 
-                    <div className="space-y-3 pt-1">
-                      {/* Input Box with exact requested label */}
+                    <div className="space-y-3.5 pt-1">
+                      {/* Input Box */}
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-semibold text-[#2D3748]">
-                            What are things that be need for these <span className="text-rose-500">*</span>
+                          <label className="block text-xs font-bold text-[#0E2A24]">
+                            What are things that be need for these <span className="text-[#B5473C]">*</span>
                           </label>
-                          <span className="text-[10.5px] text-[#059669] font-semibold bg-[#E6F7F0] px-2 py-0.5 rounded-md border border-[#A7F3D0]">
+                          <span className="text-[10.5px] text-[#7D6230] font-bold bg-[#F5EFE2] px-2.5 py-0.5 rounded-full border border-[#B08D4F]/30">
                             Press Enter ↵ to add
                           </span>
                         </div>
@@ -913,26 +921,26 @@ export default function Home() {
                                 handleAddPlanningItem();
                               }
                             }}
-                            className="w-full pl-3.5 pr-20 py-2.5 rounded-xl border border-[#E2ECE5] bg-white text-xs sm:text-sm text-[#2D3748] placeholder:text-[#A0AEC0] focus:outline-none focus:border-[#10B981] focus:ring-2 focus:ring-[#10B981]/15 transition-all shadow-2xs"
+                            className="w-full pl-4 pr-24 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] placeholder:text-[#7B8C86]/60 focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all shadow-2xs"
                           />
                           <button
                             type="button"
                             onClick={handleAddPlanningItem}
                             disabled={!currentPlanningInput.trim()}
-                            className="absolute right-1.5 px-3 py-1.5 rounded-lg bg-[#10B981] hover:bg-[#059669] disabled:bg-[#E2ECE5] disabled:text-[#A0AEC0] text-white text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs flex items-center gap-1"
+                            className="absolute right-1.5 px-3.5 py-1.5 rounded-full bg-[#0E2A24] hover:bg-[#163D34] disabled:bg-[#E7EDE9] disabled:text-[#7B8C86] text-[#F3E7C9] text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs flex items-center gap-1"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>Add</span>
                           </button>
                         </div>
-                        <p className="text-[11px] text-[#718096] mt-1.5">
-                          Type any word or 5-word sentence, then press <strong>Enter</strong> to create sub-part bullet points below.
+                        <p className="text-[11px] text-[#7B8C86] mt-1.5">
+                          Type any word or phrase, then press <strong>Enter</strong> to create sub-part bullet points below.
                         </p>
                       </div>
 
                       {/* Suggested Quick Add Chips */}
                       <div>
-                        <span className="text-[11px] font-semibold text-[#718096] block mb-1.5">
+                        <span className="text-[11px] font-bold text-[#0E2A24] block mb-1.5">
                           Quick suggestions:
                         </span>
                         <div className="flex flex-wrap gap-1.5">
@@ -952,9 +960,9 @@ export default function Home() {
                                   setPlanningItems((prev) => [...prev, suggestion]);
                                 }
                               }}
-                              className="text-[11px] px-2.5 py-1 rounded-lg bg-white border border-[#E2ECE5] text-[#4A5568] hover:border-[#10B981] hover:text-[#059669] hover:bg-[#E6F7F0]/50 transition-all cursor-pointer font-medium flex items-center gap-1 shadow-2xs"
+                              className="text-[11px] px-3 py-1.5 rounded-full bg-white border border-[#E7EDE9] text-[#24352F] hover:border-[#B08D4F] hover:text-[#0E2A24] hover:bg-[#F5EFE2] transition-all cursor-pointer font-medium flex items-center gap-1.5 shadow-2xs"
                             >
-                              <Plus className="w-3 h-3 text-[#10B981]" />
+                              <Plus className="w-3 h-3 text-[#B08D4F]" />
                               <span>{suggestion}</span>
                             </button>
                           ))}
@@ -964,9 +972,9 @@ export default function Home() {
                       {/* Bullet Points / Sub parts display */}
                       <div className="pt-2">
                         <div className="flex items-center justify-between mb-2">
-                          <label className="text-xs font-bold text-[#2D3748] flex items-center gap-1.5">
+                          <label className="text-xs font-bold text-[#0E2A24] flex items-center gap-2">
                             <span>Planning Points</span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/30">
                               {planningItems.length} {planningItems.length === 1 ? "item" : "items"}
                             </span>
                           </label>
@@ -974,7 +982,7 @@ export default function Home() {
                             <button
                               type="button"
                               onClick={() => setPlanningItems([])}
-                              className="text-[11px] text-rose-500 hover:text-rose-700 font-semibold cursor-pointer"
+                              className="text-[11px] text-[#B5473C] hover:text-[#9B3C33] font-semibold cursor-pointer"
                             >
                               Clear All
                             </button>
@@ -982,11 +990,11 @@ export default function Home() {
                         </div>
 
                         {planningItems.length === 0 ? (
-                          <div className="p-4 rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] text-center space-y-1">
-                            <p className="text-xs font-medium text-[#64748B]">
+                          <div className="p-4 rounded-2xl border border-dashed border-[#E7EDE9] bg-[#F5EFE2]/30 text-center space-y-1">
+                            <p className="text-xs font-semibold text-[#0E2A24]">
                               No planning points added yet
                             </p>
-                            <p className="text-[11px] text-[#94A3B8]">
+                            <p className="text-[11px] text-[#7B8C86]">
                               Type in the input box above and press Enter to generate bullet points.
                             </p>
                           </div>
@@ -995,19 +1003,19 @@ export default function Home() {
                             {planningItems.map((item, index) => (
                               <li
                                 key={index}
-                                className="group flex items-start justify-between gap-3 p-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2ECE5] hover:border-[#A7F3D0] hover:bg-[#F0FDF4] transition-all"
+                                className="group flex items-start justify-between gap-3 p-3 rounded-2xl bg-white border border-[#E7EDE9] hover:border-[#B08D4F]/50 hover:bg-[#F5EFE2]/20 transition-all shadow-2xs"
                               >
                                 <div className="flex items-start gap-2.5 flex-1 min-w-0">
                                   {/* Stylized bullet point */}
-                                  <span className="w-2 h-2 rounded-full bg-[#10B981] mt-1.5 shrink-0 shadow-2xs group-hover:scale-125 transition-transform" />
-                                  <span className="text-xs text-[#2D3748] font-medium leading-relaxed break-words">
+                                  <span className="w-2 h-2 rounded-full bg-[#B08D4F] mt-1.5 shrink-0 shadow-2xs group-hover:scale-125 transition-transform" />
+                                  <span className="text-xs text-[#24352F] font-medium leading-relaxed break-words">
                                     {item}
                                   </span>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => handleRemovePlanningItem(index)}
-                                  className="opacity-60 group-hover:opacity-100 hover:text-rose-600 text-[#718096] p-1 rounded-md transition-colors cursor-pointer shrink-0"
+                                  className="opacity-60 group-hover:opacity-100 hover:text-[#B5473C] text-[#7B8C86] p-1 rounded-full transition-colors cursor-pointer shrink-0"
                                   title="Remove point"
                                 >
                                   <X className="w-3.5 h-3.5" />
@@ -1025,69 +1033,71 @@ export default function Home() {
                 <Step title="Review">
                   <div className="space-y-4 py-1">
                     <div>
-                      <h3 className="text-lg font-bold text-[#2D3748]">Review Parameters</h3>
-                      <p className="text-xs sm:text-sm text-[#718096]">
+                      <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#0E2A24]">
+                        Review Parameters
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#7B8C86]">
                         Verify your details before submitting to Kordena AI for evaluation.
                       </p>
                     </div>
 
-                    <div className="bg-[#F4F7F5] p-4 rounded-2xl border border-[#E2ECE5] space-y-2.5 text-xs">
+                    <div className="bg-[#F5EFE2]/40 p-5 rounded-[24px] border border-[#E7EDE9] space-y-3 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-[#718096]">Event Name:</span>
-                        <strong className="text-[#2D3748]">{eventName || "Untitled Event"}</strong>
+                        <span className="text-[#7B8C86]">Event Name:</span>
+                        <strong className="text-[#0E2A24] font-semibold">{eventName || "Untitled Event"}</strong>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[#718096]">Event Type:</span>
-                        <strong className="text-[#2D3748]">{eventType}</strong>
+                        <span className="text-[#7B8C86]">Event Type:</span>
+                        <strong className="text-[#0E2A24] font-semibold">{eventType}</strong>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[#718096]">Estimated Budget:</span>
-                        <strong className="text-[#10B981]">
+                        <span className="text-[#7B8C86]">Estimated Budget:</span>
+                        <strong className="text-[#0E2A24] font-[family-name:var(--font-display)] text-sm">
                           {eventBudget ? `₹${Number(eventBudget).toLocaleString("en-IN")}` : "Not specified"}
                         </strong>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[#718096]">Package Tier:</span>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                        <span className="text-[#7B8C86]">Package Tier:</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-[#0E2A24] text-[#F3E7C9]">
                           {eventTier}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[#718096]">Event Date:</span>
-                        <strong className="text-[#2D3748]">{eventDate || "Date TBD"}</strong>
+                        <span className="text-[#7B8C86]">Event Date:</span>
+                        <strong className="text-[#0E2A24] font-semibold">{eventDate || "Date TBD"}</strong>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[#718096]">Guest Count:</span>
-                        <strong className="text-[#2D3748]">{guestCount || "100"} guests</strong>
+                        <span className="text-[#7B8C86]">Guest Count:</span>
+                        <strong className="text-[#0E2A24] font-semibold">{guestCount || "100"} guests</strong>
                       </div>
 
                       {/* Planning Points Review */}
-                      <div className="pt-2 border-t border-[#E2ECE5]">
+                      <div className="pt-2 border-t border-[#E7EDE9]">
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[#718096]">Planning Points:</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#E6F7F0] text-[#059669] border border-[#A7F3D0]">
+                          <span className="text-[#7B8C86]">Planning Points:</span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/30">
                             {planningItems.length} {planningItems.length === 1 ? "point" : "points"}
                           </span>
                         </div>
                         {planningItems.length > 0 ? (
                           <ul className="space-y-1.5 pl-1 max-h-32 overflow-y-auto">
                             {planningItems.map((item, idx) => (
-                              <li key={idx} className="flex items-start gap-2 text-[#2D3748]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] mt-1 shrink-0" />
+                              <li key={idx} className="flex items-start gap-2 text-[#24352F]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#B08D4F] mt-1 shrink-0" />
                                 <span className="font-medium text-[11.5px] leading-snug">{item}</span>
                               </li>
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-[#718096] italic text-[11px]">
+                          <p className="text-[#7B8C86] italic text-[11px]">
                             No custom planning points specified (AI will infer defaults)
                           </p>
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between pt-1.5 border-t border-[#E2ECE5]">
-                        <span className="text-[#718096]">Lead Organizer:</span>
-                        <strong className="text-[#2D3748]">{activeUser?.name || "Planner"}</strong>
+                      <div className="flex items-center justify-between pt-2 border-t border-[#E7EDE9]">
+                        <span className="text-[#7B8C86]">Lead Organizer:</span>
+                        <strong className="text-[#0E2A24] font-semibold">{activeUser?.name || "Planner"}</strong>
                       </div>
                     </div>
                   </div>

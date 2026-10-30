@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { EventPlan } from "@/app/types";
+import { geminiConfig } from "@/config/gemini";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   sanitizeString,
@@ -34,15 +35,7 @@ export async function POST(request: Request) {
     const resolvedBudget = clampNumber(budget, 0, 1_000_000_000, 25000);
     const resolvedType = sanitizeString(eventType, 60) || "Custom Event";
 
-    // If apiKey is provided or exists in environment, we could attempt Gemini API
-    const geminiKey = apiKey || process.env.GEMINI_API_KEY;
-
-    if (geminiKey) {
-      try {
-        const { GoogleGenAI } = await import("@google/genai");
-        const ai = new GoogleGenAI({ apiKey: geminiKey });
-        
-        const systemPrompt = `You are Kordena, an elite GenAI event planner specializing in serene, balanced, and focused events with a fresh sage and mint aesthetic.
+    const systemPrompt = `You are Kordena, an elite GenAI event planner specializing in serene, balanced, and focused events with a fresh sage and mint aesthetic.
 Generate a structured JSON response for an event plan based on:
 Prompt: "${trimmedPrompt}"
 Event Type: "${resolvedType}"
@@ -78,28 +71,28 @@ Return ONLY valid JSON matching this TypeScript structure:
   "aiSuggestions": [string, string, string]
 }`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite-preview",
-          contents: systemPrompt,
-          config: {
-            responseMimeType: "application/json",
-          },
-        });
-
-        const text = response.text?.trim() || "";
-        if (text) {
-          const parsed = JSON.parse(text);
-          const newPlan: EventPlan = {
-            ...parsed,
-            id: `kordena-gen-${Date.now()}`,
-            guestCount: resolvedGuestCount,
-            totalBudget: resolvedBudget,
-          };
-          return NextResponse.json({ success: true, plan: newPlan, source: "gemini-api" });
+    try {
+      const response = await geminiConfig(
+        { prompt: systemPrompt },
+        {
+          responseMimeType: "application/json",
+          apiKey: apiKey || undefined,
         }
-      } catch (geminiError) {
-        console.warn("Gemini call failed or rate-limited, falling back to smart generator:", geminiError);
+      );
+
+      const text = response.text?.trim() || "";
+      if (text) {
+        const parsed = JSON.parse(text);
+        const newPlan: EventPlan = {
+          ...parsed,
+          id: `kordena-gen-${Date.now()}`,
+          guestCount: resolvedGuestCount,
+          totalBudget: resolvedBudget,
+        };
+        return NextResponse.json({ success: true, plan: newPlan, source: "gemini-api" });
       }
+    } catch (geminiError) {
+      console.warn("Gemini call failed or rate-limited, falling back to smart generator:", geminiError);
     }
 
     // Fallback: Smart GenAI Synthetic Blueprint Engine

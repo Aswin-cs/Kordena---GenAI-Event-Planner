@@ -16,7 +16,14 @@ import {
   sanitizeString,
   safeErrorResponse,
   requireAuthSession,
+  resolveDbUserId,
+  findUserStatusBlueprint,
 } from "@/lib/security";
+import {
+  geminiBudgetBreakdownSchema,
+  geminiPrepCalendarTasksSchema,
+  geminiDayOfRunOfShowSchema,
+} from "@/lib/gemini-schemas";
 
 // Response Schema for Gemini distinguishing between standard Q&A vs Blueprint Edits
 const chatResponseSchema = {
@@ -43,84 +50,9 @@ const chatResponseSchema = {
       description:
         "Contains the full updated arrays reflecting UserStatus.model.ts (budgetBreakdown, prepCalendarTasks, dayOfRunOfShow, requirements). Only included when type is 'edit'.",
       properties: {
-        budgetBreakdown: {
-          type: "array",
-          description: "Full updated budget breakdown items array if modified.",
-          items: {
-            type: "object",
-            properties: {
-              category: { type: "string" },
-              allocatedAmount: { type: "number" },
-              percentage: { type: "number" },
-              sliderMin: { type: "number" },
-              sliderMax: { type: "number" },
-              spendStrategy: { type: "string" },
-            },
-            required: [
-              "category",
-              "allocatedAmount",
-              "percentage",
-              "sliderMin",
-              "sliderMax",
-              "spendStrategy",
-            ],
-          },
-        },
-        prepCalendarTasks: {
-          type: "array",
-          description:
-            "Full updated prep countdown tasks array if added, edited, or removed.",
-          items: {
-            type: "object",
-            properties: {
-              id: { type: "string" },
-              title: { type: "string" },
-              department: { type: "string" },
-              actionType: {
-                type: "string",
-                enum: ["call", "arrange", "design", "procure", "setup"],
-              },
-              daysBeforeEvent: { type: "number" },
-              scheduledDate: { type: "string" },
-              estimatedCost: { type: "number" },
-              actionBrief: { type: "string" },
-              priority: { type: "string", enum: ["high", "medium", "low"] },
-              isCompleted: { type: "boolean" },
-            },
-            required: [
-              "id",
-              "title",
-              "department",
-              "actionType",
-              "daysBeforeEvent",
-              "estimatedCost",
-              "actionBrief",
-              "priority",
-            ],
-          },
-        },
-        dayOfRunOfShow: {
-          type: "array",
-          description:
-            "Full updated day-of run-of-show timeline array if modified.",
-          items: {
-            type: "object",
-            properties: {
-              timeSlot: { type: "string" },
-              activity: { type: "string" },
-              departmentInCharge: { type: "string" },
-              operationalNotes: { type: "string" },
-              dependency: { type: "string" },
-            },
-            required: [
-              "timeSlot",
-              "activity",
-              "departmentInCharge",
-              "operationalNotes",
-              "dependency",
-            ],
-          },
-        },
+        budgetBreakdown: geminiBudgetBreakdownSchema,
+        prepCalendarTasks: geminiPrepCalendarTasksSchema,
+        dayOfRunOfShow: geminiDayOfRunOfShowSchema,
         requirements: {
           type: "array",
           items: { type: "string" },
@@ -256,38 +188,12 @@ CLASSIFICATION RULES:
       try {
         await connectToDatabase();
         const session = await getServerSession(authOptions);
-        let authUserId: mongoose.Types.ObjectId | null = null;
-
-        if (session?.user?.email) {
-          const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
-          if (dbUser) authUserId = dbUser._id;
-        } else {
-          const guestUser = await User.findOne({ email: "planner@kordena.ai" });
-          if (guestUser) authUserId = guestUser._id;
-        }
-
-        let targetDoc: any = null;
-        if (
-          eventContext?.userStatusId &&
-          mongoose.Types.ObjectId.isValid(eventContext.userStatusId)
-        ) {
-          targetDoc = await UserStatus.findById(eventContext.userStatusId);
-        }
-
-        if (!targetDoc && (eventContext?.title || eventContext?.eventName)) {
-          const safeName = escapeRegex(
-            sanitizeString(eventContext?.title || eventContext?.eventName, 120)
-          );
-          const query: any = { eventName: { $regex: new RegExp(`^${safeName}$`, "i") } };
-          if (authUserId) query.userId = authUserId;
-          targetDoc = await UserStatus.findOne(query).sort({ updatedAt: -1 });
-        }
-
-        if (!targetDoc && authUserId) {
-          targetDoc = await UserStatus.findOne({ userId: authUserId }).sort({
-            updatedAt: -1,
-          });
-        }
+        const authUserId = await resolveDbUserId(session?.user?.email);
+        const targetDoc = await findUserStatusBlueprint({
+          userStatusId: eventContext?.userStatusId,
+          eventName: eventContext?.title || eventContext?.eventName,
+          userId: authUserId,
+        });
 
         // Enforce ownership: only mutate if the target blueprint belongs to the caller
         if (targetDoc && authUserId && targetDoc.userId.equals(authUserId)) {

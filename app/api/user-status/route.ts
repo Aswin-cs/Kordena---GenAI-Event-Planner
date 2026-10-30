@@ -11,6 +11,8 @@ import {
   sanitizeString,
   clampNumber,
   safeErrorResponse,
+  resolveDbUserId,
+  findUserStatusBlueprint,
 } from "@/lib/security";
 
 function sanitizeEventType(type?: string): EventType {
@@ -89,39 +91,22 @@ export async function POST(request: Request) {
     await connectToDatabase();
 
     // Resolve User ID: prioritize verified NextAuth session
-    let resolvedUserId: mongoose.Types.ObjectId | null = null;
     const session = await getServerSession(authOptions);
-
-    if (session?.user?.email) {
-      const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
-      if (dbUser) {
-        resolvedUserId = dbUser._id;
-      } else {
-        const newUser = await User.create({
-          name: sanitizeString(session.user.name, 100) || "Event Planner",
-          email: session.user.email.toLowerCase(),
-          image: session.user.image || "",
-        });
-        resolvedUserId = newUser._id;
+    const resolvedUserId = await resolveDbUserId(
+      session?.user?.email,
+      explicitUserId,
+      {
+        createIfMissing: true,
+        userName: session?.user?.name || undefined,
+        userImage: session?.user?.image || undefined,
       }
-    } else if (explicitUserId && mongoose.Types.ObjectId.isValid(explicitUserId)) {
-      // Allow explicit ID only if user exists in DB
-      const existingUser = await User.findById(explicitUserId);
-      if (existingUser) {
-        resolvedUserId = existingUser._id;
-      }
-    }
+    );
 
-    // If still no authenticated user, resolve or create a default guest/planner user
     if (!resolvedUserId) {
-      let defaultUser = await User.findOne({ email: "planner@kordena.ai" });
-      if (!defaultUser) {
-        defaultUser = await User.create({
-          name: "Kordena Guest Planner",
-          email: "planner@kordena.ai",
-        });
-      }
-      resolvedUserId = defaultUser._id;
+      return NextResponse.json(
+        { success: false, message: "Unable to resolve active user identity" },
+        { status: 500 }
+      );
     }
 
     // Resolve and clamp numeric fields to safe bounds
@@ -226,24 +211,11 @@ export async function GET(request: Request) {
     await connectToDatabase();
 
     const session = await getServerSession(authOptions);
-    let filter: Record<string, any> = {};
-
-    if (session?.user?.email) {
-      const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
-      if (dbUser) {
-        filter = { userId: dbUser._id };
-      } else {
-        return NextResponse.json({ success: true, count: 0, userStatuses: [] });
-      }
-    } else {
-      // Unauthenticated / guest session: return blueprints associated only with the guest account
-      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
-      if (guestUser) {
-        filter = { userId: guestUser._id };
-      } else {
-        return NextResponse.json({ success: true, count: 0, userStatuses: [] });
-      }
+    const userId = await resolveDbUserId(session?.user?.email);
+    if (!userId) {
+      return NextResponse.json({ success: true, count: 0, userStatuses: [] });
     }
+    const filter = { userId };
 
     const userStatuses = await UserStatus.find(filter)
       .populate("userId", "name email image")
@@ -348,42 +320,12 @@ export async function PATCH(request: Request) {
     const { id, eventName, budgetBreakdown, budget, prepCalendarTasks, taskId, isCompleted } = body;
 
     const session = await getServerSession(authOptions);
-    let authUserId: mongoose.Types.ObjectId | null = null;
-
-    if (session?.user?.email) {
-      const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
-      if (dbUser) authUserId = dbUser._id;
-    } else {
-      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
-      if (guestUser) authUserId = guestUser._id;
-    }
-
-    let targetDoc: any = null;
-
-    // 1. Try finding by ID
-    if (id && mongoose.Types.ObjectId.isValid(id)) {
-      targetDoc = await UserStatus.findById(id);
-    } else if (eventName) {
-      // 2. Try finding by sanitized event name scoped to authenticated user
-      const safeEventName = escapeRegex(sanitizeString(eventName, 120));
-      const query: Record<string, any> = {
-        eventName: { $regex: new RegExp(`^${safeEventName}$`, "i") },
-      };
-      if (authUserId) query.userId = authUserId;
-      targetDoc = await UserStatus.findOne(query).sort({ updatedAt: -1 });
-
-      // Fallback if not found with userId and guest is allowed
-      if (!targetDoc) {
-        targetDoc = await UserStatus.findOne({
-          eventName: { $regex: new RegExp(`^${safeEventName}$`, "i") },
-        }).sort({ updatedAt: -1 });
-      }
-    }
-
-    // 3. Fallback to user's latest document if no name or ID was passed
-    if (!targetDoc && authUserId) {
-      targetDoc = await UserStatus.findOne({ userId: authUserId }).sort({ updatedAt: -1 });
-    }
+    const authUserId = await resolveDbUserId(session?.user?.email);
+    const targetDoc = await findUserStatusBlueprint({
+      userStatusId: id,
+      eventName,
+      userId: authUserId,
+    });
 
     if (!targetDoc) {
       return NextResponse.json(

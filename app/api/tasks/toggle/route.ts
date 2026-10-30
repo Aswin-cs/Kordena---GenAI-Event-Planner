@@ -6,7 +6,13 @@ import { connectToDatabase } from "@/lib/mongodb";
 import UserStatus, { IPrepCalendarTask } from "@/models/UserStatus.model";
 import User from "@/models/User";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { escapeRegex, sanitizeString, safeErrorResponse } from "@/lib/security";
+import {
+  escapeRegex,
+  sanitizeString,
+  safeErrorResponse,
+  resolveDbUserId,
+  findUserStatusBlueprint,
+} from "@/lib/security";
 
 /**
  * Handles toggling or explicitly setting the isCompleted status of a prep calendar task.
@@ -33,47 +39,12 @@ async function handleTaskToggle(request: Request) {
     }
 
     const session = await getServerSession(authOptions);
-    let userId: any = null;
-    if (session?.user?.email) {
-      const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
-      if (dbUser) {
-        userId = dbUser._id;
-      }
-    } else {
-      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
-      if (guestUser) {
-        userId = guestUser._id;
-      }
-    }
-
-    let targetDoc: any = null;
-
-    // 1. Try finding by userStatusId if provided
-    if (userStatusId && mongoose.Types.ObjectId.isValid(userStatusId)) {
-      targetDoc = await UserStatus.findById(userStatusId);
-    }
-
-    // 2. Try finding by eventName
-    if (!targetDoc && eventName) {
-      const safeEventName = escapeRegex(sanitizeString(eventName, 120));
-      const query: Record<string, any> = {
-        eventName: { $regex: new RegExp(`^${safeEventName}$`, "i") },
-      };
-      if (userId) query.userId = userId;
-      targetDoc = await UserStatus.findOne(query).sort({ updatedAt: -1 });
-
-      // Fallback without userId if guest or session is different
-      if (!targetDoc) {
-        targetDoc = await UserStatus.findOne({
-          eventName: { $regex: new RegExp(`^${safeEventName}$`, "i") },
-        }).sort({ updatedAt: -1 });
-      }
-    }
-
-    // 3. Fallback to latest doc for the authenticated user
-    if (!targetDoc && userId) {
-      targetDoc = await UserStatus.findOne({ userId }).sort({ updatedAt: -1 });
-    }
+    const userId = await resolveDbUserId(session?.user?.email);
+    const targetDoc = await findUserStatusBlueprint({
+      userStatusId,
+      eventName,
+      userId,
+    });
 
     if (!targetDoc) {
       return NextResponse.json(

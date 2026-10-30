@@ -1186,4 +1186,3 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
 };
 
 export default MagicBento;
-          

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import mongoose from "mongoose";
 import { authOptions } from "./auth";
 import User, { IUser } from "../models/User";
+import UserStatus from "../models/UserStatus.model";
 
 /**
  * Escapes special characters in a string to safely use inside a RegExp
@@ -129,4 +130,92 @@ export function safeErrorResponse(
     },
     { status }
   );
+}
+
+/**
+ * Resolves the database user ObjectId with a unified fallback chain:
+ * 1. Authenticated session email -> User lookup (optionally creates user if missing)
+ * 2. Explicit userId parameter -> Validates ObjectId and verifies existence
+ * 3. Fallback guest user ("planner@kordena.ai")
+ */
+export async function resolveDbUserId(
+  sessionEmail?: string | null,
+  explicitUserId?: string | null,
+  options?: { createIfMissing?: boolean; userName?: string; userImage?: string }
+): Promise<mongoose.Types.ObjectId | null> {
+  if (sessionEmail) {
+    const email = sessionEmail.toLowerCase().trim();
+    const dbUser = await User.findOne({ email });
+    if (dbUser) return dbUser._id;
+    if (options?.createIfMissing) {
+      const newUser = await User.create({
+        name: sanitizeString(options?.userName, 100) || "Event Planner",
+        email,
+        image: options?.userImage || "",
+      });
+      return newUser._id;
+    }
+  }
+
+  if (explicitUserId && mongoose.Types.ObjectId.isValid(explicitUserId)) {
+    const existing = await User.findById(explicitUserId);
+    if (existing) return existing._id;
+  }
+
+  const guest = await User.findOne({ email: "planner@kordena.ai" });
+  if (guest) return guest._id;
+
+  if (options?.createIfMissing) {
+    const fallbackUser = await User.create({
+      name: "Guest Planner",
+      email: "planner@kordena.ai",
+      image: "",
+    });
+    return fallbackUser._id;
+  }
+
+  return null;
+}
+
+/**
+ * Resilient 3-tier lookup for UserStatus documents:
+ * 1. By direct document ID
+ * 2. By event name regex (filtered by user if authenticated, then global fallback)
+ * 3. Most recently modified blueprint for the user
+ */
+export async function findUserStatusBlueprint(params: {
+  userStatusId?: string | null;
+  eventName?: string | null;
+  userId?: mongoose.Types.ObjectId | null;
+}) {
+  const { userStatusId, eventName, userId } = params;
+
+  // 1. By ID
+  if (userStatusId && mongoose.Types.ObjectId.isValid(userStatusId)) {
+    const doc = await UserStatus.findById(userStatusId);
+    if (doc) return doc;
+  }
+
+  // 2. By eventName
+  if (eventName) {
+    const safeName = escapeRegex(sanitizeString(eventName, 120));
+    const query: Record<string, any> = {
+      eventName: { $regex: new RegExp(`^${safeName}$`, "i") },
+    };
+    if (userId) query.userId = userId;
+    let doc = await UserStatus.findOne(query).sort({ updatedAt: -1 });
+    if (!doc && userId) {
+      doc = await UserStatus.findOne({
+        eventName: { $regex: new RegExp(`^${safeName}$`, "i") },
+      }).sort({ updatedAt: -1 });
+    }
+    if (doc) return doc;
+  }
+
+  // 3. Fallback to latest for user
+  if (userId) {
+    return await UserStatus.findLatestByUser(userId);
+  }
+
+  return null;
 }

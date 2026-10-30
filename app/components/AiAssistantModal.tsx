@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bot, Send, Sparkles, X, Key, Check, Loader2, Lock } from "lucide-react";
+import { Bot, Send, Sparkles, X, Loader2, Lock } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
 import { EventPlan } from "../types";
 
@@ -43,8 +43,6 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [showKeyInput, setShowKeyInput] = useState(false);
 
   // Keyboard navigation: Escape key closes modal (WCAG 2.1.1)
   React.useEffect(() => {
@@ -95,7 +93,6 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
         body: JSON.stringify({
           message: textToSend,
           eventContext: event,
-          apiKey: apiKey.trim() || undefined,
         }),
       });
 
@@ -170,16 +167,6 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowKeyInput(!showKeyInput)}
-              className="p-2 rounded-xl bg-[#F4F7F5] text-[#718096] hover:text-[#2D3748] text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-              title="Configure Custom Gemini API Key"
-              aria-label="Configure Custom Gemini API Key"
-            >
-              <Key className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">API Key</span>
-            </button>
-            <button
-              type="button"
               onClick={onClose}
               aria-label="Close AI Copilot Dialog"
               className="w-8 h-8 rounded-full bg-[#F4F7F5] text-[#718096] hover:text-[#2D3748] flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
@@ -205,25 +192,6 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
             >
               Sign In
             </button>
-          </div>
-        )}
-
-        {/* Optional Custom API Key accordion */}
-        {showKeyInput && (
-          <div className="px-6 py-3 bg-[#F4F7F5] border-b border-[#E2ECE5] flex items-center gap-2 text-xs">
-            <Key className="w-4 h-4 text-[#10B981] shrink-0" />
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter optional Google Gemini API key (or leave blank to use built-in Kordena engine)"
-              className="flex-1 px-3 py-1.5 rounded-lg bg-[#FFFFFF] border border-[#E2ECE5] text-xs text-[#2D3748] focus:border-[#10B981]"
-            />
-            {apiKey && (
-              <span className="text-[11px] text-[#10B981] font-semibold flex items-center gap-0.5">
-                <Check className="w-3 h-3" /> Active
-              </span>
-            )}
           </div>
         )}
 

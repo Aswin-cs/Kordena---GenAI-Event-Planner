@@ -133,6 +133,7 @@ export interface StepperProps extends Omit<React.HTMLAttributes<HTMLDivElement>,
   orientation?: 'horizontal' | 'vertical';
   transition?: 'slide' | 'fade' | 'none';
   linear?: boolean;
+  canAdvance?: (fromStep: number) => boolean;
   disableStepIndicators?: boolean;
   renderStepIndicator?: (params: { step: number; currentStep: number; onStepClick: (step: number) => void }) => ReactNode;
   showFooter?: boolean;
@@ -163,6 +164,7 @@ export default function Stepper({
   orientation = 'horizontal',
   transition = 'slide',
   linear = false,
+  canAdvance,
   disableStepIndicators = false,
   renderStepIndicator,
   showFooter = true,
@@ -228,13 +230,19 @@ export default function Stepper({
   const go = (target: number) => {
     const next = clamp(target, 1, total + 1);
     if (next === current) return;
+    if (next > current && canAdvance && !canAdvance(current)) {
+      return;
+    }
     if (!controlled) setInternal(next);
     if (next > total) onFinalStepCompleted();
     else onStepChange(next);
   };
 
   const reachable = (number: number) =>
-    !disableStepIndicators && number !== current && (!linear || number <= Math.min(reached, total));
+    !disableStepIndicators &&
+    number !== current &&
+    (!linear || number <= Math.min(reached, total)) &&
+    (number < current || !canAdvance || canAdvance(current));
 
   useIsomorphicLayoutEffect(() => {
     const root = rootRef.current;
@@ -536,9 +544,14 @@ export default function Stepper({
                 <button
                   type="button"
                   {...nextRest}
+                  disabled={Boolean(nextRest.disabled || (canAdvance && !canAdvance(current)))}
                   className={`stepper__button stepper__button--next ${nextClass}`.trim()}
                   tabIndex={completed ? -1 : nextRest.tabIndex}
                   onClick={event => {
+                    if (canAdvance && !canAdvance(current)) {
+                      event.preventDefault();
+                      return;
+                    }
                     onNextClick?.(event);
                     if (!event.defaultPrevented) go(current + 1);
                   }}

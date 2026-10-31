@@ -33,9 +33,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
         {/* Brand (Hidden on mobile) */}
         <div className="hidden sm:flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold shadow-xs">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
+          <img
+            src="/kordena-mark-reversed.svg"
+            alt="Kordena Logo"
+            className="w-10 h-10 rounded-xl shadow-xs object-contain"
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#2E131E]">

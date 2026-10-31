@@ -60,6 +60,12 @@ import {
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
+  parseTargetEventDate,
+  calculateDaysUntilEvent,
+  parseTimeSlotToHours,
+  computeTaskDate,
+} from "@/lib/calendar-utils";
+import {
   IPrepCalendarTask,
   IDayOfRunOfShowItem,
   IBudgetBreakdownItem,
@@ -195,45 +201,6 @@ export function getPriorityMeta(priority?: string) {
         border: "border-[#F7D6DF]",
       };
   }
-}
-
-function parseTimeSlotToHours(baseDate: Date, timeSlotStr: string): { start: Date; end: Date } {
-  const start = new Date(baseDate);
-  const end = new Date(baseDate);
-
-  try {
-    const parts = timeSlotStr.split("-").map((p) => p.trim());
-    if (parts.length >= 1) {
-      const match = parts[0].match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-      if (match) {
-        let hours = parseInt(match[1], 10);
-        const mins = parseInt(match[2], 10);
-        const ampm = match[3]?.toUpperCase();
-        if (ampm === "PM" && hours < 12) hours += 12;
-        if (ampm === "AM" && hours === 12) hours = 0;
-        start.setHours(hours, mins, 0, 0);
-      }
-    }
-    if (parts.length >= 2) {
-      const match = parts[1].match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-      if (match) {
-        let hours = parseInt(match[1], 10);
-        const mins = parseInt(match[2], 10);
-        const ampm = match[3]?.toUpperCase();
-        if (ampm === "PM" && hours < 12) hours += 12;
-        if (ampm === "AM" && hours === 12) hours = 0;
-        end.setHours(hours, mins, 0, 0);
-      } else {
-        end.setTime(start.getTime() + 60 * 60 * 1000);
-      }
-    } else {
-      end.setTime(start.getTime() + 60 * 60 * 1000);
-    }
-  } catch {
-    start.setHours(9, 0, 0, 0);
-    end.setHours(10, 0, 0, 0);
-  }
-  return { start, end };
 }
 
 export function getCategoryMeta(category: string) {
@@ -738,20 +705,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     return () => window.removeEventListener("mousedown", handleClickOutside);
   }, [isEventDropdownOpen]);
 
-  // Compute the parsed event Date
+  // Compute the parsed event Date using centralized calendar utils
   const parsedEventDate = useMemo(() => {
-    const raw = activeEventDate || eventDate;
-    if (!raw) return new Date();
-    const parts = raw.split("-");
-    if (parts.length === 3) {
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const d = new Date(year, month, day, 10, 0, 0);
-      if (!isNaN(d.getTime())) return d;
-    }
-    const fallback = new Date(raw);
-    return isNaN(fallback.getTime()) ? new Date() : fallback;
+    return parseTargetEventDate(activeEventDate || eventDate);
   }, [activeEventDate, eventDate]);
 
   // Controlled date state so Next, Back, and Today buttons work properly
@@ -764,14 +720,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     }
   }, [parsedEventDate.getTime()]);
 
-  // Days until target event countdown
+  // Days until target event countdown using centralized calendar utils
   const daysUntilEvent = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const target = new Date(parsedEventDate);
-    target.setHours(0, 0, 0, 0);
-    const diffTime = target.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return calculateDaysUntilEvent(parsedEventDate);
   }, [parsedEventDate]);
 
   // Calendar Header Navigation Handlers
@@ -894,26 +845,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     if (tasks && tasks.length > 0) {
       tasks.forEach((task, idx) => {
         const days = Number(task.daysBeforeEvent) || 0;
-        let taskDate: Date;
-
-        // Use concrete scheduledDate if provided, otherwise compute from daysBeforeEvent
-        if (task.scheduledDate) {
-          const parts = task.scheduledDate.split("-");
-          if (parts.length === 3) {
-            taskDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-          } else {
-            taskDate = new Date(task.scheduledDate);
-          }
-          if (isNaN(taskDate.getTime())) {
-            // Fallback if scheduledDate is invalid
-            taskDate = new Date(parsedEventDate);
-            taskDate.setDate(taskDate.getDate() - days);
-          }
-        } else {
-          taskDate = new Date(parsedEventDate);
-          taskDate.setDate(taskDate.getDate() - days);
-        }
-        taskDate.setHours(10, 0, 0, 0);
+        const taskDate = computeTaskDate(task, parsedEventDate);
 
         const taskEndDate = new Date(taskDate);
         taskEndDate.setHours(12, 0, 0, 0);
@@ -1085,30 +1017,12 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   // Jump to specific task on calendar
   const handleJumpToTask = (task: IPrepCalendarTask) => {
     const days = Number(task.daysBeforeEvent) || 0;
-    let taskDate: Date;
-
-    // Prefer scheduledDate for precise navigation
-    if (task.scheduledDate) {
-      const parts = task.scheduledDate.split("-");
-      if (parts.length === 3) {
-        taskDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-      } else {
-        taskDate = new Date(task.scheduledDate);
-      }
-      if (isNaN(taskDate.getTime())) {
-        taskDate = new Date(parsedEventDate);
-        taskDate.setDate(taskDate.getDate() - days);
-      }
-    } else {
-      taskDate = new Date(parsedEventDate);
-      taskDate.setDate(taskDate.getDate() - days);
-    }
+    const taskDate = computeTaskDate(task, parsedEventDate);
 
     setCurrentDate(taskDate);
     setCurrentView("month");
 
     // Open detail modal
-    const meta = getActionMeta(task.actionType);
     setSelectedEvent({
       id: task.id,
       title: `[${task.department}] ${task.title}`,
@@ -1131,22 +1045,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       const meta = getActionMeta(task.actionType);
       const priority = getPriorityMeta(task.priority);
       const days = Number(task.daysBeforeEvent) || 0;
-      let taskDate: Date;
-      if (task.scheduledDate) {
-        const parts = task.scheduledDate.split("-");
-        if (parts.length === 3) {
-          taskDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-        } else {
-          taskDate = new Date(task.scheduledDate);
-        }
-        if (isNaN(taskDate.getTime())) {
-          taskDate = new Date(parsedEventDate);
-          taskDate.setDate(taskDate.getDate() - days);
-        }
-      } else {
-        taskDate = new Date(parsedEventDate);
-        taskDate.setDate(taskDate.getDate() - days);
-      }
+      const taskDate = computeTaskDate(task, parsedEventDate);
 
       const isDone = completedTaskIds[task.id || `task-${idx}`];
 
@@ -1278,9 +1177,11 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col items-center justify-center min-h-[580px] animate-in fade-in duration-300">
         <div className="bg-white rounded-[32px] p-8 sm:p-12 border border-[#F7D6DF] shadow-[0_24px_48px_-32px_rgba(212,67,114,0.18)] max-w-md w-full flex flex-col items-center text-center space-y-5">
           {/* Pulsing Icon */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#D44372] to-[#E05A87] flex items-center justify-center text-white shadow-lg shadow-[#D44372]/25 animate-pulse">
-            <CalendarIcon className="w-8 h-8 text-white" />
-          </div>
+          <img
+            src="/kordena-mark-reversed.svg"
+            alt="Kordena Logo"
+            className="w-16 h-16 rounded-2xl shadow-lg shadow-[#D44372]/25 object-contain animate-pulse"
+          />
 
           <div>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30 mb-2">

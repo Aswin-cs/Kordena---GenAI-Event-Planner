@@ -5,34 +5,11 @@ import { signIn, useSession } from "next-auth/react";
 import Stepper, { Step } from "./Stepper";
 import { EventCalendarView } from "./EventCalendarView";
 import { EventHistories } from "./EventHistories";
-import { initialEvents } from "../mockData";
 import { EventPlan } from "../types";
 import { Sparkles, ArrowRight, Plus, IndianRupee, Loader2, AlertCircle, X, Lock } from "lucide-react";
 import { AiEvaluationStepper } from "./AiEvaluationStepper";
 import { AiEvaluationResponse } from "../api/ai-evaluate/route";
-
-function parseDateForInput(dateStr?: string): string {
-  if (!dateStr) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-  const d = new Date(dateStr);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split("T")[0];
-  }
-  return "";
-}
-
-function normalizeEventType(typeStr?: string): string {
-  if (!typeStr) return "Conference";
-  const lower = typeStr.toLowerCase();
-  if (lower.includes("wedding")) return "Wedding";
-  if (lower.includes("summit") || lower.includes("tech") || lower.includes("conference")) return "Conference";
-  if (lower.includes("retreat")) return "Retreat";
-  if (lower.includes("gala") || lower.includes("charity")) return "Gala";
-  if (lower.includes("launch")) return "Product Launch";
-  if (lower.includes("network")) return "Networking";
-  if (lower.includes("exhibition") || lower.includes("trade")) return "Exhibition";
-  return "Conference";
-}
+import { parseDateForInput, normalizeEventType, validateEventParameters } from "@/lib/calendar-utils";
 
 interface LandingPageProps {
   onOpenLogin?: () => void;
@@ -54,6 +31,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
   const [planningItems, setPlanningItems] = useState<string[]>([]);
   const [currentPlanningInput, setCurrentPlanningInput] = useState("");
   const [stepperKey, setStepperKey] = useState(0);
+  const [stepperCurrentStep, setStepperCurrentStep] = useState(1);
+
+  // Tomorrow's date for datepicker min attribute
+  const tomorrowStr = React.useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  }, []);
+
+  // Validation across stepper steps
+  const validation = React.useMemo(() => {
+    return validateEventParameters({
+      eventName,
+      eventType,
+      eventBudget,
+      eventDate,
+      guestCount,
+      planningItems,
+    });
+  }, [eventName, eventType, eventBudget, eventDate, guestCount, planningItems]);
 
   const handleAddPlanningItem = () => {
     const trimmed = currentPlanningInput.trim();
@@ -204,6 +201,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
       return;
     }
 
+    if (!validation.isValid) {
+      setAiEvalError(
+        `Cannot submit: Missing required details (${validation.missingFields.join(", ")}). Please complete them to proceed.`
+      );
+      return;
+    }
+
     setIsAiEvaluating(true);
     setAiEvalError(null);
 
@@ -212,11 +216,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventName: eventName.trim() || "Untitled Event",
+          eventName: eventName.trim(),
           eventType,
-          budget: Number(eventBudget) || 250000,
-          guestCount: Number(guestCount) || 100,
-          eventDate: eventDate || undefined,
+          budget: Number(eventBudget),
+          guestCount: Number(guestCount),
+          eventDate,
+          endDate: eventDate,
           tier: eventTier,
           leadOrganizer: "Planner",
           planningItems,
@@ -251,13 +256,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            eventName: eventName.trim() || "Untitled Event",
+            eventName: eventName.trim(),
             eventType,
             tier: eventTier,
-            budget: Number(eventBudget) || 250000,
-            guestCount: Number(guestCount) || 100,
+            budget: Number(eventBudget),
+            guestCount: Number(guestCount),
             plannedItems: planningItems,
-            endDate: eventDate || new Date().toISOString().split("T")[0],
+            endDate: eventDate,
             selectedPlan,
             evaluationSummary: data.evaluationSummary,
             budgetBreakdown: data.budgetBreakdown,
@@ -398,9 +403,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             {/* Brand (Hidden on mobile) */}
             <div className="hidden sm:flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold shadow-xs">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
+              <img
+                src="/kordena-mark-reversed.svg"
+                alt="Kordena Logo"
+                className="w-9 h-9 rounded-xl shadow-xs object-contain"
+              />
               <div className="flex items-center gap-2">
                 <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#2E131E]">
                   Kordena
@@ -458,9 +465,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Brand (Hidden on mobile) */}
           <div className="hidden sm:flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold shadow-xs">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/kordena-mark-reversed.svg"
+              alt="Kordena Logo"
+              className="w-9 h-9 rounded-xl shadow-xs object-contain"
+            />
             <div className="flex items-center gap-2">
               <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#2E131E]">
                 Kordena
@@ -532,9 +541,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
           {isAiEvaluating && (
             <div className="fixed inset-0 z-50 bg-[#2E131E]/40 backdrop-blur-xs flex items-center justify-center p-4">
               <div className="bg-white rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-2xl border border-[#F7D6DF] flex flex-col items-center text-center space-y-4 animate-in fade-in zoom-in-95">
-                <div className="w-14 h-14 rounded-full bg-[#D44372] flex items-center justify-center text-white shadow-lg shadow-[#D44372]/20">
-                  <Sparkles className="w-7 h-7 text-white animate-pulse" />
-                </div>
+                <img
+                  src="/kordena-mark-reversed.svg"
+                  alt="Kordena Logo"
+                  className="w-14 h-14 rounded-2xl shadow-lg shadow-[#D44372]/20 object-contain animate-pulse"
+                />
                 <div>
                   <h3 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#2E131E]">
                     Kordena AI is Evaluating Your Event
@@ -558,13 +569,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
           <Stepper
             key={stepperKey}
             initialStep={1}
-            onStepChange={(step) => console.log("Landing stepper step:", step)}
+            linear={true}
+            onStepChange={(step) => setStepperCurrentStep(step)}
+            canAdvance={(fromStep) => {
+              if (fromStep === 1) return validation.isStep1Valid;
+              if (fromStep === 2) return validation.isStep2Valid;
+              if (fromStep === 3) return validation.isValid;
+              return true;
+            }}
             onFinalStepCompleted={handleTriggerAiEvaluation}
             backButtonText="Back"
             nextButtonText="Continue"
             orientation="vertical"
             width={640}
             completeButtonText={isAuthenticated ? "Submit to AI Evaluation →" : "Sign In & Evaluate with AI 🔒"}
+            nextButtonProps={{
+              disabled:
+                stepperCurrentStep === 1
+                  ? !validation.isStep1Valid
+                  : stepperCurrentStep === 2
+                  ? !validation.isStep2Valid
+                  : !validation.isValid,
+              title:
+                stepperCurrentStep === 1 && !validation.isStep1Valid
+                  ? "Please complete all required parameters (Name, Budget, Date, Guests) to continue"
+                  : stepperCurrentStep === 2 && !validation.isStep2Valid
+                  ? "Please add at least 1 planning requirement to continue"
+                  : !validation.isValid
+                  ? `Cannot submit: Missing ${validation.missingFields.join(", ")}`
+                  : undefined,
+            }}
             theme="light"
             accentColor="#D44372"
             radius={28}
@@ -634,10 +668,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                           value={eventBudget}
                           onChange={(e) => setEventBudget(e.target.value)}
                           className="w-full pl-8 pr-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
-                          min="0"
+                          min="1"
                           step="5000"
+                          required
                         />
                       </div>
+                      {eventBudget !== "" && Number(eventBudget) <= 0 && (
+                        <p className="text-[11px] text-[#B5473C] mt-1 font-semibold">
+                          Budget must be greater than ₹0
+                        </p>
+                      )}
                     </div>
 
                     {/* 4. Date of the Event */}
@@ -648,9 +688,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                       <input
                         type="date"
                         value={eventDate}
+                        min={tomorrowStr}
                         onChange={(e) => setEventDate(e.target.value)}
                         className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all cursor-pointer shadow-2xs"
+                        required
                       />
+                      {eventDate && validation.errors.eventDate && (
+                        <p className="text-[11px] text-[#B5473C] mt-1 font-semibold">
+                          {validation.errors.eventDate}
+                        </p>
+                      )}
                     </div>
 
                     {/* 5. Estimated Guest Count */}
@@ -800,12 +847,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                       </div>
 
                       {planningItems.length === 0 ? (
-                        <div className="p-4 rounded-2xl border border-dashed border-[#F7D6DF] bg-[#FDF0F4]/30 text-center space-y-1">
+                        <div className="p-4 rounded-2xl border border-dashed border-[#F7D6DF] bg-[#FDF0F4]/30 text-center space-y-1.5">
                           <p className="text-xs font-semibold text-[#2E131E]">
                             No planning points added yet
                           </p>
                           <p className="text-[11px] text-[#8A6775]">
-                            Type in the input box above and press Enter to generate bullet points.
+                            Type in the input box above and press Enter, or choose from quick suggestions.
+                          </p>
+                          <p className="text-[11px] font-semibold text-[#B5473C] bg-[#FFF4F6] border border-[#F7C4D2] px-3 py-1 rounded-full inline-flex items-center gap-1.5 mt-1">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> At least 1 planning point is required to continue.
                           </p>
                         </div>
                       ) : (
@@ -851,10 +901,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                     </p>
                   </div>
 
+                  {!validation.isValid && (
+                    <div className="bg-[#FFF4F6] border border-[#F7C4D2] rounded-2xl p-4 text-xs flex items-start gap-2.5 text-[#B5473C] animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#B5473C]" />
+                      <div className="space-y-1">
+                        <p className="font-bold">Cannot Submit: Missing Required Details</p>
+                        <p className="text-[11.5px] text-[#8A6775] leading-relaxed">
+                          All necessary parameters must be provided before submitting to AI evaluation. Please go back to complete:{" "}
+                          <strong className="text-[#B5473C] font-semibold">{validation.missingFields.join(", ")}</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-[#FDF0F4]/40 p-5 rounded-[24px] border border-[#F7D6DF] space-y-3 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-[#8A6775]">Event Name:</span>
-                      <strong className="text-[#2E131E] font-semibold">{eventName || "Untitled Event"}</strong>
+                      {eventName.trim() && eventName.trim() !== "Untitled Event" ? (
+                        <strong className="text-[#2E131E] font-semibold">{eventName}</strong>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]">
+                          Missing — Required
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#8A6775]">Event Type:</span>
@@ -862,9 +931,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#8A6775]">Estimated Budget:</span>
-                      <strong className="text-[#2E131E] font-[family-name:var(--font-display)] text-sm">
-                        {eventBudget ? `₹${Number(eventBudget).toLocaleString("en-IN")}` : "Not specified"}
-                      </strong>
+                      {eventBudget && Number(eventBudget) > 0 ? (
+                        <strong className="text-[#2E131E] font-[family-name:var(--font-display)] text-sm">
+                          ₹{Number(eventBudget).toLocaleString("en-IN")}
+                        </strong>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]">
+                          Missing — Required (&gt; ₹0)
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#8A6775]">Package Tier:</span>
@@ -874,18 +949,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#8A6775]">Event Date:</span>
-                      <strong className="text-[#2E131E] font-semibold">{eventDate || "Date TBD"}</strong>
+                      {eventDate && !validation.errors.eventDate ? (
+                        <strong className="text-[#2E131E] font-semibold">{eventDate}</strong>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]">
+                          {validation.errors.eventDate || "Date TBD — Future date required"}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#8A6775]">Guest Count:</span>
-                      <strong className="text-[#2E131E] font-semibold">{guestCount || "100"} guests</strong>
+                      {guestCount && Number(guestCount) >= 1 ? (
+                        <strong className="text-[#2E131E] font-semibold">{guestCount} guests</strong>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]">
+                          Missing — At least 1 guest required
+                        </span>
+                      )}
                     </div>
 
                     {/* Planning Points Review */}
                     <div className="pt-2 border-t border-[#F7D6DF]">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[#8A6775]">Planning Points:</span>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          planningItems.length > 0
+                            ? "bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30"
+                            : "bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]"
+                        }`}>
                           {planningItems.length} {planningItems.length === 1 ? "point" : "points"}
                         </span>
                       </div>
@@ -899,8 +990,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-[#8A6775] italic text-[11px]">
-                          No custom planning points specified (AI will infer defaults)
+                        <p className="text-[#B5473C] font-semibold text-[11px] bg-[#FFF4F6] p-2 rounded-xl border border-[#F7C4D2] flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" /> At least 1 planning point required before submission
                         </p>
                       )}
                     </div>

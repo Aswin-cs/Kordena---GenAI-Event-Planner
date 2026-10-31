@@ -14,6 +14,7 @@ import {
   resolveDbUserId,
   findUserStatusBlueprint,
 } from "@/lib/security";
+import { validateEventParameters } from "@/lib/calendar-utils";
 
 function sanitizeEventType(type?: string): EventType {
   if (!type) return "Conference";
@@ -78,14 +79,33 @@ export async function POST(request: Request) {
       userId: explicitUserId,
     } = body;
 
-    // Validate and sanitize event name (max 120 chars)
-    const trimmedEventName = sanitizeString(eventName, 120);
-    if (!trimmedEventName) {
+    // Validate required parameters strictly
+    const validation = validateEventParameters({
+      eventName,
+      eventType,
+      budget: budget ?? eventBudget,
+      eventDate,
+      endDate,
+      guestCount,
+      planningItems: plannedItems ?? requirements,
+      plannedItems: plannedItems ?? requirements,
+    });
+
+    if (!validation.isValid) {
+      const firstError = Object.values(validation.errors).find(Boolean) || "Missing required event details";
       return NextResponse.json(
-        { success: false, message: "Event name is required" },
+        {
+          success: false,
+          error: "VALIDATION_ERROR",
+          message: firstError,
+          missingFields: validation.missingFields,
+          details: validation.errors,
+        },
         { status: 400 }
       );
     }
+
+    const trimmedEventName = sanitizeString(eventName, 120);
 
     // Connect to MongoDB
     await connectToDatabase();

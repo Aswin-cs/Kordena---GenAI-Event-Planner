@@ -7,6 +7,7 @@ import {
   calculateBudgetMetrics,
   calculateCompletionMetrics,
   filterPrepTasks,
+  validateEventParameters,
 } from "../lib/calendar-utils";
 import { IPrepCalendarTask } from "../models/UserStatus.model";
 
@@ -261,6 +262,148 @@ test("Calendar Utils - filterPrepTasks", async (t) => {
       searchQuery: "",
     });
     assert.strictEqual(filtered.length, 3);
+  });
+});
+
+test("Calendar Utils - validateEventParameters", async (t) => {
+  const futureDate = new Date();
+  futureDate.setDate(futureDate.getDate() + 14);
+  const futureDateStr = futureDate.toISOString().split("T")[0];
+
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const pastDate = new Date();
+  pastDate.setDate(pastDate.getDate() - 5);
+  const pastDateStr = pastDate.toISOString().split("T")[0];
+
+  await t.test("rejects missing or empty eventName", () => {
+    const res = validateEventParameters({
+      eventName: "",
+      eventType: "Conference",
+      budget: 50000,
+      eventDate: futureDateStr,
+      guestCount: 100,
+      planningItems: ["Catering"],
+    });
+    assert.strictEqual(res.isValid, false);
+    assert.strictEqual(res.isStep1Valid, false);
+    assert.ok(res.errors.eventName);
+    assert.ok(res.missingFields.includes("Event Name"));
+  });
+
+  await t.test("rejects default 'Untitled Event' as unsubmitted", () => {
+    const res = validateEventParameters({
+      eventName: "Untitled Event",
+      eventType: "Conference",
+      budget: 50000,
+      eventDate: futureDateStr,
+      guestCount: 100,
+      planningItems: ["Catering"],
+    });
+    assert.strictEqual(res.isValid, false);
+    assert.ok(res.errors.eventName);
+  });
+
+  await t.test("rejects missing, 0, or negative budget", () => {
+    const zeroRes = validateEventParameters({
+      eventName: "Annual Gala",
+      eventType: "Gala",
+      budget: 0,
+      eventDate: futureDateStr,
+      guestCount: 100,
+      planningItems: ["Sound"],
+    });
+    assert.strictEqual(zeroRes.isValid, false);
+    assert.ok(zeroRes.errors.budget);
+
+    const emptyRes = validateEventParameters({
+      eventName: "Annual Gala",
+      eventType: "Gala",
+      eventDate: futureDateStr,
+      guestCount: 100,
+      planningItems: ["Sound"],
+    });
+    assert.strictEqual(emptyRes.isValid, false);
+    assert.ok(emptyRes.errors.budget);
+  });
+
+  await t.test("rejects missing, today's, or past event date", () => {
+    const todayRes = validateEventParameters({
+      eventName: "Hackathon",
+      eventType: "Conference",
+      budget: 10000,
+      eventDate: todayStr,
+      guestCount: 50,
+      planningItems: ["Snacks"],
+    });
+    assert.strictEqual(todayRes.isValid, false);
+    assert.ok(todayRes.errors.eventDate?.includes("today"));
+
+    const pastRes = validateEventParameters({
+      eventName: "Hackathon",
+      eventType: "Conference",
+      budget: 10000,
+      eventDate: pastDateStr,
+      guestCount: 50,
+      planningItems: ["Snacks"],
+    });
+    assert.strictEqual(pastRes.isValid, false);
+    assert.ok(pastRes.errors.eventDate?.includes("past"));
+
+    const missingRes = validateEventParameters({
+      eventName: "Hackathon",
+      eventType: "Conference",
+      budget: 10000,
+      eventDate: "",
+      guestCount: 50,
+      planningItems: ["Snacks"],
+    });
+    assert.strictEqual(missingRes.isValid, false);
+    assert.ok(missingRes.errors.eventDate);
+  });
+
+  await t.test("rejects missing or zero guestCount", () => {
+    const res = validateEventParameters({
+      eventName: "Summit",
+      eventType: "Conference",
+      budget: 20000,
+      eventDate: futureDateStr,
+      guestCount: 0,
+      planningItems: ["Stage"],
+    });
+    assert.strictEqual(res.isValid, false);
+    assert.ok(res.errors.guestCount);
+  });
+
+  await t.test("rejects empty planningItems list", () => {
+    const res = validateEventParameters({
+      eventName: "Summit",
+      eventType: "Conference",
+      budget: 20000,
+      eventDate: futureDateStr,
+      guestCount: 50,
+      planningItems: [],
+    });
+    assert.strictEqual(res.isValid, false);
+    assert.strictEqual(res.isStep1Valid, true); // Step 1 details are complete
+    assert.strictEqual(res.isStep2Valid, false); // Step 2 planning points missing
+    assert.ok(res.errors.planningItems);
+  });
+
+  await t.test("accepts fully completed and valid event parameters", () => {
+    const res = validateEventParameters({
+      eventName: "Global Leadership Summit 2026",
+      eventType: "Conference",
+      eventBudget: "150000",
+      eventDate: futureDateStr,
+      guestCount: "250",
+      planningItems: ["Keynote Audio Setup", "Catering & Coffee Station"],
+    });
+    assert.strictEqual(res.isValid, true);
+    assert.strictEqual(res.isStep1Valid, true);
+    assert.strictEqual(res.isStep2Valid, true);
+    assert.strictEqual(res.missingFields.length, 0);
+    assert.strictEqual(Object.keys(res.errors).length, 0);
   });
 });
 

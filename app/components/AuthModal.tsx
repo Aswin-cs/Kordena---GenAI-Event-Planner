@@ -49,9 +49,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Brand Header */}
         <div className="text-center space-y-2 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#D44372] to-[#E05A87] flex items-center justify-center text-white mx-auto shadow-md shadow-[#D44372]/25">
-            <Sparkles className="w-6 h-6" />
-          </div>
+          <img
+            src="/kordena-mark-reversed.svg"
+            alt="Kordena Logo"
+            className="w-12 h-12 rounded-2xl mx-auto shadow-md shadow-[#D44372]/25 object-contain"
+          />
           <h3 className="text-2xl font-bold text-[#2E131E]">
             {initialMode === "signup" ? "Get Started with Kordena" : "Sign in to Kordena"}
           </h3>

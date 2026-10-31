@@ -13,6 +13,7 @@ import {
   geminiDayOfRunOfShowSchema,
   geminiMediatorStarterPromptsSchema,
 } from "@/lib/gemini-schemas";
+import { validateEventParameters } from "@/lib/calendar-utils";
 
 export interface AiEvaluationOption {
   id: string;
@@ -106,22 +107,49 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      eventName = "Untitled Event",
-      eventType = "Conference",
-      guestCount = 100,
-      budget = 250000,
-      eventDate = "",
-      endDate = "",
+      eventName,
+      eventType,
+      guestCount,
+      budget,
+      eventBudget,
+      eventDate,
+      endDate,
       tier = "Starter",
       leadOrganizer = "",
       planningItems = [],
       plannedItems = [],
     } = body;
 
-    const trimmedName = sanitizeString(eventName, 120) || "Untitled Event";
+    // Validate all required event parameters strictly
+    const validation = validateEventParameters({
+      eventName,
+      eventType,
+      budget: budget ?? eventBudget,
+      eventDate,
+      endDate,
+      guestCount,
+      planningItems,
+      plannedItems,
+    });
+
+    if (!validation.isValid) {
+      const firstError = Object.values(validation.errors).find(Boolean) || "Missing required event details";
+      return NextResponse.json(
+        {
+          success: false,
+          error: "VALIDATION_ERROR",
+          message: firstError,
+          missingFields: validation.missingFields,
+          details: validation.errors,
+        },
+        { status: 400 }
+      );
+    }
+
+    const trimmedName = sanitizeString(eventName, 120);
     const resolvedGuestCount = clampNumber(guestCount, 1, 1_000_000, 100);
-    const resolvedBudget = clampNumber(budget, 0, 1_000_000_000, 250000);
-    const resolvedType = sanitizeString(eventType, 50) || "Conference";
+    const resolvedBudget = clampNumber(budget ?? eventBudget, 1, 1_000_000_000, 250000);
+    const resolvedType = sanitizeString(eventType, 50);
     const resolvedTier = sanitizeString(tier, 50) || "Starter";
     const perGuest = Math.round(resolvedBudget / resolvedGuestCount);
 
@@ -131,40 +159,10 @@ export async function POST(request: Request) {
       : Array.isArray(plannedItems)
         ? plannedItems
         : [];
-    const plannedList = rawPlanned.filter(Boolean);
+    const plannedList = rawPlanned.map((item: any) => String(item || "").trim()).filter(Boolean);
 
     const todayDate = new Date().toISOString().split("T")[0];
-    const targetEndDate = endDate || eventDate || "Date TBD";
-
-    // Validate: event date cannot be today (no prep time available)
-    if (targetEndDate !== "Date TBD") {
-      const eventDateNorm = new Date(targetEndDate);
-      const todayNorm = new Date(todayDate);
-      eventDateNorm.setHours(0, 0, 0, 0);
-      todayNorm.setHours(0, 0, 0, 0);
-
-      if (eventDateNorm.getTime() === todayNorm.getTime()) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Event date cannot be today. Please select a future date so we can plan preparation tasks leading up to the event.",
-          },
-          { status: 400 }
-        );
-      }
-
-      if (eventDateNorm.getTime() < todayNorm.getTime()) {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Event date is in the past. Please select a future date.",
-          },
-          { status: 400 }
-        );
-      }
-    }
+    const targetEndDate = String(endDate || eventDate).trim();
 
     // Calculate total prep days available
     const totalPrepDays =

@@ -6,7 +6,9 @@ export const metadata: Metadata = {
   description: "Serene, balanced, and focused intelligent event planning powered by generative AI.",
   keywords: "event planner, AI event planner, GenAI events, wedding planner, conference planning, party planner",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/kordena-mark-reversed.svg",
+    shortcut: "/kordena-mark-reversed.svg",
+    apple: "/kordena-mark-reversed.svg",
   },
 };
 

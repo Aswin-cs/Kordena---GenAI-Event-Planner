@@ -31,6 +31,16 @@ export async function POST(request: Request) {
     const { prompt, eventType, guestCount, budget, apiKey } = body;
 
     const trimmedPrompt = sanitizeString(prompt, 4000);
+    if (!trimmedPrompt) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "VALIDATION_ERROR",
+          message: "Event prompt or description is required.",
+        },
+        { status: 400 }
+      );
+    }
     const resolvedGuestCount = clampNumber(guestCount, 1, 1_000_000, 120);
     const resolvedBudget = clampNumber(budget, 0, 1_000_000_000, 25000);
     const resolvedType = sanitizeString(eventType, 60) || "Custom Event";

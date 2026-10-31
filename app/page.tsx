@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { LandingPage } from "./components/LandingPage";
 import { AuthModal } from "./components/AuthModal";
-import { initialEvents } from "./mockData";
-import {
-  EventPlan,
-} from "./types";
+import { EventPlan } from "./types";
 import {
   Sparkles,
   Loader2,
@@ -15,41 +12,14 @@ import {
   X,
   LogOut,
   Calendar as CalendarIcon,
-  IndianRupee,
-  DollarSign,
-  Tag,
   CheckCircle2,
   Plus,
 } from "lucide-react";
 import Stepper, { Step } from "./components/Stepper";
 import { EventCalendarView } from "./components/EventCalendarView";
 import { EventHistories } from "./components/EventHistories";
-import { AiEvaluationStepper } from "./components/AiEvaluationStepper";
 import { AiEvaluationResponse } from "./api/ai-evaluate/route";
-
-function parseDateForInput(dateStr?: string): string {
-  if (!dateStr) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-  const d = new Date(dateStr);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split("T")[0];
-  }
-  return "";
-}
-
-function normalizeEventType(typeStr?: string): string {
-  if (!typeStr) return "Conference";
-  const lower = typeStr.toLowerCase();
-  if (lower.includes("birthday")) return "Birthday";
-  if (lower.includes("wedding")) return "Wedding";
-  if (lower.includes("summit") || lower.includes("tech") || lower.includes("conference")) return "Conference";
-  if (lower.includes("retreat")) return "Retreat";
-  if (lower.includes("gala") || lower.includes("charity")) return "Gala";
-  if (lower.includes("launch")) return "Product Launch";
-  if (lower.includes("network")) return "Networking";
-  if (lower.includes("exhibition") || lower.includes("trade")) return "Exhibition";
-  return "Conference";
-}
+import { parseDateForInput, normalizeEventType, validateEventParameters } from "@/lib/calendar-utils";
 
 export default function Home() {
   // 1. NextAuth Session Hook
@@ -68,17 +38,35 @@ export default function Home() {
   const [eventBudget, setEventBudget] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [guestCount, setGuestCount] = useState("100");
-  const [selectedPlan, setSelectedPlan] = useState("Professional Suite");
+  const [selectedPlan] = useState("Professional Suite");
   const [eventTier, setEventTier] = useState<"Starter" | "Basic" | "Professional">("Starter");
   const [planningItems, setPlanningItems] = useState<string[]>([]);
   const [currentPlanningInput, setCurrentPlanningInput] = useState("");
   const [isCompleted, setIsCompleted] = useState(false);
   const [stepperKey, setStepperKey] = useState(0);
+  const [stepperCurrentStep, setStepperCurrentStep] = useState(1);
+
+  // Tomorrow's date for datepicker min attribute
+  const tomorrowStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  }, []);
+
+  // Validation across stepper steps
+  const validation = useMemo(() => {
+    return validateEventParameters({
+      eventName,
+      eventType,
+      eventBudget,
+      eventDate,
+      guestCount,
+      planningItems,
+    });
+  }, [eventName, eventType, eventBudget, eventDate, guestCount, planningItems]);
 
   // AI Evaluation Stepper states
   const [isAiEvaluating, setIsAiEvaluating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showAiStepper, setShowAiStepper] = useState(false);
   const [aiEvaluationData, setAiEvaluationData] = useState<AiEvaluationResponse | null>(null);
   const [aiEvalError, setAiEvalError] = useState<string | null>(null);
   const [savedOperations, setSavedOperations] = useState<{
@@ -89,35 +77,34 @@ export default function Home() {
     plannedItems?: string[];
   } | null>(null);
 
-  const handleAddPlanningItem = () => {
+  const handleAddPlanningItem = useCallback(() => {
     const trimmed = currentPlanningInput.trim();
     if (!trimmed) return;
     setPlanningItems((prev) => [...prev, trimmed]);
     setCurrentPlanningInput("");
-  };
+  }, [currentPlanningInput]);
 
-  const handleRemovePlanningItem = (indexToRemove: number) => {
+  const handleRemovePlanningItem = useCallback((indexToRemove: number) => {
     setPlanningItems((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-  };
+  }, []);
 
-  const handleStartNewEvent = () => {
+  const handleStartNewEvent = useCallback(() => {
     setEventName("");
     setEventType("Conference");
     setEventBudget("");
     setEventDate("");
     setGuestCount("100");
-    setSelectedPlan("Professional Suite");
     setEventTier("Starter");
     setPlanningItems([]);
     setCurrentPlanningInput("");
     setIsCompleted(false);
-    setShowAiStepper(false);
     setAiEvaluationData(null);
     setSavedOperations(null);
     setAiEvalError(null);
+    setStepperCurrentStep(1);
     setStepperKey((prev) => prev + 1);
     setViewMode("stepper");
-  };
+  }, []);
 
   // Check URL query parameters for NextAuth status/errors on load
   useEffect(() => {
@@ -141,18 +128,22 @@ export default function Home() {
   const [activeEventId, setActiveEventId] = useState<string>("");
 
   // Active authenticated user from NextAuth session
-  const activeUser = session?.user
-    ? {
-        name: session.user.name || "Event Planner",
-        email: session.user.email || "",
-        image: session.user.image || undefined,
-      }
-    : null;
+  const activeUser = useMemo(() => {
+    if (!session?.user) return null;
+    return {
+      name: session.user.name || "Event Planner",
+      email: session.user.email || "",
+      image: session.user.image || undefined,
+    };
+  }, [session]);
 
   const isAuthenticated = status === "authenticated";
 
   // Active event plan
-  const activeEvent = events.find((e) => e.id === activeEventId) || events[0];
+  const activeEvent = useMemo(
+    () => events.find((e) => e.id === activeEventId) || events[0],
+    [events, activeEventId]
+  );
 
   // Fetch real saved event blueprints from database
   useEffect(() => {
@@ -213,19 +204,15 @@ export default function Home() {
     };
   }, [isAuthenticated]);
 
-
   // 1. Trigger AI Evaluation route after initial stepper review
-  const handleTriggerAiEvaluation = async () => {
-    console.log("Submitting to AI Evaluation route:", {
-      eventName,
-      eventType,
-      budget: eventBudget,
-      guestCount,
-      eventDate,
-      tier: eventTier,
-      leadOrganizer: activeUser?.name || "Planner",
-      planningItems,
-    });
+  const handleTriggerAiEvaluation = useCallback(async () => {
+    if (!validation.isValid) {
+      setAiEvalError(
+        `Cannot submit: Missing required details (${validation.missingFields.join(", ")}). Please complete them to proceed.`
+      );
+      return;
+    }
+
     setIsAiEvaluating(true);
     setAiEvalError(null);
 
@@ -234,11 +221,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventName: eventName.trim() || "Untitled Event",
+          eventName: eventName.trim(),
           eventType,
-          budget: Number(eventBudget) || 250000,
-          guestCount: Number(guestCount) || 100,
-          eventDate: eventDate || undefined,
+          budget: Number(eventBudget),
+          guestCount: Number(guestCount),
+          eventDate,
+          endDate: eventDate,
           tier: eventTier,
           leadOrganizer: activeUser?.name || "Planner",
           planningItems,
@@ -263,17 +251,17 @@ export default function Home() {
 
       // Directly save full event architecture and AI operations to MongoDB via /api/user-status
       try {
-        const saveRes = await fetch("/api/user-status", {
+        await fetch("/api/user-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            eventName: eventName.trim() || "Untitled Event",
+            eventName: eventName.trim(),
             eventType,
             tier: eventTier,
-            budget: Number(eventBudget) || 250000,
-            guestCount: Number(guestCount) || 100,
+            budget: Number(eventBudget),
+            guestCount: Number(guestCount),
             plannedItems: planningItems,
-            endDate: eventDate || new Date().toISOString().split("T")[0],
+            endDate: eventDate,
             selectedPlan,
             evaluationSummary: data.evaluationSummary,
             budgetBreakdown: data.budgetBreakdown,
@@ -283,8 +271,6 @@ export default function Home() {
             aiResponse: data,
           }),
         });
-        const saveResult = await saveRes.json();
-        console.log("Auto-saved UserStatus to database:", saveResult);
       } catch (saveErr) {
         console.warn("Could not auto-save user status:", saveErr);
       }
@@ -317,7 +303,6 @@ export default function Home() {
 
       // Directly go to calendar UI
       setIsCompleted(true);
-      setShowAiStepper(false);
       setViewMode("calendar");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
@@ -328,121 +313,35 @@ export default function Home() {
     } finally {
       setIsAiEvaluating(false);
     }
-  };
+  }, [
+    eventName,
+    eventType,
+    eventBudget,
+    guestCount,
+    eventDate,
+    eventTier,
+    activeUser?.name,
+    planningItems,
+    selectedPlan,
+    activeEvent,
+    validation,
+  ]);
 
-  // 2. Final save after AI evaluation stepper completed
-  const handleFinalSaveWithAi = async (evalSelections: {
-    decorations: string[];
-    arrangements: string[];
-    requirements: string[];
-    aiSummary: string;
-    aiResponse?: any;
-    tier?: "Starter" | "Basic" | "Professional";
-  }) => {
-    const effectiveTier = evalSelections.tier || eventTier;
-    console.log("Saving full event architecture to MongoDB via UserStatus:", {
-      eventName,
-      eventType,
-      tier: effectiveTier,
-      budget: eventBudget,
-      guestCount,
-      eventDate,
-      selectedPlan,
-      ...evalSelections,
-    });
-    setIsSaving(true);
-
-    try {
-      const response = await fetch("/api/user-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventName: eventName.trim() || "Untitled Event",
-          eventType,
-          tier: effectiveTier,
-          budget: Number(eventBudget) || 250000,
-          guestCount: Number(guestCount) || 100,
-          plannedItems: planningItems,
-          endDate: eventDate || new Date().toISOString().split("T")[0],
-          selectedPlan,
-          evaluationSummary: evalSelections.aiResponse?.evaluationSummary,
-          budgetBreakdown: evalSelections.aiResponse?.budgetBreakdown,
-          prepCalendarTasks: evalSelections.aiResponse?.prepCalendarTasks,
-          dayOfRunOfShow: evalSelections.aiResponse?.dayOfRunOfShow,
-          mediatorStarterPrompts: evalSelections.aiResponse?.mediatorStarterPrompts,
-          decorations: evalSelections.decorations,
-          arrangements: evalSelections.arrangements,
-          requirements: evalSelections.requirements,
-          aiSummary: evalSelections.aiSummary,
-          aiResponse: evalSelections.aiResponse,
-        }),
-      });
-
-      const result = await response.json();
-      if (!result.success) {
-        console.warn("Failed to store user status in database:", result.message);
-      } else {
-        console.log("User status successfully saved to MongoDB:", result.userStatus);
-      }
-
-      if (evalSelections.aiResponse) {
-        setSavedOperations({
-          prepCalendarTasks: evalSelections.aiResponse.prepCalendarTasks || [],
-          dayOfRunOfShow: evalSelections.aiResponse.dayOfRunOfShow || [],
-          budgetBreakdown: evalSelections.aiResponse.budgetBreakdown || [],
-          evaluationSummary: evalSelections.aiResponse.evaluationSummary,
-          plannedItems: planningItems,
-        });
-      }
-    } catch (err) {
-      console.error("Network error while storing user status:", err);
-    } finally {
-      setIsSaving(false);
-    }
-
-    if (eventName.trim()) {
-      const newPlan: EventPlan = {
-        id: `event-${Date.now()}`,
-        title: eventName,
-        tagline: evalSelections.aiSummary || `${eventType} architected with Kordena GenAI`,
-        eventType: eventType,
-        date: eventDate || new Date().toISOString().split("T")[0],
-        location: activeEvent?.location || "Main Venue",
-        totalBudget: Number(eventBudget) || 250000,
-        guestCount: Number(guestCount) || 100,
-        aiVibeSummary: evalSelections.aiSummary || activeEvent?.aiVibeSummary || "",
-        paletteDescription: activeEvent?.paletteDescription || "",
-        tasks: activeEvent?.tasks || [],
-        budget: activeEvent?.budget || [],
-        alerts: activeEvent?.alerts || [],
-        vendors: activeEvent?.vendors || [],
-        schedule: activeEvent?.schedule || [],
-        aiSuggestions: activeEvent?.aiSuggestions || [],
-      };
-      setEvents((prev) => [newPlan, ...prev]);
-      setActiveEventId(newPlan.id);
-    }
-
-    setIsCompleted(true);
-    setViewMode("calendar");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleSelectEventFromHistory = (ev: EventPlan) => {
+  const handleSelectEventFromHistory = useCallback((ev: EventPlan) => {
     setActiveEventId(ev.id);
     setEventName(ev.title);
     setEventType(normalizeEventType(ev.eventType));
     setEventBudget(ev.totalBudget ? String(ev.totalBudget) : "");
     setEventDate(parseDateForInput(ev.date));
     setIsCompleted(false);
-    setShowAiStepper(false);
     setAiEvaluationData(null);
     setAiEvalError(null);
+    setStepperCurrentStep(1);
     setStepperKey((prev) => prev + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, []);
 
-  const handleOpenCalendarFromHistory = (ev: EventPlan) => {
+  const handleOpenCalendarFromHistory = useCallback((ev: EventPlan) => {
     setActiveEventId(ev.id);
     setEventName(ev.title);
     setEventType(normalizeEventType(ev.eventType));
@@ -451,9 +350,9 @@ export default function Home() {
     setIsCompleted(true);
     setViewMode("calendar");
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, []);
 
-  const handleDeleteEventFromHistory = async (eventId: string) => {
+  const handleDeleteEventFromHistory = useCallback(async (eventId: string) => {
     setEvents((prev) => prev.filter((ev) => ev.id !== eventId));
     try {
       await fetch(`/api/user-status?id=${encodeURIComponent(eventId)}`, {
@@ -462,22 +361,24 @@ export default function Home() {
     } catch (err) {
       console.warn("Could not delete from backend:", err);
     }
-  };
+  }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     if (session) {
       await signOut({ callbackUrl: "/" });
     }
-  };
+  }, [session]);
 
   // 1. LOADING SCREEN: White canvas with soft rose & light pink pulse during NextAuth session resolution
   if (status === "loading") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white text-[#2E131E] px-4">
         <div className="flex flex-col items-center gap-4 animate-in fade-in duration-300 text-center max-w-sm">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#D44372] to-[#E05A87] flex items-center justify-center text-white shadow-lg shadow-[#D44372]/20 animate-pulse">
-            <Sparkles className="w-7 h-7 text-white" />
-          </div>
+          <img
+            src="/kordena-mark-reversed.svg"
+            alt="Kordena Logo"
+            className="w-14 h-14 rounded-2xl shadow-lg shadow-[#D44372]/20 object-contain animate-pulse"
+          />
           <div className="flex items-center gap-2.5 text-sm font-semibold text-[#2E131E]">
             <Loader2 className="w-4 h-4 animate-spin text-[#D44372]" />
             <span>Verifying NextAuth Session...</span>
@@ -541,9 +442,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Brand (Hidden on mobile) */}
           <div className="hidden sm:flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold shadow-xs">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/kordena-mark-reversed.svg"
+              alt="Kordena Logo"
+              className="w-9 h-9 rounded-xl shadow-xs object-contain"
+            />
             <div>
               <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#2E131E]">
                 Kordena
@@ -709,9 +612,11 @@ export default function Home() {
             {isAiEvaluating && (
               <div className="fixed inset-0 z-50 bg-[#2E131E]/40 backdrop-blur-xs flex items-center justify-center p-4">
                 <div className="bg-white rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-2xl border border-[#F7D6DF] flex flex-col items-center text-center space-y-4 animate-in fade-in zoom-in-95">
-                  <div className="w-14 h-14 rounded-full bg-[#D44372] flex items-center justify-center text-white shadow-lg shadow-[#D44372]/20">
-                    <Sparkles className="w-7 h-7 text-white animate-pulse" />
-                  </div>
+                  <img
+                    src="/kordena-mark-reversed.svg"
+                    alt="Kordena Logo"
+                    className="w-14 h-14 rounded-2xl shadow-lg shadow-[#D44372]/20 object-contain animate-pulse"
+                  />
                   <div>
                     <h3 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#2E131E]">
                       Kordena AI is Evaluating Your Event
@@ -735,13 +640,36 @@ export default function Home() {
             <Stepper
               key={stepperKey}
               initialStep={1}
-              onStepChange={(step) => console.log("Stepper step changed to:", step)}
+              linear={true}
+              onStepChange={(step) => setStepperCurrentStep(step)}
+              canAdvance={(fromStep) => {
+                if (fromStep === 1) return validation.isStep1Valid;
+                if (fromStep === 2) return validation.isStep2Valid;
+                if (fromStep === 3) return validation.isValid;
+                return true;
+              }}
               onFinalStepCompleted={handleTriggerAiEvaluation}
               backButtonText="Back"
               nextButtonText="Continue"
               orientation="vertical"
               width={640}
               completeButtonText="Submit to AI Evaluation →"
+              nextButtonProps={{
+                disabled:
+                  stepperCurrentStep === 1
+                    ? !validation.isStep1Valid
+                    : stepperCurrentStep === 2
+                    ? !validation.isStep2Valid
+                    : !validation.isValid,
+                title:
+                  stepperCurrentStep === 1 && !validation.isStep1Valid
+                    ? "Please complete all required parameters (Name, Budget, Date, Guests) to continue"
+                    : stepperCurrentStep === 2 && !validation.isStep2Valid
+                    ? "Please add at least 1 planning requirement to continue"
+                    : !validation.isValid
+                    ? `Cannot submit: Missing ${validation.missingFields.join(", ")}`
+                    : undefined,
+              }}
               theme="light"
               accentColor="#D44372"
               radius={28}
@@ -811,10 +739,16 @@ export default function Home() {
                             value={eventBudget}
                             onChange={(e) => setEventBudget(e.target.value)}
                             className="w-full pl-8 pr-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
-                            min="0"
+                            min="1"
                             step="5000"
+                            required
                           />
                         </div>
+                        {eventBudget !== "" && Number(eventBudget) <= 0 && (
+                          <p className="text-[11px] text-[#B5473C] mt-1 font-semibold">
+                            Budget must be greater than ₹0
+                          </p>
+                        )}
                       </div>
 
                       {/* 4. Date of the Event */}
@@ -825,9 +759,16 @@ export default function Home() {
                         <input
                           type="date"
                           value={eventDate}
+                          min={tomorrowStr}
                           onChange={(e) => setEventDate(e.target.value)}
                           className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all cursor-pointer shadow-2xs"
+                          required
                         />
+                        {eventDate && validation.errors.eventDate && (
+                          <p className="text-[11px] text-[#B5473C] mt-1 font-semibold">
+                            {validation.errors.eventDate}
+                          </p>
+                        )}
                       </div>
 
                       {/* 5. Estimated Guest Count */}
@@ -977,12 +918,15 @@ export default function Home() {
                         </div>
 
                         {planningItems.length === 0 ? (
-                          <div className="p-4 rounded-2xl border border-dashed border-[#F7D6DF] bg-[#FDF0F4]/30 text-center space-y-1">
+                          <div className="p-4 rounded-2xl border border-dashed border-[#F7D6DF] bg-[#FDF0F4]/30 text-center space-y-1.5">
                             <p className="text-xs font-semibold text-[#2E131E]">
                               No planning points added yet
                             </p>
                             <p className="text-[11px] text-[#8A6775]">
-                              Type in the input box above and press Enter to generate bullet points.
+                              Type in the input box above and press Enter, or choose from quick suggestions.
+                            </p>
+                            <p className="text-[11px] font-semibold text-[#B5473C] bg-[#FFF4F6] border border-[#F7C4D2] px-3 py-1 rounded-full inline-flex items-center gap-1.5 mt-1">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" /> At least 1 planning point is required to continue.
                             </p>
                           </div>
                         ) : (
@@ -1028,10 +972,29 @@ export default function Home() {
                       </p>
                     </div>
 
+                    {!validation.isValid && (
+                      <div className="bg-[#FFF4F6] border border-[#F7C4D2] rounded-2xl p-4 text-xs flex items-start gap-2.5 text-[#B5473C] animate-in fade-in">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#B5473C]" />
+                        <div className="space-y-1">
+                          <p className="font-bold">Cannot Submit: Missing Required Details</p>
+                          <p className="text-[11.5px] text-[#8A6775] leading-relaxed">
+                            All necessary parameters must be provided before submitting to AI evaluation. Please go back to complete:{" "}
+                            <strong className="text-[#B5473C] font-semibold">{validation.missingFields.join(", ")}</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="bg-[#FDF0F4]/40 p-5 rounded-[24px] border border-[#F7D6DF] space-y-3 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-[#8A6775]">Event Name:</span>
-                        <strong className="text-[#2E131E] font-semibold">{eventName || "Untitled Event"}</strong>
+                        {eventName.trim() && eventName.trim() !== "Untitled Event" ? (
+                          <strong className="text-[#2E131E] font-semibold">{eventName}</strong>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]">
+                            Missing — Required
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[#8A6775]">Event Type:</span>
@@ -1039,9 +1002,15 @@ export default function Home() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[#8A6775]">Estimated Budget:</span>
-                        <strong className="text-[#2E131E] font-[family-name:var(--font-display)] text-sm">
-                          {eventBudget ? `₹${Number(eventBudget).toLocaleString("en-IN")}` : "Not specified"}
-                        </strong>
+                        {eventBudget && Number(eventBudget) > 0 ? (
+                          <strong className="text-[#2E131E] font-[family-name:var(--font-display)] text-sm">
+                            ₹{Number(eventBudget).toLocaleString("en-IN")}
+                          </strong>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]">
+                            Missing — Required (&gt; ₹0)
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[#8A6775]">Package Tier:</span>
@@ -1051,18 +1020,34 @@ export default function Home() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[#8A6775]">Event Date:</span>
-                        <strong className="text-[#2E131E] font-semibold">{eventDate || "Date TBD"}</strong>
+                        {eventDate && !validation.errors.eventDate ? (
+                          <strong className="text-[#2E131E] font-semibold">{eventDate}</strong>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]">
+                            {validation.errors.eventDate || "Date TBD — Future date required"}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-[#8A6775]">Guest Count:</span>
-                        <strong className="text-[#2E131E] font-semibold">{guestCount || "100"} guests</strong>
+                        {guestCount && Number(guestCount) >= 1 ? (
+                          <strong className="text-[#2E131E] font-semibold">{guestCount} guests</strong>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]">
+                            Missing — At least 1 guest required
+                          </span>
+                        )}
                       </div>
 
                       {/* Planning Points Review */}
                       <div className="pt-2 border-t border-[#F7D6DF]">
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-[#8A6775]">Planning Points:</span>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            planningItems.length > 0
+                              ? "bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30"
+                              : "bg-[#FCE7EC] text-[#B5473C] border border-[#F7C4D2]"
+                          }`}>
                             {planningItems.length} {planningItems.length === 1 ? "point" : "points"}
                           </span>
                         </div>
@@ -1076,8 +1061,8 @@ export default function Home() {
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-[#8A6775] italic text-[11px]">
-                            No custom planning points specified (AI will infer defaults)
+                          <p className="text-[#B5473C] font-semibold text-[11px] bg-[#FFF4F6] p-2 rounded-xl border border-[#F7C4D2] flex items-center gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" /> At least 1 planning point required before submission
                           </p>
                         )}
                       </div>

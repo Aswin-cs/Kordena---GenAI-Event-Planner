@@ -203,3 +203,66 @@ test("AI Route Authorization Lock Guard (Backend Security)", async (t) => {
     assert.equal(data.code, "UNAUTHORIZED");
   });
 });
+
+test("Backend API Route Strict Parameter Validation", async (t) => {
+  const { POST: postUserStatus } = await import("../app/api/user-status/route");
+
+  await t.test("POST /api/user-status rejects missing event parameters with 400", async () => {
+    // Missing eventName
+    const missingNameReq = new Request("http://localhost:3000/api/user-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventName: "",
+        eventType: "Conference",
+        budget: 50000,
+        eventDate: "2027-01-01",
+        guestCount: 100,
+        plannedItems: ["Audio"],
+      }),
+    });
+    const nameRes = await postUserStatus(missingNameReq);
+    assert.equal(nameRes.status, 400);
+    const nameBody = await nameRes.json();
+    assert.equal(nameBody.success, false);
+    assert.equal(nameBody.error, "VALIDATION_ERROR");
+
+    // Missing/0 budget
+    const zeroBudgetReq = new Request("http://localhost:3000/api/user-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventName: "Annual Summit",
+        eventType: "Conference",
+        budget: 0,
+        eventDate: "2027-01-01",
+        guestCount: 100,
+        plannedItems: ["Audio"],
+      }),
+    });
+    const budgetRes = await postUserStatus(zeroBudgetReq);
+    assert.equal(budgetRes.status, 400);
+    const budgetBody = await budgetRes.json();
+    assert.equal(budgetBody.success, false);
+    assert.equal(budgetBody.error, "VALIDATION_ERROR");
+
+    // Missing plannedItems
+    const emptyPlanningReq = new Request("http://localhost:3000/api/user-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventName: "Annual Summit",
+        eventType: "Conference",
+        budget: 50000,
+        eventDate: "2027-01-01",
+        guestCount: 100,
+        plannedItems: [],
+      }),
+    });
+    const planRes = await postUserStatus(emptyPlanningReq);
+    assert.equal(planRes.status, 400);
+    const planBody = await planRes.json();
+    assert.equal(planBody.success, false);
+    assert.equal(planBody.error, "VALIDATION_ERROR");
+  });
+});

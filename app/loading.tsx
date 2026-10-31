@@ -5,9 +5,11 @@ export default function Loading() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white text-[#2E131E] px-4">
       <div className="flex flex-col items-center gap-4 animate-in fade-in duration-300 text-center max-w-sm">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#D44372] to-[#E05A87] flex items-center justify-center text-white shadow-lg shadow-[#D44372]/20 animate-pulse">
-          <Sparkles className="w-7 h-7 text-white" />
-        </div>
+        <img
+          src="/kordena-mark-reversed.svg"
+          alt="Kordena Logo"
+          className="w-14 h-14 rounded-2xl shadow-lg shadow-[#D44372]/20 object-contain animate-pulse"
+        />
         <div className="flex items-center gap-2.5 text-sm font-semibold text-[#2E131E]">
           <Loader2 className="w-4 h-4 animate-spin text-[#D44372]" />
           <span>Loading Kordena Event Studio...</span>

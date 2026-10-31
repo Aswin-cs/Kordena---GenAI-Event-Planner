@@ -24,6 +24,8 @@ const testFiles = [
   "./tests/security.test.ts",
   "./tests/a11y.test.ts",
   "./tests/user-status-model.test.ts",
+  "./tests/api-functional-validation.test.ts",
+  "./tests/stepper-component-validation.test.ts",
 ];
 
 console.log("=================================================");

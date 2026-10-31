@@ -8,6 +8,9 @@ import {
   calculateCompletionMetrics,
   filterPrepTasks,
   validateEventParameters,
+  parseDateForInput,
+  normalizeEventType,
+  computeTaskDate,
 } from "../lib/calendar-utils";
 import { IPrepCalendarTask } from "../models/UserStatus.model";
 
@@ -404,6 +407,71 @@ test("Calendar Utils - validateEventParameters", async (t) => {
     assert.strictEqual(res.isStep2Valid, true);
     assert.strictEqual(res.missingFields.length, 0);
     assert.strictEqual(Object.keys(res.errors).length, 0);
+  });
+});
+
+test("Calendar Utils - parseDateForInput", async (t) => {
+  await t.test("returns valid YYYY-MM-DD string unchanged", () => {
+    assert.strictEqual(parseDateForInput("2026-12-25"), "2026-12-25");
+    assert.strictEqual(parseDateForInput("2027-01-01"), "2027-01-01");
+  });
+
+  await t.test("extracts YYYY-MM-DD from full ISO timestamp", () => {
+    assert.strictEqual(parseDateForInput("2026-11-15T14:30:00.000Z"), "2026-11-15");
+  });
+
+  await t.test("returns empty string for missing or invalid dates", () => {
+    assert.strictEqual(parseDateForInput(), "");
+    assert.strictEqual(parseDateForInput(""), "");
+    assert.strictEqual(parseDateForInput("invalid-date-format"), "");
+  });
+});
+
+test("Calendar Utils - normalizeEventType", async (t) => {
+  await t.test("maps keywords to canonical event types", () => {
+    assert.strictEqual(normalizeEventType("Sarah's 30th Birthday"), "Birthday");
+    assert.strictEqual(normalizeEventType("Grand Luxury Wedding"), "Wedding");
+    assert.strictEqual(normalizeEventType("Global AI Summit 2026"), "Conference");
+    assert.strictEqual(normalizeEventType("Executive Leadership Retreat"), "Retreat");
+    assert.strictEqual(normalizeEventType("Annual Charity Gala"), "Gala");
+    assert.strictEqual(normalizeEventType("Smart Product Launch"), "Product Launch");
+    assert.strictEqual(normalizeEventType("Speed Networking Event"), "Networking");
+    assert.strictEqual(normalizeEventType("Modern Art Exhibition"), "Exhibition");
+  });
+
+  await t.test("defaults to Conference when input is empty or unknown", () => {
+    assert.strictEqual(normalizeEventType(), "Conference");
+    assert.strictEqual(normalizeEventType(""), "Conference");
+    assert.strictEqual(normalizeEventType("something completely random"), "Conference");
+  });
+});
+
+test("Calendar Utils - computeTaskDate", async (t) => {
+  const baseEventDate = new Date(2026, 11, 25, 0, 0, 0); // Dec 25, 2026
+
+  await t.test("uses concrete scheduledDate when valid YYYY-MM-DD is provided", () => {
+    const task = { scheduledDate: "2026-12-20", daysBeforeEvent: 5 };
+    const result = computeTaskDate(task, baseEventDate);
+    assert.strictEqual(result.getFullYear(), 2026);
+    assert.strictEqual(result.getMonth(), 11);
+    assert.strictEqual(result.getDate(), 20);
+    assert.strictEqual(result.getHours(), 10);
+  });
+
+  await t.test("falls back to daysBeforeEvent offset when scheduledDate is missing", () => {
+    const task = { daysBeforeEvent: 10 };
+    const result = computeTaskDate(task, baseEventDate);
+    assert.strictEqual(result.getFullYear(), 2026);
+    assert.strictEqual(result.getMonth(), 11);
+    assert.strictEqual(result.getDate(), 15); // Dec 25 - 10 days = Dec 15
+    assert.strictEqual(result.getHours(), 10);
+  });
+
+  await t.test("defaults to base event date when daysBeforeEvent is 0 or absent", () => {
+    const task = {};
+    const result = computeTaskDate(task, baseEventDate);
+    assert.strictEqual(result.getDate(), 25);
+    assert.strictEqual(result.getHours(), 10);
   });
 });
 

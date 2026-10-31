@@ -22,7 +22,6 @@ async function handleTaskToggle(request: Request) {
   if (!rateLimit.allowed) return rateLimit.response!;
 
   try {
-    await connectToDatabase();
     const body = await request.json();
     const { taskId, isCompleted, userStatusId, eventName } = body;
 
@@ -33,6 +32,8 @@ async function handleTaskToggle(request: Request) {
         { status: 400 }
       );
     }
+
+    await connectToDatabase();
 
     const session = await getServerSession(authOptions);
     const userId = await resolveDbUserId(session?.user?.email);

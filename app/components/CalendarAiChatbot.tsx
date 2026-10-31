@@ -15,6 +15,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Lock,
+  MessageSquare,
 } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
 import {
@@ -145,6 +146,31 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Close chatbot when clicking anywhere outside the chat window
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (chatContainerRef.current?.contains(target)) return;
+      if (target.closest(".kchat-fab")) return;
+      onClose();
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleOutsideClick);
+      document.addEventListener("touchstart", handleOutsideClick);
+    }, 50);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [isOpen, onClose]);
 
   // Global hotkey: Ctrl+J or Cmd+J to toggle copilot anywhere
   useEffect(() => {
@@ -363,32 +389,36 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
 
   return (
     <>
-      {/* Floating trigger */}
-      {!isOpen && (
-        <button type="button" onClick={onToggle} className="kchat-fab" aria-label="Open AI Calendar Copilot">
-          {isAuthenticated ? <Sparkles className="w-4 h-4 kchat-gold" /> : <Lock className="w-4 h-4 kchat-gold" />}
-          <span>Copilot</span>
-          {!isAuthenticated ? (
-            <span className="kchat-badge">Locked</span>
-          ) : (
-            urgentCount > 0 && (
-              <span className="kchat-badge kchat-badge--alert">
-                <Flame className="w-3 h-3" />
-                {urgentCount} urgent
-              </span>
-            )
-          )}
-          <kbd className="kchat-kbd">Ctrl J</kbd>
-        </button>
-      )}
+      {/* Floating round trigger button with chat icon */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`kchat-fab ${isOpen ? "kchat-fab--hidden" : ""}`}
+        aria-label="Open AI Calendar Copilot"
+        title={isAuthenticated ? "Open AI Calendar Copilot (Ctrl+J)" : "AI Calendar Copilot (Sign In Required)"}
+        tabIndex={isOpen ? -1 : 0}
+        aria-hidden={isOpen}
+      >
+        {isAuthenticated ? (
+          <MessageSquare className="w-5 h-5 text-white" />
+        ) : (
+          <div className="relative flex items-center justify-center">
+            <MessageSquare className="w-5 h-5 text-white" />
+            <Lock className="w-2.5 h-2.5 text-amber-300 absolute -bottom-1 -right-1" />
+          </div>
+        )}
+        
+      </button>
 
-      {/* Copilot window */}
-      {isOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Kordena AI Copilot"
-          className={`kchat ${isExpanded ? "kchat--wide" : ""}`}
+      {/* Copilot window with opening and closing animation */}
+      <div
+        ref={chatContainerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Kordena AI Copilot"
+        aria-hidden={!isOpen}
+        tabIndex={isOpen ? 0 : -1}
+        className={`kchat ${isOpen ? "kchat--open" : ""} ${isExpanded ? "kchat--wide" : ""}`}
         >
           {/* Header */}
           <header className="kchat-head">
@@ -416,8 +446,18 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
               <button type="button" onClick={handleResetChat} className="kchat-ghost" title="Start over" aria-label="Restart conversation">
                 <RotateCcw className="w-4 h-4" />
               </button>
-              <button type="button" onClick={onClose} className="kchat-ghost" title="Close (Esc)" aria-label="Close chat">
-                <X className="w-4 h-4" />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="kchat-ghost kchat-ghost--close"
+                title="Close (Esc)"
+                aria-label="Close chat"
+              >
+                <X className="w-4 h-4 pointer-events-none" />
               </button>
             </div>
           </header>
@@ -545,6 +585,7 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   disabled={loading}
+                  className="outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none border-0"
                 />
                 <button
                   type="submit"
@@ -623,7 +664,6 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
             )}
           </div>
         </div>
-      )}
     </>
   );
 };

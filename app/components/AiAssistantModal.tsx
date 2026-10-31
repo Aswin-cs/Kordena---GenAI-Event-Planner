@@ -259,7 +259,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask anything about this event, timeline, drinks, speeches..."
               aria-label="Ask Kordena Copilot anything about this event"
-              className="flex-1 px-4 py-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs sm:text-sm text-[#2D3748] focus:bg-[#FFFFFF] focus:border-[#10B981] transition-all"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-[#F4F7F5] border border-[#E2ECE5] text-xs sm:text-sm text-[#2D3748] focus:bg-[#FFFFFF] focus:border-[#D44372] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 transition-all"
             />
             <button
               type="submit"

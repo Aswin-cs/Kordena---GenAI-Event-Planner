@@ -392,20 +392,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
 
   if (showCalendar) {
     return (
-      <div className="min-h-screen bg-[#FCFDFC] flex flex-col text-[#24352F]">
+      <div className="min-h-screen bg-white flex flex-col text-[#2E131E]">
         {/* Top bar with quick sign-in banner */}
-        <header className="sticky top-0 z-40 w-full bg-[#FCFDFC]/90 backdrop-blur-md border-b border-[#E7EDE9] shadow-xs">
+        <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-[#F7D6DF] shadow-xs">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-[#0E2A24] text-[#F3E7C9] flex items-center justify-center font-bold shadow-xs">
-                <Sparkles className="w-4 h-4 text-[#F3E7C9]" />
+              <div className="w-9 h-9 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold shadow-xs">
+                <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#0E2A24]">
+                <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#2E131E]">
                   Kordena
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/40">
-                  Event Studio
                 </span>
               </div>
             </div>
@@ -414,26 +411,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
               <button
                 type="button"
                 onClick={() => setShowCalendar(false)}
-                className="text-xs font-semibold text-[#7B8C86] hover:text-[#0E2A24] px-3.5 py-2 rounded-full cursor-pointer transition-colors"
+                className="text-xs font-semibold text-[#8A6775] hover:text-[#2E131E] px-3.5 py-2 rounded-full cursor-pointer transition-colors"
               >
                 ← Back to Stepper
               </button>
               <button
                 type="button"
-                onClick={handleStartNewEvent}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#F5EFE2] hover:bg-[#ede3cf] text-[#7D6230] border border-[#B08D4F] shadow-2xs transition-all cursor-pointer group"
-                title="Create New Event"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
-                <span>New Event</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => signIn("google", { callbackUrl: "/" })}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-[#0E2A24] hover:bg-[#163D34] text-[#F3E7C9] shadow-xs transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-[#D44372] hover:bg-[#BE335E] text-white shadow-xs transition-all cursor-pointer"
               >
                 <span>Save with Google</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#F3E7C9]" />
+                <ArrowRight className="w-3.5 h-3.5 text-white" />
               </button>
             </div>
           </div>
@@ -463,20 +451,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FCFDFC] text-[#24352F]">
+    <div className="min-h-screen flex flex-col bg-white text-[#2E131E]">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 w-full bg-[#FCFDFC]/90 backdrop-blur-md border-b border-[#E7EDE9] shadow-xs">
+      <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-[#F7D6DF] shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#0E2A24] text-[#F3E7C9] flex items-center justify-center font-bold shadow-xs">
-              <Sparkles className="w-4 h-4 text-[#F3E7C9]" />
+            <div className="w-9 h-9 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold shadow-xs">
+              <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#0E2A24]">
+              <span className="font-[family-name:var(--font-display)] text-xl font-medium tracking-tight text-[#2E131E]">
                 Kordena
-              </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/40">
-                Event Studio
               </span>
             </div>
           </div>
@@ -484,17 +469,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={handleStartNewEvent}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#F5EFE2] hover:bg-[#ede3cf] text-[#7D6230] border border-[#B08D4F] shadow-2xs transition-all cursor-pointer group"
-              title="Create New Event"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
-              <span>New Event</span>
-            </button>
-            <button
-              type="button"
               onClick={() => signIn("google", { callbackUrl: "/" })}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-[#0E2A24] hover:bg-[#163D34] text-[#F3E7C9] shadow-xs transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-[#D44372] hover:bg-[#BE335E] text-white shadow-xs transition-all cursor-pointer"
             >
               <span>Sign In</span>
             </button>
@@ -506,14 +482,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
         <div className="w-full max-w-4xl flex flex-col items-center">
           {/* Title */}
           <div className="text-center mb-6 space-y-1.5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/40 mb-1">
-              <Sparkles className="w-3.5 h-3.5 text-[#B08D4F]" />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/40 mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-[#D44372]" />
               <span>Kordena Event Studio</span>
             </span>
-            <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl font-medium text-[#0E2A24] tracking-tight">
+            <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl font-medium text-[#2E131E] tracking-tight">
               Configure Your Event Blueprint
             </h1>
-            <p className="text-xs sm:text-sm text-[#7B8C86]">
+            <p className="text-xs sm:text-sm text-[#8A6775]">
               Input your event parameters to mark your event date on the Calendar.
             </p>
           </div>
@@ -525,7 +501,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                 <AlertCircle className="w-4 h-4 text-[#B5473C] shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">AI Evaluation Notice:</span>
-                  <p className="mt-0.5 text-[#24352F]">{aiEvalError}</p>
+                  <p className="mt-0.5 text-[#2E131E]">{aiEvalError}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
@@ -533,7 +509,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                   <button
                     type="button"
                     onClick={() => signIn("google", { callbackUrl: "/" })}
-                    className="px-3.5 py-1.5 rounded-full bg-[#0E2A24] text-[#F3E7C9] font-bold hover:bg-[#163D34] cursor-pointer text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+                    className="px-3.5 py-1.5 rounded-full bg-[#D44372] text-white font-bold hover:bg-[#BE335E] cursor-pointer text-xs flex items-center gap-1.5 shadow-xs transition-colors"
                   >
                     <Lock className="w-3.5 h-3.5" />
                     <span>Sign In with Google</span>
@@ -552,24 +528,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
 
           {/* AI Evaluation Loading Overlay Modal */}
           {isAiEvaluating && (
-            <div className="fixed inset-0 z-50 bg-[#0E2A24]/40 backdrop-blur-xs flex items-center justify-center p-4">
-              <div className="bg-[#FCFDFC] rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-2xl border border-[#E7EDE9] flex flex-col items-center text-center space-y-4 animate-in fade-in zoom-in-95">
-                <div className="w-14 h-14 rounded-full bg-[#0E2A24] flex items-center justify-center text-[#F3E7C9] shadow-lg shadow-[#0E2A24]/20">
-                  <Sparkles className="w-7 h-7 text-[#F3E7C9] animate-pulse" />
+            <div className="fixed inset-0 z-50 bg-[#2E131E]/40 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-2xl border border-[#F7D6DF] flex flex-col items-center text-center space-y-4 animate-in fade-in zoom-in-95">
+                <div className="w-14 h-14 rounded-full bg-[#D44372] flex items-center justify-center text-white shadow-lg shadow-[#D44372]/20">
+                  <Sparkles className="w-7 h-7 text-white animate-pulse" />
                 </div>
                 <div>
-                  <h3 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#0E2A24]">
+                  <h3 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#2E131E]">
                     Kordena AI is Evaluating Your Event
                   </h3>
-                  <p className="text-xs sm:text-sm text-[#7B8C86] mt-1.5 leading-relaxed">
-                    Analyzing parameters for <strong className="text-[#0E2A24]">{eventName || "your event"}</strong> ({eventType}, {guestCount} guests, ₹{Number(eventBudget || 250000).toLocaleString("en-IN")})...
+                  <p className="text-xs sm:text-sm text-[#8A6775] mt-1.5 leading-relaxed">
+                    Analyzing parameters for <strong className="text-[#2E131E]">{eventName || "your event"}</strong> ({eventType}, {guestCount} guests, ₹{Number(eventBudget || 250000).toLocaleString("en-IN")})...
                   </p>
                 </div>
-                <div className="w-full bg-[#E7EDE9] h-2 rounded-full overflow-hidden border border-[#E7EDE9]">
-                  <div className="h-full bg-gradient-to-r from-[#0E2A24] to-[#B08D4F] rounded-full animate-pulse w-3/4" />
+                <div className="w-full bg-[#F7D6DF] h-2 rounded-full overflow-hidden border border-[#F7D6DF]">
+                  <div className="h-full bg-gradient-to-r from-[#D44372] to-[#E05A87] rounded-full animate-pulse w-3/4" />
                 </div>
-                <p className="text-[11px] text-[#0E2A24] font-semibold flex items-center gap-1.5">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B08D4F]" />
+                <p className="text-[11px] text-[#2E131E] font-semibold flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D44372]" />
                   Synthesizing production schedule, countdown milestones & budget breakdown...
                 </p>
               </div>
@@ -588,18 +564,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
             width={640}
             completeButtonText={isAuthenticated ? "Submit to AI Evaluation →" : "Sign In & Evaluate with AI 🔒"}
             theme="light"
-            accentColor="#0E2A24"
+            accentColor="#D44372"
             radius={28}
-            className="border border-[#E7EDE9] shadow-[0_24px_48px_-32px_rgba(14,42,36,0.18)] bg-[#FCFDFC] rounded-[28px] p-2 sm:p-4"
+            className="border border-[#F7D6DF] shadow-[0_24px_48px_-32px_rgba(212,67,114,0.18)] bg-white rounded-[28px] p-2 sm:p-4"
           >
               {/* Step 1: Event Details Input (Event Name, Event Type, Budget, Date, Guests) */}
               <Step title="Event Info">
                 <div className="space-y-4 py-1">
                   <div>
-                    <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#0E2A24]">
+                    <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#2E131E]">
                       Event Parameters
                     </h3>
-                    <p className="text-xs sm:text-sm text-[#7B8C86]">
+                    <p className="text-xs sm:text-sm text-[#8A6775]">
                       Enter the name, type, budget, and date for your event.
                     </p>
                   </div>
@@ -607,7 +583,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                   <div className="space-y-3.5 pt-1">
                     {/* 1. Event Name */}
                     <div>
-                      <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                      <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
                         Event Name <span className="text-[#B5473C]">*</span>
                       </label>
                       <input
@@ -615,20 +591,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                         placeholder="e.g. Annual Global Tech Summit 2026"
                         value={eventName}
                         onChange={(e) => setEventName(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] placeholder:text-[#7B8C86]/60 focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all shadow-2xs"
+                        className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
                         required
                       />
                     </div>
 
                     {/* 2. Event Type */}
                     <div>
-                      <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                      <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
                         Event Type <span className="text-[#B5473C]">*</span>
                       </label>
                       <select
                         value={eventType}
                         onChange={(e) => setEventType(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all cursor-pointer shadow-2xs"
+                        className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all cursor-pointer shadow-2xs"
                       >
                         <option value="Conference">Conference / Summit</option>
                         <option value="Wedding">Wedding & Reception</option>
@@ -643,11 +619,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
 
                     {/* 3. Budget */}
                     <div>
-                      <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                      <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
                         Estimated Budget (₹) <span className="text-[#B5473C]">*</span>
                       </label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7B8C86] text-xs font-bold">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8A6775] text-xs font-bold">
                           ₹
                         </span>
                         <input
@@ -655,7 +631,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                           placeholder="e.g. 500000"
                           value={eventBudget}
                           onChange={(e) => setEventBudget(e.target.value)}
-                          className="w-full pl-8 pr-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] placeholder:text-[#7B8C86]/60 focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all shadow-2xs"
+                          className="w-full pl-8 pr-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
                           min="0"
                           step="5000"
                         />
@@ -664,20 +640,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
 
                     {/* 4. Date of the Event */}
                     <div>
-                      <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                      <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
                         Date of the Event <span className="text-[#B5473C]">*</span>
                       </label>
                       <input
                         type="date"
                         value={eventDate}
                         onChange={(e) => setEventDate(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all cursor-pointer shadow-2xs"
+                        className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all cursor-pointer shadow-2xs"
                       />
                     </div>
 
                     {/* 5. Estimated Guest Count */}
                     <div>
-                      <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
+                      <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
                         Estimated Guest Count <span className="text-[#B5473C]">*</span>
                       </label>
                       <input
@@ -685,7 +661,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                         placeholder="e.g. 150"
                         value={guestCount}
                         onChange={(e) => setGuestCount(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] placeholder:text-[#7B8C86]/60 focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all shadow-2xs"
+                        className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
                         min="1"
                         step="10"
                       />
@@ -693,8 +669,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
 
                     {/* 6. Package Tier */}
                     <div>
-                      <label className="block text-xs font-bold text-[#0E2A24] mb-1.5">
-                        Package Tier <span className="text-[#B08D4F] font-normal">(Starter, Basic, Professional)</span>
+                      <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
+                        Package Tier <span className="text-[#D44372] font-normal">(Starter, Basic, Professional)</span>
                       </label>
                       <div className="grid grid-cols-3 gap-2">
                         {(["Starter", "Basic", "Professional"] as const).map((t) => (
@@ -704,8 +680,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                             onClick={() => setEventTier(t)}
                             className={`py-2 px-3 rounded-full text-xs font-bold border transition-all text-center cursor-pointer ${
                               eventTier === t
-                                ? "border-[#0E2A24] bg-[#0E2A24] text-[#F3E7C9] shadow-xs"
-                                : "border-[#E7EDE9] bg-white text-[#7B8C86] hover:bg-[#F5EFE2] hover:text-[#0E2A24]"
+                                ? "border-[#D44372] bg-[#D44372] text-white shadow-xs"
+                                : "border-[#F7D6DF] bg-white text-[#8A6775] hover:bg-[#FDF0F4] hover:text-[#2E131E]"
                             }`}
                           >
                             {t}
@@ -721,10 +697,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
               <Step title="Planning">
                 <div className="space-y-4 py-1">
                   <div>
-                    <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#0E2A24]">
+                    <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#2E131E]">
                       Planning Requirements
                     </h3>
-                    <p className="text-xs sm:text-sm text-[#7B8C86]">
+                    <p className="text-xs sm:text-sm text-[#8A6775]">
                       Specify the essential items, services, or sub-arrangements needed for your event.
                     </p>
                   </div>
@@ -733,10 +709,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                     {/* Input Box */}
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-bold text-[#0E2A24]">
+                        <label className="block text-xs font-bold text-[#2E131E]">
                           What are things that be need for these <span className="text-[#B5473C]">*</span>
                         </label>
-                        <span className="text-[10.5px] text-[#7D6230] font-bold bg-[#F5EFE2] px-2.5 py-0.5 rounded-full border border-[#B08D4F]/30">
+                        <span className="text-[10.5px] text-[#9F224E] font-bold bg-[#FDF0F4] px-2.5 py-0.5 rounded-full border border-[#D44372]/30">
                           Press Enter ↵ to add
                         </span>
                       </div>
@@ -753,26 +729,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                               handleAddPlanningItem();
                             }
                           }}
-                          className="w-full pl-4 pr-24 py-2.5 rounded-full border border-[#E7EDE9] bg-white text-xs sm:text-sm text-[#0E2A24] placeholder:text-[#7B8C86]/60 focus:outline-none focus:border-[#B08D4F] focus:ring-1 focus:ring-[#B08D4F] transition-all shadow-2xs"
+                          className="w-full pl-4 pr-24 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
                         />
                         <button
                           type="button"
                           onClick={handleAddPlanningItem}
                           disabled={!currentPlanningInput.trim()}
-                          className="absolute right-1.5 px-3.5 py-1.5 rounded-full bg-[#0E2A24] hover:bg-[#163D34] disabled:bg-[#E7EDE9] disabled:text-[#7B8C86] text-[#F3E7C9] text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs flex items-center gap-1"
+                          className="absolute right-1.5 px-3.5 py-1.5 rounded-full bg-[#D44372] hover:bg-[#BE335E] disabled:bg-[#F7D6DF] disabled:text-[#8A6775] text-white text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs flex items-center gap-1"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>Add</span>
                         </button>
                       </div>
-                      <p className="text-[11px] text-[#7B8C86] mt-1.5">
+                      <p className="text-[11px] text-[#8A6775] mt-1.5">
                         Type any word or phrase, then press <strong>Enter</strong> to create sub-part bullet points below.
                       </p>
                     </div>
 
                     {/* Suggested Quick Add Chips */}
                     <div>
-                      <span className="text-[11px] font-bold text-[#0E2A24] block mb-1.5">
+                      <span className="text-[11px] font-bold text-[#2E131E] block mb-1.5">
                         Quick suggestions:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
@@ -792,9 +768,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                                 setPlanningItems((prev) => [...prev, suggestion]);
                               }
                             }}
-                            className="text-[11px] px-3 py-1.5 rounded-full bg-white border border-[#E7EDE9] text-[#24352F] hover:border-[#B08D4F] hover:text-[#0E2A24] hover:bg-[#F5EFE2] transition-all cursor-pointer font-medium flex items-center gap-1.5 shadow-2xs"
+                            className="text-[11px] px-3 py-1.5 rounded-full bg-white border border-[#F7D6DF] text-[#2E131E] hover:border-[#D44372] hover:text-[#2E131E] hover:bg-[#FDF0F4] transition-all cursor-pointer font-medium flex items-center gap-1.5 shadow-2xs"
                           >
-                            <Plus className="w-3 h-3 text-[#B08D4F]" />
+                            <Plus className="w-3 h-3 text-[#D44372]" />
                             <span>{suggestion}</span>
                           </button>
                         ))}
@@ -804,9 +780,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                     {/* Bullet Points / Sub parts display */}
                     <div className="pt-2">
                       <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-bold text-[#0E2A24] flex items-center gap-2">
+                        <label className="text-xs font-bold text-[#2E131E] flex items-center gap-2">
                           <span>Planning Points</span>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/30">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30">
                             {planningItems.length} {planningItems.length === 1 ? "item" : "items"}
                           </span>
                         </label>
@@ -822,11 +798,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                       </div>
 
                       {planningItems.length === 0 ? (
-                        <div className="p-4 rounded-2xl border border-dashed border-[#E7EDE9] bg-[#F5EFE2]/30 text-center space-y-1">
-                          <p className="text-xs font-semibold text-[#0E2A24]">
+                        <div className="p-4 rounded-2xl border border-dashed border-[#F7D6DF] bg-[#FDF0F4]/30 text-center space-y-1">
+                          <p className="text-xs font-semibold text-[#2E131E]">
                             No planning points added yet
                           </p>
-                          <p className="text-[11px] text-[#7B8C86]">
+                          <p className="text-[11px] text-[#8A6775]">
                             Type in the input box above and press Enter to generate bullet points.
                           </p>
                         </div>
@@ -835,19 +811,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
                           {planningItems.map((item, index) => (
                             <li
                               key={index}
-                              className="group flex items-start justify-between gap-3 p-3 rounded-2xl bg-white border border-[#E7EDE9] hover:border-[#B08D4F]/50 hover:bg-[#F5EFE2]/20 transition-all shadow-2xs"
+                              className="group flex items-start justify-between gap-3 p-3 rounded-2xl bg-white border border-[#F7D6DF] hover:border-[#D44372]/50 hover:bg-[#FDF0F4]/20 transition-all shadow-2xs"
                             >
                               <div className="flex items-start gap-2.5 flex-1 min-w-0">
                                 {/* Stylized bullet point */}
-                                <span className="w-2 h-2 rounded-full bg-[#B08D4F] mt-1.5 shrink-0 shadow-2xs group-hover:scale-125 transition-transform" />
-                                <span className="text-xs text-[#24352F] font-medium leading-relaxed break-words">
+                                <span className="w-2 h-2 rounded-full bg-[#D44372] mt-1.5 shrink-0 shadow-2xs group-hover:scale-125 transition-transform" />
+                                <span className="text-xs text-[#2E131E] font-medium leading-relaxed break-words">
                                   {item}
                                 </span>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => handleRemovePlanningItem(index)}
-                                className="opacity-60 group-hover:opacity-100 hover:text-[#B5473C] text-[#7B8C86] p-1 rounded-full transition-colors cursor-pointer shrink-0"
+                                className="opacity-60 group-hover:opacity-100 hover:text-[#B5473C] text-[#8A6775] p-1 rounded-full transition-colors cursor-pointer shrink-0"
                                 title="Remove point"
                               >
                                 <X className="w-3.5 h-3.5" />
@@ -865,63 +841,63 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
               <Step title="Review">
                 <div className="space-y-4 py-1">
                   <div>
-                    <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#0E2A24]">
+                    <h3 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-medium text-[#2E131E]">
                       Review Parameters
                     </h3>
-                    <p className="text-xs sm:text-sm text-[#7B8C86]">
+                    <p className="text-xs sm:text-sm text-[#8A6775]">
                       Verify your details before submitting to Kordena AI for evaluation.
                     </p>
                   </div>
 
-                  <div className="bg-[#F5EFE2]/40 p-5 rounded-[24px] border border-[#E7EDE9] space-y-3 text-xs">
+                  <div className="bg-[#FDF0F4]/40 p-5 rounded-[24px] border border-[#F7D6DF] space-y-3 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-[#7B8C86]">Event Name:</span>
-                      <strong className="text-[#0E2A24] font-semibold">{eventName || "Untitled Event"}</strong>
+                      <span className="text-[#8A6775]">Event Name:</span>
+                      <strong className="text-[#2E131E] font-semibold">{eventName || "Untitled Event"}</strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#7B8C86]">Event Type:</span>
-                      <strong className="text-[#0E2A24] font-semibold">{eventType}</strong>
+                      <span className="text-[#8A6775]">Event Type:</span>
+                      <strong className="text-[#2E131E] font-semibold">{eventType}</strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#7B8C86]">Estimated Budget:</span>
-                      <strong className="text-[#0E2A24] font-[family-name:var(--font-display)] text-sm">
+                      <span className="text-[#8A6775]">Estimated Budget:</span>
+                      <strong className="text-[#2E131E] font-[family-name:var(--font-display)] text-sm">
                         {eventBudget ? `₹${Number(eventBudget).toLocaleString("en-IN")}` : "Not specified"}
                       </strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#7B8C86]">Package Tier:</span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-[#0E2A24] text-[#F3E7C9]">
+                      <span className="text-[#8A6775]">Package Tier:</span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-[#D44372] text-white">
                         {eventTier}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#7B8C86]">Event Date:</span>
-                      <strong className="text-[#0E2A24] font-semibold">{eventDate || "Date TBD"}</strong>
+                      <span className="text-[#8A6775]">Event Date:</span>
+                      <strong className="text-[#2E131E] font-semibold">{eventDate || "Date TBD"}</strong>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#7B8C86]">Guest Count:</span>
-                      <strong className="text-[#0E2A24] font-semibold">{guestCount || "100"} guests</strong>
+                      <span className="text-[#8A6775]">Guest Count:</span>
+                      <strong className="text-[#2E131E] font-semibold">{guestCount || "100"} guests</strong>
                     </div>
 
                     {/* Planning Points Review */}
-                    <div className="pt-2 border-t border-[#E7EDE9]">
+                    <div className="pt-2 border-t border-[#F7D6DF]">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[#7B8C86]">Planning Points:</span>
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#F5EFE2] text-[#7D6230] border border-[#B08D4F]/30">
+                        <span className="text-[#8A6775]">Planning Points:</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30">
                           {planningItems.length} {planningItems.length === 1 ? "point" : "points"}
                         </span>
                       </div>
                       {planningItems.length > 0 ? (
                         <ul className="space-y-1.5 pl-1 max-h-32 overflow-y-auto">
                           {planningItems.map((item, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-[#24352F]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#B08D4F] mt-1 shrink-0" />
+                            <li key={idx} className="flex items-start gap-2 text-[#2E131E]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#D44372] mt-1 shrink-0" />
                               <span className="font-medium text-[11.5px] leading-snug">{item}</span>
                             </li>
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-[#7B8C86] italic text-[11px]">
+                        <p className="text-[#8A6775] italic text-[11px]">
                           No custom planning points specified (AI will infer defaults)
                         </p>
                       )}
@@ -930,28 +906,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
 
                   {/* Auth Session Status & AI Notice */}
                   {!isAuthenticated ? (
-                    <div className="p-4 rounded-2xl bg-[#F5EFE2] border border-[#B08D4F]/30 text-[#0E2A24] text-xs flex items-center justify-between gap-3 animate-in fade-in shadow-2xs">
+                    <div className="p-4 rounded-2xl bg-[#FDF0F4] border border-[#D44372]/30 text-[#2E131E] text-xs flex items-center justify-between gap-3 animate-in fade-in shadow-2xs">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-[#0E2A24] text-[#F3E7C9] flex items-center justify-center shrink-0 shadow-2xs">
-                          <Lock className="w-4 h-4 text-[#F3E7C9]" />
+                        <div className="w-8 h-8 rounded-full bg-[#D44372] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                          <Lock className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                          <p className="font-bold text-[#0E2A24]">Sign in required for AI evaluation</p>
-                          <p className="text-[#7B8C86] text-[11.5px]">Kordena AI evaluation synthesizes personalized countdown milestones and day-of schedules. Sign in to evaluate.</p>
+                          <p className="font-bold text-[#2E131E]">Sign in required for AI evaluation</p>
+                          <p className="text-[#8A6775] text-[11.5px]">Kordena AI evaluation synthesizes personalized countdown milestones and day-of schedules. Sign in to evaluate.</p>
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => signIn("google", { callbackUrl: "/" })}
-                        className="px-4 py-2 rounded-full bg-[#0E2A24] text-[#F3E7C9] font-bold hover:bg-[#163D34] transition-all cursor-pointer shadow-xs text-xs shrink-0 flex items-center gap-1.5"
+                        className="px-4 py-2 rounded-full bg-[#D44372] text-white font-bold hover:bg-[#BE335E] transition-all cursor-pointer shadow-xs text-xs shrink-0 flex items-center gap-1.5"
                       >
                         <Lock className="w-3.5 h-3.5" />
                         <span>Sign In with Google</span>
                       </button>
                     </div>
                   ) : (
-                    <div className="p-3.5 rounded-2xl bg-[#F5EFE2] border border-[#B08D4F]/30 text-[#0E2A24] text-xs flex items-center gap-2.5 shadow-2xs">
-                      <Sparkles className="w-4 h-4 text-[#B08D4F] shrink-0" />
+                    <div className="p-3.5 rounded-2xl bg-[#FDF0F4] border border-[#D44372]/30 text-[#2E131E] text-xs flex items-center gap-2.5 shadow-2xs">
+                      <Sparkles className="w-4 h-4 text-[#D44372] shrink-0" />
                       <span>
                         Signed in as <strong>{session?.user?.name || session?.user?.email}</strong>. AI Evaluation will synthesize and save your event blueprint.
                       </span>

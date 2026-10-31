@@ -35,13 +35,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#2D3748]/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-[#FFFFFF] rounded-3xl max-w-md w-full border border-[#E2ECE5] shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in duration-150 relative">
+    <div className="fixed inset-0 z-50 bg-[#2E131E]/50 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl max-w-md w-full border border-[#F7D6DF] shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in duration-150 relative">
         {/* Close Button */}
         <button
           onClick={onClose}
           disabled={loading}
-          className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#F4F7F5] text-[#718096] hover:text-[#2D3748] hover:bg-[#E2ECE5] flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
+          className="absolute top-6 right-6 w-8 h-8 rounded-full bg-[#FDF0F4] text-[#8A6775] hover:text-[#2E131E] hover:bg-[#FCE7EC] flex items-center justify-center font-bold text-sm transition-colors cursor-pointer"
           aria-label="Close auth dialog"
         >
           <X className="w-4 h-4" />
@@ -49,13 +49,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Brand Header */}
         <div className="text-center space-y-2 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#10B981] to-[#34D399] flex items-center justify-center text-white mx-auto shadow-sm shadow-[#10B981]/25">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#D44372] to-[#E05A87] flex items-center justify-center text-white mx-auto shadow-md shadow-[#D44372]/25">
             <Sparkles className="w-6 h-6" />
           </div>
-          <h3 className="text-2xl font-bold text-[#2D3748]">
+          <h3 className="text-2xl font-bold text-[#2E131E]">
             {initialMode === "signup" ? "Get Started with Kordena" : "Sign in to Kordena"}
           </h3>
-          <p className="text-xs text-[#718096]">
+          <p className="text-xs text-[#8A6775]">
             Serene & focused event planning powered by Generative AI & NextAuth
           </p>
         </div>
@@ -70,11 +70,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Google OAuth Section */}
         <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-[#F4F7F5] border border-[#E2ECE5] text-center space-y-1">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0]">
+          <div className="p-4 rounded-2xl bg-[#FDF0F4] border border-[#F7D6DF] text-center space-y-1">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white text-[#D44372] border border-[#F7D6DF]">
               <ShieldCheck className="w-3.5 h-3.5" /> NextAuth Google SSO
             </span>
-            <p className="text-xs text-[#2D3748] font-medium pt-1">
+            <p className="text-xs text-[#2E131E] font-medium pt-1">
               Secure single sign-on with Google OAuth 2.0 and encrypted session cookies.
             </p>
           </div>
@@ -84,12 +84,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full py-3.5 px-4 rounded-2xl bg-[#FFFFFF] hover:bg-[#F4F7F5] border-2 border-[#E2ECE5] hover:border-[#10B981] text-[#2D3748] font-bold text-sm shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-3 relative group"
+            className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-[#FDF0F4] border-2 border-[#F7D6DF] hover:border-[#D44372] text-[#2E131E] font-bold text-sm shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-3 relative group"
             id="google-oauth-signin-btn"
           >
             {loading ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin text-[#10B981]" />
+                <Loader2 className="w-5 h-5 animate-spin text-[#D44372]" />
                 <span>Connecting to Google...</span>
               </>
             ) : (
@@ -114,7 +114,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   />
                 </svg>
                 <span>Continue with Google</span>
-                <ArrowRight className="w-4 h-4 text-[#718096] group-hover:text-[#10B981] group-hover:translate-x-1 transition-all ml-auto" />
+                <ArrowRight className="w-4 h-4 text-[#8A6775] group-hover:text-[#D44372] group-hover:translate-x-1 transition-all ml-auto" />
               </>
             )}
           </button>

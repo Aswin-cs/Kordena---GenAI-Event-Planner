@@ -54,6 +54,9 @@ import {
   Flame,
   LayoutGrid,
   Lock,
+  Loader2,
+  Menu,
+  ArrowUpRight,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
@@ -284,12 +287,15 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"calendar" | "tasks" | "runofshow" | "budget">("calendar");
   const [isCalendarSplitView, setIsCalendarSplitView] = useState<boolean>(true);
   const [splitCompanionTab, setSplitCompanionTab] = useState<"budget" | "tasks" | "runofshow">("budget");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [isMobileMenuMounted, setIsMobileMenuMounted] = useState<boolean>(false);
+  const [isMobileMenuVisible, setIsMobileMenuVisible] = useState<boolean>(false);
 
   // User events list fetched from UserStatus model (/api/user-status)
   const [allUserEvents, setAllUserEvents] = useState<any[]>([]);
   const [currentEventIndex, setCurrentEventIndex] = useState<number>(0);
   const [isEventDropdownOpen, setIsEventDropdownOpen] = useState<boolean>(false);
-  const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(false);
+  const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(true);
 
   // Active event properties (supports switching between fetched events)
   const [activeEventName, setActiveEventName] = useState<string>(eventName);
@@ -325,6 +331,23 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       return () => clearTimeout(timer);
     }
   }, [selectedEvent]);
+
+  // Smooth mobile slide-over right menu animation lifecycle
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      setIsMobileMenuMounted(true);
+      const timer = setTimeout(() => {
+        setIsMobileMenuVisible(true);
+      }, 20);
+      return () => clearTimeout(timer);
+    } else {
+      setIsMobileMenuVisible(false);
+      const timer = setTimeout(() => {
+        setIsMobileMenuMounted(false);
+      }, 320);
+      return () => clearTimeout(timer);
+    }
+  }, [isMobileMenuOpen]);
 
   // Loaded tasks & run of show state (with fallback to GET /api/user-status if props are empty)
   const [tasks, setTasks] = useState<IPrepCalendarTask[]>(initialTasks || []);
@@ -616,10 +639,19 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   useEffect(() => {
     let isMounted = true;
     setIsLoadingEvents(true);
-    fetch("/api/user-status")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!isMounted || !data.success || !Array.isArray(data.userStatuses)) return;
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 550));
+
+    Promise.all([
+      fetch("/api/user-status")
+        .then((res) => res.json())
+        .catch((err) => {
+          console.warn("Could not load user-status for calendar:", err);
+          return { success: false };
+        }),
+      minDelay,
+    ])
+      .then(([data]) => {
+        if (!isMounted || !data?.success || !Array.isArray(data?.userStatuses)) return;
         const list = data.userStatuses;
         setAllUserEvents(list);
 
@@ -637,7 +669,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           applyEventData(list[0]);
         }
       })
-      .catch((err) => console.warn("Could not load user-status for calendar:", err))
       .finally(() => {
         if (isMounted) setIsLoadingEvents(false);
       });
@@ -983,10 +1014,18 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   // Keyboard navigation: ESC to close, Arrow keys to cycle tasks while open
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!selectedEvent) return;
       if (e.key === "Escape") {
-        setSelectedEvent(null);
-      } else if (e.key === "ArrowLeft" && currentEventIdx > 0) {
+        if (isMobileMenuOpen) {
+          setIsMobileMenuOpen(false);
+          return;
+        }
+        if (selectedEvent) {
+          setSelectedEvent(null);
+          return;
+        }
+      }
+      if (!selectedEvent) return;
+      if (e.key === "ArrowLeft" && currentEventIdx > 0) {
         handleNavigateEvent("prev");
       } else if (e.key === "ArrowRight" && currentEventIdx >= 0 && currentEventIdx < eventsList.length - 1) {
         handleNavigateEvent("next");
@@ -994,7 +1033,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedEvent, currentEventIdx, eventsList]);
+  }, [selectedEvent, currentEventIdx, eventsList, isMobileMenuOpen]);
 
   // Custom event styles for React-Big-Calendar
   const eventPropGetter = (event: CalendarEventItem) => {
@@ -1207,159 +1246,237 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   // Custom Event component rendering Lucide icons inside React-Big-Calendar cells
   const CustomCalendarEvent = ({ event }: { event: CalendarEventItem }) => {
     const isDone = completedTaskIds[event.id];
+
+    // Select the best indicator icon for this event
+    const EventIcon = useMemo(() => {
+      if (event.isMainEvent) return Star;
+      if (event.runOfShowItem) return Zap;
+      if (isDone) return CheckCircle2;
+      if (event.department) {
+        return getCategoryMeta(event.department).icon;
+      }
+      if (event.actionType) {
+        return getActionMeta(event.actionType).icon;
+      }
+      return ListChecks;
+    }, [event.isMainEvent, event.runOfShowItem, isDone, event.department, event.actionType]);
+
     return (
-      <div className="kcal-ev-inner">
-        {event.isMainEvent ? (
-          <Star className="w-3 h-3 shrink-0 fill-current" />
-        ) : event.runOfShowItem ? (
-          <Zap className="w-3 h-3 shrink-0" />
-        ) : isDone ? (
-          <CheckCircle2 className="w-3 h-3 shrink-0" />
-        ) : null}
-        <span className="truncate">{event.title}</span>
+      <div className="kcal-ev-inner justify-center sm:justify-start" title={event.title}>
+        <EventIcon
+          className={`w-3 h-3 sm:w-3 sm:h-3 shrink-0 ${
+            event.isMainEvent ? "fill-current" : ""
+          }`}
+        />
+        <span className="truncate hidden sm:inline">{event.title}</span>
       </div>
     );
   };
 
+  if (isLoadingEvents) {
+    return (
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col items-center justify-center min-h-[580px] animate-in fade-in duration-300">
+        <div className="bg-white rounded-[32px] p-8 sm:p-12 border border-[#F7D6DF] shadow-[0_24px_48px_-32px_rgba(212,67,114,0.18)] max-w-md w-full flex flex-col items-center text-center space-y-5">
+          {/* Pulsing Icon */}
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#D44372] to-[#E05A87] flex items-center justify-center text-white shadow-lg shadow-[#D44372]/25 animate-pulse">
+            <CalendarIcon className="w-8 h-8 text-white" />
+          </div>
+
+          <div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30 mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#D44372]" />
+              Kordena Master Calendar
+            </span>
+            <h2 className="font-[family-name:var(--font-display)] text-2xl font-medium text-[#2E131E] tracking-tight">
+              Loading Calendar Architecture
+            </h2>
+            <p className="text-xs sm:text-sm text-[#8A6775] mt-1.5 leading-relaxed">
+              Synchronizing countdown milestones, run-of-show timeline & department budgets for{" "}
+              <strong className="text-[#2E131E]">{activeEventName || eventName || "your event"}</strong>...
+            </p>
+          </div>
+
+          {/* Shimmer Bar */}
+          <div className="w-full bg-[#F7D6DF] h-2 rounded-full overflow-hidden border border-[#F7D6DF]">
+            <div className="h-full bg-gradient-to-r from-[#D44372] to-[#E05A87] rounded-full animate-pulse w-3/4" />
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#2E131E]">
+            <Loader2 className="w-4 h-4 animate-spin text-[#D44372]" />
+            <span>Harmonizing schedule & live canvas...</span>
+          </div>
+
+          {/* Modules Preview Pills */}
+          <div className="grid grid-cols-3 gap-2 w-full pt-3 border-t border-[#F7D6DF]">
+            <div className="p-2.5 rounded-2xl bg-[#FDF0F4]/70 border border-[#F7D6DF]/60 text-center">
+              <p className="text-[10px] text-[#8A6775] font-medium">Grid</p>
+              <p className="text-xs font-bold text-[#2E131E] mt-0.5">Monthly</p>
+            </div>
+            <div className="p-2.5 rounded-2xl bg-[#FDF0F4]/70 border border-[#F7D6DF]/60 text-center">
+              <p className="text-[10px] text-[#8A6775] font-medium">Timeline</p>
+              <p className="text-xs font-bold text-[#2E131E] mt-0.5">Run of Show</p>
+            </div>
+            <div className="p-2.5 rounded-2xl bg-[#FDF0F4]/70 border border-[#F7D6DF]/60 text-center">
+              <p className="text-[10px] text-[#8A6775] font-medium">Metrics</p>
+              <p className="text-xs font-bold text-[#2E131E] mt-0.5">Budget</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-in fade-in duration-300">
       {/* Executive Command Header Bar */}
-      <div className="bg-white rounded-[28px] p-5 sm:p-6 border border-[#F7D6DF] shadow-[0_24px_48px_-32px_rgba(212,67,114,0.18)] flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3">
-          <button
-            onClick={onBackToStepper}
-            className="h-9 px-4 rounded-full bg-white hover:bg-[#FDF0F4] text-[#2E131E] border border-[#F7D6DF] transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs group font-semibold text-xs"
-            title="Back to Stepper Setup"
-          >
-            <ArrowLeft className="w-4 h-4 text-[#8A6775] group-hover:-translate-x-0.5 transition-transform" />
-            <span className="hidden sm:inline">Back</span>
-          </button>
+      <div className="bg-white rounded-[24px] sm:rounded-[28px] p-4 sm:p-6 border border-[#F7D6DF] shadow-[0_24px_48px_-32px_rgba(212,67,114,0.18)] flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center justify-between w-full md:w-auto gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+            <button
+              onClick={onBackToStepper}
+              className="h-8 sm:h-9 px-3 sm:px-4 rounded-full bg-white hover:bg-[#FDF0F4] text-[#2E131E] border border-[#F7D6DF] transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs group font-semibold text-xs"
+              title="Back to Stepper Setup"
+            >
+              <ArrowLeft className="w-4 h-4 text-[#8A6775] group-hover:-translate-x-0.5 transition-transform" />
+              <span className="hidden sm:inline">Back</span>
+            </button>
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl font-medium text-[#2E131E] tracking-tight">
-                {activeEventName || eventName || "Annual Global Tech Summit 2026"}
-              </h1>
+            <h1 className="font-[family-name:var(--font-display)] text-xl sm:text-3xl font-medium text-[#2E131E] tracking-tight">
+              {activeEventName || eventName || "Annual Global Tech Summit 2026"}
+            </h1>
 
-              {/* Event Switcher: Previous & Next Buttons */}
-              {effectiveEvents.length > 1 ? (
-                <div
-                  data-event-dropdown
-                  className="relative inline-flex items-center gap-1 bg-[#FDF0F4]/60 border border-[#F7D6DF] p-1 rounded-full shadow-2xs"
+            {/* Event Switcher: Previous & Next Buttons */}
+            {effectiveEvents.length > 1 ? (
+              <div
+                data-event-dropdown
+                className="relative inline-flex items-center gap-1 bg-[#FDF0F4]/60 border border-[#F7D6DF] p-1 rounded-full shadow-2xs"
+              >
+                <button
+                  type="button"
+                  onClick={handlePrevEvent}
+                  aria-label={`Switch to previous blueprint (${effectiveEvents[(currentEventIndex - 1 + effectiveEvents.length) % effectiveEvents.length]?.eventName || "Previous"})`}
+                  className="p-1 sm:p-1.5 rounded-full hover:bg-white text-[#2E131E] hover:text-[#2E131E] transition-all cursor-pointer shadow-2xs active:scale-95 group"
+                  title={`Previous Event (${effectiveEvents[(currentEventIndex - 1 + effectiveEvents.length) % effectiveEvents.length]?.eventName || "Previous"}) [Alt+←]`}
                 >
-                  <button
-                    type="button"
-                    onClick={handlePrevEvent}
-                    aria-label={`Switch to previous blueprint (${effectiveEvents[(currentEventIndex - 1 + effectiveEvents.length) % effectiveEvents.length]?.eventName || "Previous"})`}
-                    className="p-1 sm:p-1.5 rounded-full hover:bg-white text-[#2E131E] hover:text-[#2E131E] transition-all cursor-pointer shadow-2xs active:scale-95 group"
-                    title={`Previous Event (${effectiveEvents[(currentEventIndex - 1 + effectiveEvents.length) % effectiveEvents.length]?.eventName || "Previous"}) [Alt+←]`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsEventDropdownOpen((prev) => !prev)}
-                    aria-expanded={isEventDropdownOpen}
-                    aria-label={`Current blueprint: ${activeEventName || eventName}, ${currentEventIndex + 1} of ${effectiveEvents.length}. Click to view all.`}
-                    className="px-2.5 py-0.5 rounded-full hover:bg-white text-[11px] font-bold text-[#2E131E] flex items-center gap-1.5 transition-all cursor-pointer select-none"
-                    title="Click to view all events"
-                  >
-                    <CalendarDays className="w-3.5 h-3.5 text-[#D44372]" />
-                    <span>{currentEventIndex + 1} of {effectiveEvents.length}</span>
-                    <ChevronDown className="w-3 h-3 text-[#8A6775]" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextEvent}
-                    aria-label={`Switch to next blueprint (${effectiveEvents[(currentEventIndex + 1) % effectiveEvents.length]?.eventName || "Next"})`}
-                    className="p-1 sm:p-1.5 rounded-full hover:bg-white text-[#2E131E] hover:text-[#2E131E] transition-all cursor-pointer shadow-2xs active:scale-95 group"
-                    title={`Next Event (${effectiveEvents[(currentEventIndex + 1) % effectiveEvents.length]?.eventName || "Next"}) [Alt+→]`}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-
-                  {/* Dropdown Menu of All Events */}
-                  {isEventDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#F7D6DF] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                      <div className="px-3 py-1.5 border-b border-[#F7D6DF] mb-1 flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#8A6775]">
-                          Saved Event Blueprints ({effectiveEvents.length})
-                        </span>
-                        <span className="text-[10px] text-[#8A6775]/70">Alt + ← / →</span>
-                      </div>
-                      <div className="max-h-60 overflow-y-auto space-y-1">
-                        {effectiveEvents.map((ev, idx) => {
-                          const isSelected = idx === currentEventIndex;
-                          const evDateStr = ev.endDate ? new Date(ev.endDate).toLocaleDateString() : "";
-                          return (
-                            <button
-                              key={ev._id || `ev-${idx}`}
-                              type="button"
-                              onClick={() => handleSelectEventIndex(idx)}
-                              className={`w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between cursor-pointer ${
-                                isSelected
-                                  ? "bg-[#FDF0F4] text-[#2E131E] font-bold border border-[#D44372]/40"
-                                  : "hover:bg-[#FDF0F4]/50 text-[#2E131E]"
-                              }`}
-                            >
-                              <div className="min-w-0 pr-2">
-                                <p className="text-xs font-bold truncate">
-                                  {ev.eventName || "Untitled Event"}
-                                </p>
-                                <p className="text-[10px] text-[#8A6775] truncate">
-                                  {ev.eventType || "Event"} {evDateStr ? `• ${evDateStr}` : ""}
-                                </p>
-                              </div>
-                              {isSelected && (
-                                <Check className="w-3.5 h-3.5 text-[#D44372] shrink-0" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 bg-[#FDF0F4]/60 border border-[#F7D6DF] px-3 py-1 rounded-full text-[11px] font-bold text-[#8A6775]">
+                <button
+                  type="button"
+                  onClick={() => setIsEventDropdownOpen((prev) => !prev)}
+                  aria-expanded={isEventDropdownOpen}
+                  aria-label={`Current blueprint: ${activeEventName || eventName}, ${currentEventIndex + 1} of ${effectiveEvents.length}. Click to view all.`}
+                  className="px-2.5 py-0.5 rounded-full hover:bg-white text-[11px] font-bold text-[#2E131E] flex items-center gap-1.5 transition-all cursor-pointer select-none"
+                  title="Click to view all events"
+                >
                   <CalendarDays className="w-3.5 h-3.5 text-[#D44372]" />
-                  <span>1 Active Blueprint</span>
-                </div>
-              )}
+                  <span>{currentEventIndex + 1} of {effectiveEvents.length}</span>
+                  <ChevronDown className="w-3 h-3 text-[#8A6775]" />
+                </button>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/40">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D44372] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D44372]" />
-                </span>
-                Production Blueprint Active
+                <button
+                  type="button"
+                  onClick={handleNextEvent}
+                  aria-label={`Switch to next blueprint (${effectiveEvents[(currentEventIndex + 1) % effectiveEvents.length]?.eventName || "Next"})`}
+                  className="p-1 sm:p-1.5 rounded-full hover:bg-white text-[#2E131E] hover:text-[#2E131E] transition-all cursor-pointer shadow-2xs active:scale-95 group"
+                  title={`Next Event (${effectiveEvents[(currentEventIndex + 1) % effectiveEvents.length]?.eventName || "Next"}) [Alt+→]`}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Dropdown Menu of All Events */}
+                {isEventDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-[#F7D6DF] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-1.5 border-b border-[#F7D6DF] mb-1 flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#8A6775]">
+                        Saved Event Blueprints ({effectiveEvents.length})
+                      </span>
+                      <span className="text-[10px] text-[#8A6775]/70">Alt + ← / →</span>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-1">
+                      {effectiveEvents.map((ev, idx) => {
+                        const isSelected = idx === currentEventIndex;
+                        const evDateStr = ev.endDate ? new Date(ev.endDate).toLocaleDateString() : "";
+                        return (
+                          <button
+                            key={ev._id || `ev-${idx}`}
+                            type="button"
+                            onClick={() => handleSelectEventIndex(idx)}
+                            className={`w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between cursor-pointer ${
+                              isSelected
+                                ? "bg-[#FDF0F4] text-[#2E131E] font-bold border border-[#D44372]/40"
+                                : "hover:bg-[#FDF0F4]/50 text-[#2E131E]"
+                            }`}
+                          >
+                            <div className="min-w-0 pr-2">
+                              <p className="text-xs font-bold truncate">
+                                {ev.eventName || "Untitled Event"}
+                              </p>
+                              <p className="text-[10px] text-[#8A6775] truncate">
+                                {ev.eventType || "Event"} {evDateStr ? `• ${evDateStr}` : ""}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <Check className="w-3.5 h-3.5 text-[#D44372] shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 bg-[#FDF0F4]/60 border border-[#F7D6DF] px-3 py-1 rounded-full text-[11px] font-bold text-[#8A6775]">
+                <CalendarDays className="w-3.5 h-3.5 text-[#D44372]" />
+                <span>1 Active Blueprint</span>
+              </div>
+            )}
+
+            {/* Badges: Visible on Desktop, Hidden on Mobile */}
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/40">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D44372] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D44372]" />
               </span>
+              Production Blueprint Active
+            </span>
 
-              {daysUntilEvent !== undefined && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FDF0F4]/70 text-[#2E131E] border border-[#F7D6DF]">
-                  <Clock className="w-3.5 h-3.5 text-[#D44372]" />
-                  {daysUntilEvent > 0
-                    ? `T - ${daysUntilEvent} Days To Go`
-                    : daysUntilEvent === 0
-                    ? "Target Event Day"
-                    : "Event Concluded"}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-[#8A6775]">
-              Master schedule synchronized across {tasks.length} countdown milestones & {runOfShow.length} day-of execution items.
-            </p>
+            {daysUntilEvent !== undefined && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FDF0F4]/70 text-[#2E131E] border border-[#F7D6DF]">
+                <Clock className="w-3.5 h-3.5 text-[#D44372]" />
+                {daysUntilEvent > 0
+                  ? `T - ${daysUntilEvent} Days To Go`
+                  : daysUntilEvent === 0
+                  ? "Target Event Day"
+                  : "Event Concluded"}
+              </span>
+            )}
           </div>
+
+          {/* Small Menu Button for Mobile Only with tactile animation */}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open Event Options & Telemetry Menu"
+            className="sm:hidden h-8 px-3 rounded-full bg-[#FDF0F4] hover:bg-[#FCE4EC] active:scale-95 text-[#9F224E] border border-[#D44372]/40 transition-all duration-200 cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs font-bold text-xs group"
+          >
+            <Menu className="w-4 h-4 text-[#D44372] transition-transform duration-200 group-hover:rotate-12 group-active:scale-90" />
+            <span>Menu</span>
+          </button>
         </div>
 
-        {/* Action Button Cluster */}
-        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+        {/* Subtitle - hidden on mobile */}
+        <p className="hidden sm:block text-xs text-[#8A6775] -mt-2">
+          Master schedule synchronized across {tasks.length} countdown milestones & {runOfShow.length} day-of execution items.
+        </p>
+
+        {/* Action Button Cluster - hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
           {onNewEvent && (
             <button
               onClick={onNewEvent}
-              className="h-10 px-4 rounded-full bg-[#FDF0F4] hover:bg-[#ede3cf] text-[#9F224E] border border-[#D44372] transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs font-bold text-xs"
+              className="h-10 px-4 rounded-full bg-[#FDF0F4] hover:bg-[#FCE4EC] text-[#9F224E] border border-[#D44372] transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs font-bold text-xs"
               title="Create New Event Blueprint"
             >
               <Plus className="w-4 h-4 text-[#9F224E] stroke-[2.5]" />
@@ -1370,7 +1487,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           <button
             type="button"
             onClick={() => setIsAiChatOpen(true)}
-            className="h-10 px-4 rounded-full bg-[#D44372] hover:bg-[#163830] text-white transition-all cursor-pointer flex items-center gap-2 shrink-0 shadow-md font-bold text-xs group"
+            className="h-10 px-4 rounded-full bg-[#D44372] hover:bg-[#BE335E] text-white transition-all cursor-pointer flex items-center gap-2 shrink-0 shadow-md font-bold text-xs group"
             title={isAuthenticated ? "Open AI Calendar Copilot (Ctrl+J)" : "AI Calendar Copilot (Sign In Required)"}
           >
             {isAuthenticated ? (
@@ -1392,8 +1509,8 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       </div>
 
       {/* Executive Horizon Telemetry Ribbon */}
-      <div className="bg-white rounded-[24px] sm:rounded-[28px] border border-[#F7D6DF] shadow-[0_12px_32px_-24px_rgba(212,67,114,0.12)] p-4 sm:p-5 transition-all">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E7EDE9] gap-3 sm:gap-0">
+      <div className="hidden sm:block bg-white rounded-[24px] sm:rounded-[28px] border border-[#F7D6DF] shadow-[0_12px_32px_-24px_rgba(212,67,114,0.12)] p-4 sm:p-5 transition-all">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#F7D6DF] gap-3 sm:gap-0">
           {/* Segment 1: Target Date */}
           <div className="sm:px-4 first:sm:pl-1 flex flex-col justify-between py-1">
             <div className="flex items-center justify-between text-[#8A6775] mb-1">
@@ -1513,7 +1630,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       </div>
 
       {/* Primary Workspace Segmented Tabs */}
-      <div className="bg-white p-2 rounded-[24px] sm:rounded-full border border-[#F7D6DF] shadow-2xs flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+      <div className="hidden sm:flex bg-white p-2 rounded-[24px] sm:rounded-full border border-[#F7D6DF] shadow-2xs items-center justify-between gap-2 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1 bg-[#FDF0F4] p-1 rounded-full">
           <button
             type="button"
@@ -1583,7 +1700,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                 : "text-[#8A6775] hover:text-[#2E131E] hover:bg-white/60"
             }`}
           >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <SlidersHorizontal className="w-3.5 h-3.5 hidden sm:inline-block" />
             <span>Budget Allocator</span>
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
@@ -1597,9 +1714,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           </button>
         </div>
 
-        {/* If in Calendar tab, provide Layout Mode Switcher */}
+        {/* If in Calendar tab, provide Layout Mode Switcher (Visible on desktop XL+) */}
         {activeWorkspaceTab === "calendar" && (
-          <div className="hidden lg:flex items-center gap-1 bg-[#FDF0F4] p-1 rounded-full border border-[#F7D6DF]">
+          <div className="hidden xl:flex items-center gap-1 bg-[#FDF0F4] p-1 rounded-full border border-[#F7D6DF]">
             <button
               type="button"
               onClick={() => setIsCalendarSplitView(true)}
@@ -1658,27 +1775,29 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
               </div>
 
               <div className="kcal-controls">
-                <div className="kcal-nav">
-                  <button type="button" onClick={handleCalendarPrev} aria-label="Previous" className="kcal-icon-btn">
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button type="button" onClick={() => setCurrentDate(new Date())} className="kcal-text-btn">
-                    Today
-                  </button>
-                  <button type="button" onClick={handleCalendarNext} aria-label="Next" className="kcal-icon-btn">
-                    <ChevronRight className="w-4 h-4" />
+                <div className="kcal-controls-top flex items-center justify-between w-full sm:w-auto gap-2.5">
+                  <div className="kcal-nav">
+                    <button type="button" onClick={handleCalendarPrev} aria-label="Previous" className="kcal-icon-btn">
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => setCurrentDate(new Date())} className="kcal-text-btn">
+                      Today
+                    </button>
+                    <button type="button" onClick={handleCalendarNext} aria-label="Next" className="kcal-icon-btn">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentDate(new Date(parsedEventDate))}
+                    className="kcal-gold-btn"
+                    title="Jump to the event month"
+                  >
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span>Event day</span>
                   </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => setCurrentDate(new Date(parsedEventDate))}
-                  className="kcal-gold-btn"
-                  title="Jump to the event month"
-                >
-                  <Star className="w-3.5 h-3.5 fill-current" />
-                  Event day
-                </button>
 
                 <div className="kcal-seg" role="tablist" aria-label="Calendar view">
                   {(["month", "week", "day", "agenda"] as View[]).map((v) => (
@@ -1698,7 +1817,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             </header>
 
             {/* Big Calendar Canvas */}
-            <div className="h-[660px] w-full calendar-container">
+            <div className="min-h-[580px] sm:min-h-[700px] lg:min-h-[780px] h-[600px] sm:h-[740px] lg:h-[800px] w-full calendar-container">
               <Calendar
                 toolbar={false}
                 localizer={localizer}
@@ -1712,7 +1831,11 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                 eventPropGetter={eventPropGetter}
                 onSelectEvent={(event) => setSelectedEvent(event as CalendarEventItem)}
                 popup
+                popupOffset={{ x: 10, y: 10 }}
                 views={["month", "week", "day", "agenda"]}
+                formats={{
+                  weekdayFormat: (date: Date) => format(date, "EEE"),
+                }}
                 components={{
                   event: CustomCalendarEvent as any,
                   toolbar: () => null,
@@ -1729,13 +1852,13 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             </footer>
           </div>
 
-          {/* Right Companion: Operations Deck (when in split mode) */}
+          {/* Right Companion: Operations Deck (when in split mode - hidden on mobile, visible on desktop XL+) */}
           {isCalendarSplitView && (
-            <div className="xl:col-span-4 bg-white rounded-[28px] p-5 sm:p-6 border border-[#F7D6DF] shadow-[0_24px_48px_-32px_rgba(212,67,114,0.18)] space-y-4 xl:sticky xl:top-6">
+            <div className="hidden xl:block xl:col-span-4 bg-white rounded-[28px] p-5 sm:p-6 border border-[#F7D6DF] shadow-[0_24px_48px_-32px_rgba(212,67,114,0.18)] space-y-4 xl:sticky xl:top-6">
               {/* Operations Deck Header & Micro-Tabs */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F7D6DF] gap-2.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30 flex items-center justify-center font-bold">
+                  <div className="hidden sm:flex w-8 h-8 rounded-full bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30 items-center justify-center font-bold">
                     {splitCompanionTab === "budget" ? (
                       <SlidersHorizontal className="w-4 h-4" />
                     ) : splitCompanionTab === "tasks" ? (
@@ -2337,7 +2460,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         <div className="bg-white rounded-[28px] p-5 sm:p-6 border border-[#F7D6DF] shadow-[0_24px_48px_-32px_rgba(212,67,114,0.18)] space-y-5 animate-in fade-in duration-200">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#F7D6DF] gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30 flex items-center justify-center font-bold">
+              <div className="hidden sm:flex w-8 h-8 rounded-full bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30 items-center justify-center font-bold">
                 <SlidersHorizontal className="w-4 h-4" />
               </div>
               <div>
@@ -2493,8 +2616,8 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-[#F7D6DF] bg-white shrink-0">
                   <div className="flex items-center gap-2.5">
-                    {/* Pulsing Status Dot */}
-                    <span className="relative flex h-2.5 w-2.5">
+                    {/* Pulsing Status Dot - hidden on mobile */}
+                    <span className="hidden sm:inline-flex relative h-2.5 w-2.5">
                       <span
                         className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
                           activeDrawerEvent.isMainEvent
@@ -2519,11 +2642,19 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                       />
                     </span>
                     <h3 id="drawer-event-title" className="text-xs sm:text-sm font-bold text-[#2E131E] tracking-tight">
-                      {activeDrawerEvent.isMainEvent
-                        ? "Target Event Details"
-                        : activeDrawerEvent.runOfShowItem
-                        ? "Day-of Run of Show Item"
-                        : "Countdown Prep Task Details"}
+                      {activeDrawerEvent.isMainEvent ? (
+                        "Target Event Details"
+                      ) : activeDrawerEvent.runOfShowItem ? (
+                        <>
+                          <span className="sm:hidden">Task Detail</span>
+                          <span className="hidden sm:inline">Day-of Run of Show Item</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="sm:hidden">Task Detail</span>
+                          <span className="hidden sm:inline">Countdown Prep Task Details</span>
+                        </>
+                      )}
                     </h3>
                     {currentEventIdx >= 0 && (
                       <span className="text-[10px] font-bold text-[#9F224E] bg-[#FDF0F4] px-2 py-0.5 rounded-full border border-[#F7D6DF]">
@@ -2566,11 +2697,11 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
 
-                    {/* Copy Summary */}
+                    {/* Copy Summary - hidden on mobile */}
                     <button
                       type="button"
                       onClick={() => handleCopyTask(activeDrawerEvent)}
-                      className={`p-1.5 px-2 rounded-full border transition-all cursor-pointer flex items-center gap-1 ${
+                      className={`hidden sm:flex p-1.5 px-2 rounded-full border transition-all cursor-pointer items-center gap-1 ${
                         copiedTask
                           ? "bg-[#FDF0F4] text-[#9F224E] border-[#D44372]"
                           : "text-[#8A6775] hover:text-[#2E131E] hover:bg-[#FDF0F4] border-[#F7D6DF]"
@@ -2821,6 +2952,353 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           </div>
         );
       })()}
+
+      {/* Mobile Slide-Over Right-Side Popup Menu with Animated Transitions */}
+      {isMobileMenuMounted && (
+        <div
+          className="fixed inset-0 z-50 overflow-hidden sm:hidden pointer-events-none"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Event Options & Telemetry Menu"
+        >
+          {/* Backdrop with soft blur and smooth fade animation */}
+          <div
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={`fixed inset-0 bg-[#2E131E]/40 backdrop-blur-[4px] transition-opacity duration-300 ease-out pointer-events-auto cursor-pointer ${
+              isMobileMenuVisible ? "opacity-100" : "opacity-0"
+            }`}
+            aria-hidden="true"
+          />
+
+          {/* Right Slide-Over Panel with smooth spring/cubic bezier slide animation */}
+          <div
+            className={`fixed top-0 bottom-0 right-0 z-50 w-full max-w-[340px] bg-white border-l border-[#F7D6DF] shadow-[-20px_0_50px_rgba(212,67,114,0.25)] p-5 flex flex-col justify-between overflow-y-auto pointer-events-auto transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              isMobileMenuVisible
+                ? "translate-x-0 opacity-100"
+                : "translate-x-full opacity-0"
+            }`}
+          >
+            <div className="space-y-5">
+              {/* Drawer Top Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-[#F7D6DF]">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-[#FDF0F4] border border-[#F7D6DF] flex items-center justify-center">
+                    <CalendarDays className="w-3.5 h-3.5 text-[#D44372]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[#2E131E]">
+                      Event Workspace
+                    </h3>
+                    <p className="text-[10px] text-[#8A6775] truncate max-w-[180px]">
+                      {activeEventName || eventName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-1.5 rounded-full hover:bg-[#FDF0F4] text-[#8A6775] hover:text-[#2E131E] active:scale-90 transition-all duration-200 cursor-pointer group"
+                  aria-label="Close menu"
+                >
+                  <X className="w-4 h-4 transition-transform group-hover:rotate-90 duration-200" />
+                </button>
+              </div>
+
+              {/* Quick Actions Cluster */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8A6775]">
+                  Quick Actions
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      setIsAiChatOpen(true);
+                    }}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-[#D44372] hover:bg-[#BE335E] active:scale-[0.98] text-white font-bold text-xs shadow-md transition-all duration-200 flex items-center justify-between cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                      <span>Ask AI Copilot</span>
+                    </span>
+                    <span className="text-[10px] font-mono bg-white/20 px-2 py-0.5 rounded-md text-white">
+                      Chat
+                    </span>
+                  </button>
+
+                  {onNewEvent && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        onNewEvent();
+                      }}
+                      className="w-full py-2.5 px-4 rounded-2xl bg-[#FDF0F4] hover:bg-[#FCE4EC] active:scale-[0.98] text-[#9F224E] border border-[#D44372] font-bold text-xs transition-all duration-200 flex items-center justify-between cursor-pointer"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Plus className="w-4 h-4 text-[#9F224E] stroke-[2.5]" />
+                        <span>New Blueprint</span>
+                      </span>
+                      <ArrowUpRight className="w-4 h-4 text-[#9F224E]" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Workspace Navigation Views */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8A6775]">
+                  Switch Workspace View
+                </p>
+                <div className="grid grid-cols-1 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveWorkspaceTab("calendar");
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+                      activeWorkspaceTab === "calendar"
+                        ? "bg-[#D44372] text-white shadow-xs"
+                        : "bg-[#FDF0F4]/60 text-[#2E131E] hover:bg-[#FDF0F4]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <CalendarRange className="w-3.5 h-3.5" />
+                      <span>Master Schedule</span>
+                    </span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        activeWorkspaceTab === "calendar"
+                          ? "bg-white/20 text-white"
+                          : "bg-white text-[#8A6775] border border-[#F7D6DF]"
+                      }`}
+                    >
+                      Calendar
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveWorkspaceTab("tasks");
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+                      activeWorkspaceTab === "tasks"
+                        ? "bg-[#D44372] text-white shadow-xs"
+                        : "bg-[#FDF0F4]/60 text-[#2E131E] hover:bg-[#FDF0F4]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <ListChecks className="w-3.5 h-3.5" />
+                      <span>Countdown Prep Tasks</span>
+                    </span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        activeWorkspaceTab === "tasks"
+                          ? "bg-white/20 text-white"
+                          : "bg-white text-[#8A6775] border border-[#F7D6DF]"
+                      }`}
+                    >
+                      {tasks.length}
+                    </span>
+                  </button>
+
+                  {runOfShow.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveWorkspaceTab("runofshow");
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+                        activeWorkspaceTab === "runofshow"
+                          ? "bg-[#D44372] text-white shadow-xs"
+                          : "bg-[#FDF0F4]/60 text-[#2E131E] hover:bg-[#FDF0F4]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Day-of Run of Show</span>
+                      </span>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                          activeWorkspaceTab === "runofshow"
+                            ? "bg-white/20 text-white"
+                            : "bg-white text-[#8A6775] border border-[#F7D6DF]"
+                        }`}
+                      >
+                        {runOfShow.length}
+                      </span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveWorkspaceTab("budget");
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`w-full p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+                      activeWorkspaceTab === "budget"
+                        ? "bg-[#D44372] text-white shadow-xs"
+                        : "bg-[#FDF0F4]/60 text-[#2E131E] hover:bg-[#FDF0F4]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <IndianRupee className="w-3.5 h-3.5" />
+                      <span>Budget Allocator</span>
+                    </span>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        activeWorkspaceTab === "budget"
+                          ? "bg-white/20 text-white"
+                          : "bg-white text-[#8A6775] border border-[#F7D6DF]"
+                      }`}
+                    >
+                      {budgetList.length}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Badges & Info */}
+              <div className="p-3 rounded-2xl bg-[#FDF0F4]/60 border border-[#F7D6DF] space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/40">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D44372] opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D44372]" />
+                    </span>
+                    Blueprint Active
+                  </span>
+
+                  {daysUntilEvent !== undefined && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white text-[#2E131E] border border-[#F7D6DF]">
+                      <Clock className="w-3 h-3 text-[#D44372]" />
+                      {daysUntilEvent > 0
+                        ? `T - ${daysUntilEvent} Days`
+                        : daysUntilEvent === 0
+                        ? "Event Day"
+                        : "Concluded"}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-[#8A6775] leading-relaxed">
+                  Master schedule synchronized across {tasks.length} countdown milestones & {runOfShow.length} day-of execution items.
+                </p>
+              </div>
+
+              {/* Executive Horizon Telemetry Cards */}
+              <div className="space-y-2 pt-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#8A6775]">
+                  Executive Telemetry
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {/* Card 1: Target Date */}
+                  <div className="p-3 rounded-2xl bg-white border border-[#F7D6DF] shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between text-[#8A6775]">
+                      <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                        <CalendarIcon className="w-3 h-3 text-[#D44372]" /> Target Date
+                      </span>
+                      <span className="text-[10px] font-semibold bg-[#FDF0F4] text-[#9F224E] px-2 py-0.5 rounded-full border border-[#F7D6DF]">
+                        {activeEventType || eventType || "Event"}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-[#2E131E] font-serif">
+                      {format(parsedEventDate, "EEE, MMM dd, yyyy")}
+                    </p>
+                  </div>
+
+                  {/* Card 2: Blueprint Tier */}
+                  <div className="p-3 rounded-2xl bg-white border border-[#F7D6DF] shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between text-[#8A6775]">
+                      <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-[#D44372]" /> Blueprint Tier
+                      </span>
+                      <span className="text-[10px] font-bold text-white bg-[#D44372] px-2 py-0.5 rounded-full">
+                        {activeTier || tier || "Starter"}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-[#2E131E] truncate">
+                      {evalSummary?.eventVibe || `Optimized for ${activeGuestCount || guestCount || 100} guests`}
+                    </p>
+                  </div>
+
+                  {/* Card 3: Budget Health */}
+                  <div className="p-3 rounded-2xl bg-white border border-[#F7D6DF] shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between text-[#8A6775]">
+                      <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                        <IndianRupee className="w-3 h-3 text-[#D44372]" /> Budget Health
+                      </span>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
+                          budgetDelta > 0
+                            ? "bg-[#FDF0F4] text-[#9F224E] border-[#D44372]/40"
+                            : budgetDelta === 0
+                            ? "bg-[#FDF0F4]/70 text-[#2E131E] border-[#F7D6DF]"
+                            : "bg-[#FDF2F0] text-[#B5473C] border-[#B5473C]/30"
+                        }`}
+                      >
+                        {budgetDelta > 0
+                          ? `₹${budgetDelta.toLocaleString("en-IN")} Buffer`
+                          : budgetDelta === 0
+                          ? "Balanced"
+                          : `+₹${Math.abs(budgetDelta).toLocaleString("en-IN")} Over`}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="font-bold text-[#2E131E] font-serif">₹{targetBudget.toLocaleString("en-IN")}</span>
+                      <span className="text-[10px] text-[#8A6775]">₹{totalAllocated.toLocaleString("en-IN")} mapped</span>
+                    </div>
+                    <div className="w-full bg-[#F7D6DF] h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${budgetDelta < 0 ? "bg-[#B5473C]" : "bg-[#D44372]"}`}
+                        style={{ width: `${Math.min(100, (totalAllocated / Math.max(1, targetBudget)) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Card 4: Prep Velocity */}
+                  <div className="p-3 rounded-2xl bg-white border border-[#F7D6DF] shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between text-[#8A6775]">
+                      <span className="text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-[#4F7D68]" /> Prep Velocity
+                      </span>
+                      <span className="text-[9px] font-bold text-[#9F224E] bg-[#FDF0F4] px-1.5 py-0.5 rounded-full border border-[#D44372]/40">
+                        {completionPercent}%
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between text-xs">
+                      <span className="font-bold text-[#2E131E] font-serif">{completedCount} of {tasks.length} Done</span>
+                      <span className="text-[10px] text-[#8A6775]">{tasks.length - completedCount} pending</span>
+                    </div>
+                    <div className="w-full bg-[#F7D6DF] h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-[#D44372] h-full rounded-full transition-all duration-300"
+                        style={{ width: `${completionPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Close Button */}
+            <div className="pt-4 border-t border-[#F7D6DF] mt-4">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-full py-2.5 rounded-full bg-white text-[#8A6775] hover:text-[#2E131E] active:scale-95 font-bold text-xs hover:bg-[#FDF0F4] transition-all duration-200 cursor-pointer border border-[#F7D6DF] text-center"
+              >
+                Close Menu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Calendar AI Chatbot Assistant */}
       <CalendarAiChatbot

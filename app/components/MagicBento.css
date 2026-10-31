@@ -1124,3 +1124,14 @@
     translate: -8px -22px;
   }
 }
+
+@media (max-width: 640px) {
+  .magic-bento {
+    grid-auto-rows: auto !important;
+    gap: 12px !important;
+  }
+  .magic-bento__content {
+    padding: 14px 12px !important;
+    gap: 8px !important;
+  }
+}

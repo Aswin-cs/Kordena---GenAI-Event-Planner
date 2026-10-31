@@ -470,19 +470,22 @@ export default function Home() {
     }
   };
 
-  // 1. LOADING SCREEN: Serene sage & mint pulse during NextAuth session resolution
+  // 1. LOADING SCREEN: White canvas with soft rose & light pink pulse during NextAuth session resolution
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4F7F5] text-[#2D3748] px-4">
-        <div className="flex flex-col items-center gap-4 animate-in fade-in duration-300 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#10B981] to-[#34D399] flex items-center justify-center text-white shadow-md shadow-[#10B981]/25">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-[#2E131E] px-4">
+        <div className="flex flex-col items-center gap-4 animate-in fade-in duration-300 text-center max-w-sm">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#D44372] to-[#E05A87] flex items-center justify-center text-white shadow-lg shadow-[#D44372]/20 animate-pulse">
             <Sparkles className="w-7 h-7 text-white" />
           </div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-[#2D3748]">
-            <Loader2 className="w-4 h-4 animate-spin text-[#10B981]" />
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-[#2E131E]">
+            <Loader2 className="w-4 h-4 animate-spin text-[#D44372]" />
             <span>Verifying NextAuth Session...</span>
           </div>
-          <p className="text-xs text-[#718096]">
+          <div className="w-48 bg-[#F7D6DF] h-1.5 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#D44372] to-[#E05A87] rounded-full animate-pulse w-3/4" />
+          </div>
+          <p className="text-xs text-[#8A6775]">
             Serene & focused event planning powered by Generative AI
           </p>
         </div>
@@ -496,13 +499,13 @@ export default function Home() {
       <>
         {/* Optional Auth Notice Banner */}
         {authNotice && (
-          <div className="bg-[#E6F7F0] border-b border-[#A7F3D0] px-4 py-2.5 text-xs text-[#059669] flex items-center justify-between">
+          <div className="bg-[#FDF0F4] border-b border-[#F7D6DF] px-4 py-2.5 text-xs text-[#9F224E] flex items-center justify-between">
             <div className="flex items-center gap-2 max-w-7xl mx-auto w-full">
-              <AlertCircle className="w-4 h-4 shrink-0 text-[#10B981]" />
+              <AlertCircle className="w-4 h-4 shrink-0 text-[#D44372]" />
               <span>{authNotice}</span>
               <button
                 onClick={() => setAuthNotice(null)}
-                className="ml-auto text-[#059669] hover:text-[#2D3748] cursor-pointer"
+                className="ml-auto text-[#D44372] hover:text-[#2E131E] cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -536,8 +539,8 @@ export default function Home() {
       {/* Editorial Luxury Authenticated Navbar */}
       <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-[#F7D6DF] shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          {/* Brand */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Brand (Hidden on mobile) */}
+          <div className="hidden sm:flex items-center gap-3 shrink-0">
             <div className="w-9 h-9 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold shadow-xs">
               <Sparkles className="w-4 h-4 text-white" />
             </div>

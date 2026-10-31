@@ -547,6 +547,7 @@ select option:checked {
 
 .kcal .rbc-month-row {
   border-top: 1px solid var(--k-hair);
+  min-height: 115px;
 }
 
 .kcal .rbc-month-row:first-child {
@@ -572,22 +573,28 @@ select option:checked {
 
 /* Date numerals */
 .kcal .rbc-date-cell {
-  padding: 10px 12px 4px;
+  padding: 6px 10px 2px;
   text-align: left;
   font-size: 0;
 }
 
 .kcal .rbc-button-link {
   font-family: var(--font-display), Georgia, serif;
-  font-size: 17px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: #2E131E;
   display: inline-grid;
   place-items: center;
-  min-width: 30px;
-  height: 30px;
+  min-width: 26px;
+  height: 26px;
   border-radius: 50%;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.kcal .rbc-button-link:hover {
+  background: #FDF0F4;
+  color: #D44372;
 }
 
 .kcal .rbc-date-cell.rbc-now .rbc-button-link {
@@ -597,12 +604,12 @@ select option:checked {
 
 /* Events */
 .kcal .rbc-event.kcal-ev {
-  margin: 2px 8px;
-  width: calc(100% - 16px);
-  padding: 4px 9px;
+  margin: 1.5px 6px;
+  width: calc(100% - 12px);
+  padding: 2.5px 8px;
   border: 0;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
   font-weight: 600;
   line-height: 1.35;
   box-shadow: none;
@@ -657,7 +664,7 @@ select option:checked {
 .kcal .rbc-event.kcal-ev--main {
   background: var(--k-ink);
   color: #FFF0F4;
-  padding: 6px 10px;
+  padding: 4px 8px;
   font-weight: 700;
   box-shadow: 0 10px 20px -10px rgba(212, 67, 114, .7) !important;
 }
@@ -666,12 +673,124 @@ select option:checked {
   color: var(--k-gold);
 }
 
+/* Google Calendar-style "+N more" badge */
 .kcal .rbc-show-more {
-  margin: 2px 12px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  margin: 2px 6px 3px 6px;
+  padding: 2px 8px;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--k-gold);
-  background: transparent;
+  color: #D44372;
+  background: #FDF0F4;
+  border: 1px solid rgba(212, 67, 114, 0.25);
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.kcal .rbc-show-more:hover {
+  background: #FCE7EC;
+  color: #9F224E;
+  border-color: rgba(212, 67, 114, 0.5);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 6px -1px rgba(212, 67, 114, 0.2);
+}
+
+/* Google Calendar-Style Floating Popover Overlay (.rbc-overlay) */
+.calendar-container {
+  position: relative;
+}
+
+.calendar-container .rbc-month-view {
+  overflow: visible !important;
+}
+
+.kcal .rbc-overlay,
+.rbc-overlay {
+  position: absolute;
+  z-index: 9999 !important;
+  background-color: #FFFFFF !important;
+  border: 1px solid #F7D6DF !important;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 50px -12px rgba(212, 67, 114, 0.3), 0 4px 16px rgba(46, 19, 30, 0.08) !important;
+  padding: 14px 16px 16px !important;
+  min-width: 260px !important;
+  max-width: 340px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  animation: rbcGoogleCalOverlayIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes rbcGoogleCalOverlayIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.kcal .rbc-overlay::-webkit-scrollbar,
+.rbc-overlay::-webkit-scrollbar {
+  width: 5px;
+}
+.kcal .rbc-overlay::-webkit-scrollbar-track,
+.rbc-overlay::-webkit-scrollbar-track {
+  background: #FFF0F4;
+  border-radius: 10px;
+}
+.kcal .rbc-overlay::-webkit-scrollbar-thumb,
+.rbc-overlay::-webkit-scrollbar-thumb {
+  background: #F7C4D2;
+  border-radius: 10px;
+}
+.kcal .rbc-overlay::-webkit-scrollbar-thumb:hover,
+.rbc-overlay::-webkit-scrollbar-thumb:hover {
+  background: #D44372;
+}
+
+.kcal .rbc-overlay-header,
+.rbc-overlay-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  font-family: var(--font-display), Georgia, serif !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #2E131E !important;
+  padding: 0 0 10px 0 !important;
+  margin: 0 0 10px 0 !important;
+  border-bottom: 1px solid #F7D6DF !important;
+  letter-spacing: -0.01em !important;
+}
+
+.kcal .rbc-overlay > * + *,
+.rbc-overlay > * + * {
+  margin-top: 4px !important;
+}
+
+.kcal .rbc-overlay .rbc-event,
+.rbc-overlay .rbc-event {
+  margin: 3px 0 !important;
+  width: 100% !important;
+  padding: 5px 10px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  cursor: pointer !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+}
+
+.kcal .rbc-overlay .rbc-event:hover,
+.rbc-overlay .rbc-event:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px -2px rgba(212, 67, 114, 0.25) !important;
 }
 
 /* Week / day / agenda */
@@ -721,12 +840,200 @@ select option:checked {
 
 @media (max-width: 640px) {
   .kcal {
-    padding: 20px 14px 16px;
-    border-radius: 22px;
+    padding: 16px 10px 14px;
+    border-radius: 20px;
+  }
+
+  .kcal-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
   }
 
   .kcal-month {
-    font-size: 34px;
+    font-size: 26px;
+    line-height: 1.1;
+  }
+
+  .kcal-year {
+    margin-left: 6px;
+    font-size: 20px;
+  }
+
+  .kcal-sub {
+    margin-top: 4px;
+    font-size: 11.5px;
+  }
+
+  .kcal-controls {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .kcal-controls-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .kcal-nav {
+    gap: 2px;
+  }
+
+  .kcal-icon-btn,
+  .kcal-text-btn {
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .kcal-icon-btn {
+    width: 32px;
+  }
+
+  .kcal-text-btn {
+    padding: 0 10px;
+  }
+
+  .kcal-gold-btn {
+    height: 32px;
+    padding: 0 10px;
+    font-size: 11.5px;
+    gap: 4px;
+  }
+
+  .kcal-seg {
+    width: 100%;
+    display: flex;
+    padding: 3px;
+    border-radius: 999px;
+  }
+
+  .kcal-seg button {
+    flex: 1;
+    height: 28px;
+    padding: 0 4px;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .kcal-legend {
+    gap: 8px 12px;
+    padding-top: 12px;
+    font-size: 10.5px;
+    justify-content: flex-start;
+  }
+
+  .kcal .rbc-header {
+    padding: 0 2px 8px;
+    font-size: 11px;
+    text-align: center;
+    font-weight: 700;
+  }
+
+  .kcal .rbc-month-row {
+    min-height: 88px;
+  }
+
+  .kcal .rbc-date-cell {
+    padding: 3px 4px 1px;
+    text-align: left;
+  }
+
+  .kcal .rbc-button-link {
+    font-size: 12px;
+    min-width: 22px;
+    height: 22px;
+  }
+
+  .kcal .rbc-event.kcal-ev {
+    margin: 1px 2px;
+    width: calc(100% - 4px);
+    padding: 2px 3px;
+    font-size: 10px;
+    border-radius: 5px;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kcal-ev-inner {
+    gap: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .kcal-ev-inner svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  /* Inside Google Calendar Popover Overlay (.rbc-overlay), restore full text and left alignment */
+  .rbc-overlay .kcal .rbc-event.kcal-ev,
+  .rbc-overlay .rbc-event.kcal-ev {
+    justify-content: flex-start !important;
+    padding: 3.5px 8px !important;
+    width: 100% !important;
+  }
+
+  .rbc-overlay .kcal-ev-inner {
+    justify-content: flex-start !important;
+    gap: 6px !important;
+  }
+
+  .rbc-overlay .kcal-ev-inner span {
+    display: inline !important;
+  }
+
+  .kcal .rbc-show-more {
+    margin: 1px 2px;
+    padding: 1px 6px;
+    font-size: 9.5px;
+    border-radius: 8px;
+    line-height: 1.3;
+  }
+
+  /* Google Calendar Popover: transforms into a centered, accessible floating dialog on mobile */
+  .kcal .rbc-overlay,
+  .rbc-overlay {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: calc(100vw - 32px) !important;
+    max-width: 360px !important;
+    min-width: 0 !important;
+    max-height: 80vh !important;
+    z-index: 10000 !important;
+    border-radius: 20px !important;
+    padding: 16px !important;
+    box-shadow: 0 25px 60px -15px rgba(212, 67, 114, 0.45), 0 0 0 100vmax rgba(46, 19, 30, 0.4) !important;
+  }
+
+  .kcal .rbc-agenda-table thead>tr>th {
+    padding: 8px 8px;
+    font-size: 11px;
+  }
+
+  .kcal .rbc-agenda-table tbody>tr>td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .kcal .rbc-agenda-date-cell {
+    font-size: 13px;
+  }
+
+  .kcal .rbc-time-gutter .rbc-label {
+    font-size: 10px;
+    padding: 0 4px;
   }
 }
 

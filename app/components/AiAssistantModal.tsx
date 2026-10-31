@@ -223,8 +223,8 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
           ))}
 
           {loading && (
-            <div className="flex items-center gap-2 text-xs text-[#718096] bg-[#FFFFFF] p-3 rounded-2xl border border-[#E2ECE5] max-w-[200px]">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#10B981]" />
+            <div className="flex items-center gap-2 text-xs text-[#8A6775] bg-[#FFFFFF] p-3 rounded-2xl border border-[#F7D6DF] max-w-[200px]">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D44372]" />
               <span>Kordena AI is synthesizing...</span>
             </div>
           )}

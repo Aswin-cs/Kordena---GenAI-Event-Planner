@@ -92,16 +92,17 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
           <div className="flex flex-col justify-between h-full w-full">
             <div>
               {/* Top Badges */}
-              <div className="flex items-start justify-between gap-2 mb-2.5">
+              <div className="flex items-start justify-between gap-2 mb-1.5 sm:mb-2.5">
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-bold border ${getEventTypeColor(
+                  className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-[10.5px] font-bold border ${getEventTypeColor(
                     event.eventType
                   )}`}
                 >
                   {event.eventType}
                 </span>
 
-                <div className="flex items-center gap-1.5">
+                {/* Active badge & delete button: hidden on mobile */}
+                <div className="hidden sm:flex items-center gap-1.5">
                   {isActive && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/40">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#D44372] animate-pulse" />
@@ -131,19 +132,19 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
                 </div>
               </div>
 
-              {/* Title & Tagline */}
-              <h3 className="font-[family-name:var(--font-display)] text-base font-medium text-[#2E131E] leading-snug line-clamp-1 hover:text-[#D44372] transition-colors">
+              {/* Title & Tagline (Tagline hidden on mobile) */}
+              <h3 className="font-[family-name:var(--font-display)] text-sm sm:text-base font-medium text-[#2E131E] leading-snug line-clamp-1 hover:text-[#D44372] transition-colors">
                 {event.title}
               </h3>
 
               {event.tagline && (
-                <p className="text-xs text-[#8A6775] mt-1 line-clamp-1 italic">
+                <p className="hidden sm:block text-xs text-[#8A6775] mt-1 line-clamp-1 italic">
                   "{event.tagline}"
                 </p>
               )}
 
-              {/* Key Metrics / Attributes */}
-              <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[#F7D6DF] text-xs">
+              {/* Key Metrics: Date & Budget shown on mobile; Location hidden on mobile */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-[#F7D6DF] text-[11px] sm:text-xs">
                 <div className="flex items-center gap-1.5 text-[#8A6775]">
                   <CalendarIcon className="w-3.5 h-3.5 text-[#D44372] shrink-0" />
                   <span className="truncate font-medium text-[#2E131E]">
@@ -159,7 +160,7 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
                 </div>
 
                 {event.location && (
-                  <div className="flex items-center gap-1.5 text-[#8A6775] col-span-2">
+                  <div className="hidden sm:flex items-center gap-1.5 text-[#8A6775] col-span-2">
                     <MapPin className="w-3.5 h-3.5 text-[#8A6775] shrink-0" />
                     <span className="truncate text-[#8A6775] text-[11px]">
                       {event.location}
@@ -168,16 +169,16 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
                 )}
               </div>
 
-              {/* AI Vibe Summary */}
+              {/* AI Vibe Summary (Hidden on mobile) */}
               {event.aiVibeSummary && (
-                <div className="mt-3 p-3 rounded-2xl bg-[#FDF0F4]/50 border border-[#F7D6DF] text-[11px] text-[#2E131E] line-clamp-2">
+                <div className="hidden sm:block mt-3 p-3 rounded-2xl bg-[#FDF0F4]/50 border border-[#F7D6DF] text-[11px] text-[#2E131E] line-clamp-2">
                   <span className="font-bold text-[#9F224E] mr-1">AI Vibe:</span>
                   {event.aiVibeSummary}
                 </div>
               )}
 
-              {/* Tasks / Vendors counts */}
-              <div className="flex items-center gap-2 mt-3 text-[11px] text-[#8A6775]">
+              {/* Tasks / Vendors counts (Hidden on mobile) */}
+              <div className="hidden sm:flex items-center gap-2 mt-3 text-[11px] text-[#8A6775]">
                 {event.tasks && event.tasks.length > 0 && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white border border-[#F7D6DF] text-[#2E131E]">
                     <CheckCircle2 className="w-3 h-3 text-[#D44372]" />
@@ -198,15 +199,15 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#F7D6DF]">
+            {/* Action Buttons: Only Calendar button on mobile; Load Blueprint hidden on mobile */}
+            <div className="flex items-center gap-2 mt-2.5 sm:mt-4 pt-2 sm:pt-3 border-t border-[#F7D6DF]">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectEvent(event);
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold bg-white hover:bg-[#FDF0F4] text-[#2E131E] hover:text-[#2E131E] border border-[#F7D6DF] hover:border-[#D44372] transition-all cursor-pointer shadow-2xs z-10"
+                className="hidden sm:flex flex-1 items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold bg-white hover:bg-[#FDF0F4] text-[#2E131E] hover:text-[#2E131E] border border-[#F7D6DF] hover:border-[#D44372] transition-all cursor-pointer shadow-2xs z-10"
                 title="Load event parameters into stepper"
               >
                 <Layers className="w-3.5 h-3.5 text-[#D44372]" />
@@ -219,12 +220,12 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
                   e.stopPropagation();
                   onOpenCalendar(event);
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold bg-[#D44372] hover:bg-[#BE335E] text-white transition-all cursor-pointer shadow-xs z-10"
+                className="w-full sm:flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-xs font-bold bg-[#D44372] hover:bg-[#BE335E] text-white transition-all cursor-pointer shadow-xs z-10"
                 title="Open calendar for this event"
               >
-                <CalendarIcon className="w-3.5 h-3.5" />
-                <span>Open Calendar</span>
-                <ArrowUpRight className="w-3 h-3" />
+                <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
+                <span>Calendar</span>
+                <ArrowUpRight className="w-3 h-3 shrink-0 hidden xs:inline-block" />
               </button>
             </div>
           </div>

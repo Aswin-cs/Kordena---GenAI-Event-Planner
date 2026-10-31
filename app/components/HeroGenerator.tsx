@@ -284,17 +284,17 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
 
           {/* Reasoning animation if loading */}
           {loading && (
-            <div className="p-4 rounded-2xl bg-[#E6F7F0] border border-[#A7F3D0] space-y-2 animate-in fade-in">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#059669]">
-                <Loader2 className="w-4 h-4 animate-spin text-[#10B981]" />
+            <div className="p-4 rounded-2xl bg-[#FDF0F4] border border-[#F7D6DF] space-y-2 animate-in fade-in">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#D44372]">
+                <Loader2 className="w-4 h-4 animate-spin text-[#D44372]" />
                 Kordena Neural Engine Thinking:
               </div>
-              <p className="text-xs text-[#2D3748] font-medium pl-6">
+              <p className="text-xs text-[#2E131E] font-medium pl-6">
                 {steps[generationStep]}
               </p>
               <div className="w-full h-1.5 bg-[#FFFFFF] rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#10B981] progress-fill"
+                  className="h-full bg-gradient-to-r from-[#D44372] to-[#E05A87] progress-fill"
                   style={{ width: `${((generationStep + 1) / steps.length) * 100}%` }}
                 />
               </div>
@@ -307,14 +307,14 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2.5 rounded-xl bg-[#F4F7F5] text-xs sm:text-sm font-medium text-[#718096] hover:text-[#2D3748] hover:bg-[#E2ECE5] transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-[#FDF0F4] text-xs sm:text-sm font-medium text-[#8A6775] hover:text-[#2E131E] hover:bg-[#FCE7EC] transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading || !prompt.trim()}
-              className="px-6 py-2.5 rounded-xl bg-[#10B981] text-white text-xs sm:text-sm font-semibold hover:bg-[#059669] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 cursor-pointer shadow-md shadow-[#10B981]/25"
+              className="px-6 py-2.5 rounded-xl bg-[#D44372] text-white text-xs sm:text-sm font-semibold hover:bg-[#BE335E] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 cursor-pointer shadow-md shadow-[#D44372]/25"
             >
               {loading ? (
                 <>

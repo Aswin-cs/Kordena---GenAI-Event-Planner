@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { IPrepCalendarTask, IBudgetBreakdownItem } from "@/models/UserStatus.model";
 import { geminiConfig } from "@/config/gemini";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -157,7 +158,7 @@ export async function POST(request: Request) {
       : Array.isArray(plannedItems)
         ? plannedItems
         : [];
-    const plannedList = rawPlanned.map((item: any) => String(item || "").trim()).filter(Boolean);
+    const plannedList = rawPlanned.map((item: unknown) => String(item || "").trim()).filter(Boolean);
 
     const todayDate = new Date().toISOString().split("T")[0];
     const targetEndDate = String(endDate || eventDate).trim();
@@ -273,8 +274,8 @@ Return ONLY a valid JSON object matching the requested schema.`;
               question: "What are the decorations that you are planning?",
               description: "Select the aesthetic accents and staging elements tailored for your event",
               options: data.prepCalendarTasks
-                ?.filter((t: any) => t.actionType === "design" || (t.department && t.department.toLowerCase().includes("decor")))
-                .map((t: any) => ({
+                ?.filter((t: IPrepCalendarTask) => t.actionType === "design" || (Boolean(t.department) && String(t.department).toLowerCase().includes("decor")))
+                .map((t: IPrepCalendarTask) => ({
                   id: t.id,
                   label: t.title,
                   description: t.actionBrief,
@@ -285,8 +286,8 @@ Return ONLY a valid JSON object matching the requested schema.`;
               question: "What are the arrangements that are done?",
               description: "Mark what is already completed or currently in progress",
               options: data.prepCalendarTasks
-                ?.filter((t: any) => t.actionType === "arrange" || t.actionType === "setup")
-                .map((t: any) => ({
+                ?.filter((t: IPrepCalendarTask) => t.actionType === "arrange" || t.actionType === "setup")
+                .map((t: IPrepCalendarTask) => ({
                   id: t.id,
                   label: t.title,
                   description: t.actionBrief,
@@ -296,7 +297,7 @@ Return ONLY a valid JSON object matching the requested schema.`;
             requirements: {
               question: "What are the requirements that you need based on that?",
               description: "Choose essential operational and technical requirements based on guest count and budget",
-              options: data.budgetBreakdown?.map((b: any, idx: number) => ({
+              options: data.budgetBreakdown?.map((b: IBudgetBreakdownItem, idx: number) => ({
                 id: `req_${idx + 1}`,
                 label: `${b.category} (₹${Number(b.allocatedAmount).toLocaleString("en-IN")})`,
                 description: b.spendStrategy,
@@ -324,23 +325,23 @@ Return ONLY a valid JSON object matching the requested schema.`;
         },
         { status: 502 }
       );
-    } catch (geminiError: any) {
+    } catch (geminiError: unknown) {
       console.warn("Gemini AI evaluation route error:", geminiError);
       return NextResponse.json(
         {
           success: false,
-          message: geminiError?.message || "Gemini AI evaluation failed",
+          message: geminiError instanceof Error ? geminiError.message : "Gemini AI evaluation failed",
         },
         { status: 500 }
       );
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("AI Evaluation route error:", error);
     return NextResponse.json(
       {
         success: false,
-        message: error?.message || "Failed to execute AI evaluation",
+        message: error instanceof Error ? error.message : "Failed to execute AI evaluation",
       },
       { status: 500 }
     );

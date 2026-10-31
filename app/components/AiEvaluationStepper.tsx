@@ -8,18 +8,13 @@ import {
   Circle,
   Plus,
   ArrowLeft,
-  Calendar,
-  Users,
   IndianRupee,
   Palette,
-  ClipboardList,
-  Cpu,
   Layers,
-  X,
   Check,
   Star,
 } from "lucide-react";
-import { AiEvaluationResponse, AiEvaluationOption } from "../api/ai-evaluate/route";
+import { AiEvaluationResponse } from "../api/ai-evaluate/route";
 
 interface AiEvaluationStepperProps {
   eventData: {

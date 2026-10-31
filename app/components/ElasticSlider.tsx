@@ -200,7 +200,9 @@ export function ElasticSlider({
     onChangeEnd
   };
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  useIsoLayoutEffect(() => {
+    settingsRef.current = settings;
+  });
 
   const snap = (raw: number) => {
     const s = settingsRef.current;
@@ -381,13 +383,15 @@ export function ElasticSlider({
   };
 
   const snapRef = useRef(snap);
-  snapRef.current = snap;
   const bumpRef = useRef(bump);
-  bumpRef.current = bump;
   const commitRef = useRef(commit);
-  commitRef.current = commit;
   const goalRef = useRef(refreshGoal);
-  goalRef.current = refreshGoal;
+  useIsoLayoutEffect(() => {
+    snapRef.current = snap;
+    bumpRef.current = bump;
+    commitRef.current = commit;
+    goalRef.current = refreshGoal;
+  });
 
   useIsoLayoutEffect(() => {
     const m = motion.current;
@@ -433,7 +437,7 @@ export function ElasticSlider({
   useEffect(() => {
     const hit = hitRef.current;
     if (!hit || !wheel || disabled) return undefined;
-    let timer: any = 0;
+    let timer: ReturnType<typeof setTimeout> | number = 0;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       const s = settingsRef.current;
@@ -461,12 +465,6 @@ export function ElasticSlider({
     return () => cancelAnimationFrame(m.raf);
   }, []);
 
-  const along = (event: React.PointerEvent | PointerEvent) => {
-    const rect = hitRef.current?.getBoundingClientRect();
-    if (!rect) return 0;
-    return settingsRef.current.vertical ? rect.bottom - event.clientY : event.clientX - rect.left;
-  };
-
   const release = () => {
     if (!drag.current && !motion.current.dragging) return;
     const m = motion.current;
@@ -485,7 +483,7 @@ export function ElasticSlider({
 
     try {
       hit.setPointerCapture(event.pointerId);
-    } catch (_) {}
+    } catch {}
 
     const m = motion.current;
     const s = settingsRef.current;
@@ -543,7 +541,7 @@ export function ElasticSlider({
         if (hit.hasPointerCapture(e.pointerId)) {
           hit.releasePointerCapture(e.pointerId);
         }
-      } catch (_) {}
+      } catch {}
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
@@ -588,7 +586,7 @@ export function ElasticSlider({
     : step
       ? current.toFixed(decimalsOf(step))
       : String(Math.round(current));
-  const place = VALUE_POSITIONS.includes(valuePosition as any) ? valuePosition : 'top';
+  const place = VALUE_POSITIONS.includes(valuePosition as (typeof VALUE_POSITIONS)[number]) ? valuePosition : 'top';
   const inside = iconPlacement === 'inside';
   const insideStart = inside ? leftIcon : null;
   const insideEnd = place === 'inside' ? <span>{label}</span> : inside ? rightIcon : null;

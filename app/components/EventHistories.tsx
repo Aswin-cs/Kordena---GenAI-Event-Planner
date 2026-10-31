@@ -139,7 +139,7 @@ export const EventHistories: React.FC<EventHistoriesProps> = ({
 
               {event.tagline && (
                 <p className="hidden sm:block text-xs text-[#8A6775] mt-1 line-clamp-1 italic">
-                  "{event.tagline}"
+                  &ldquo;{event.tagline}&rdquo;
                 </p>
               )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bot, Send, Sparkles, X, Loader2, Lock } from "lucide-react";
+import { Bot, Send, X, Loader2, Lock } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
 import { EventPlan } from "../types";
 
@@ -9,6 +9,13 @@ interface AiAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
   event: EventPlan;
+}
+
+function generateMsgId(): string {
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+function getTimestamp(): string {
+  return getTimestamp();
 }
 
 interface ChatMessage {
@@ -30,7 +37,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   onClose,
   event,
 }) => {
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const isAuthenticated = authStatus === "authenticated";
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -63,10 +70,10 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     if (!textToSend || loading) return;
 
     const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: generateMsgId(),
       sender: "user",
       text: textToSend,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: getTimestamp(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -75,7 +82,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     // Guard against unauthenticated invocation before dispatching network request
     if (!isAuthenticated) {
       const lockMsg: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: generateMsgId(),
         sender: "kordena",
         text: "Kordena AI Copilot is locked for unauthorized sessions. Please sign in to consult with AI.",
         timestamp: "Just now",
@@ -100,7 +107,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
 
       if (res.status === 401 || data.code === "UNAUTHORIZED") {
         const unauthMsg: ChatMessage = {
-          id: `msg-${Date.now() + 1}`,
+          id: generateMsgId(),
           sender: "kordena",
           text: data.message || "Unauthorized: You must be signed in to converse with Kordena AI Copilot.",
           timestamp: "Just now",
@@ -110,17 +117,17 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
       }
 
       const botMsg: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: generateMsgId(),
         sender: "kordena",
         text: data.reply || "I am analyzing your event parameters. Please try again.",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: getTimestamp(),
       };
 
       setMessages((prev) => [...prev, botMsg]);
     } catch (err) {
       console.error("Chat error:", err);
       const errorMsg: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: generateMsgId(),
         sender: "kordena",
         text: "I encountered a minor sync delay. Let me review your event data again.",
         timestamp: "Now",

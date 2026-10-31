@@ -75,7 +75,7 @@ async function handleTaskToggle(request: Request) {
     const indexMatch = String(sanitizedTaskId).match(/^task-(\d+)$/i);
     const parsedIdx = indexMatch ? parseInt(indexMatch[1], 10) : -1;
     const updatedTaskObj = (targetDoc.prepCalendarTasks || []).find(
-      (t: any, idx: number) => t.id === sanitizedTaskId || idx === parsedIdx
+      (t: { id?: string; isCompleted?: boolean; title?: string }, idx: number) => t.id === sanitizedTaskId || idx === parsedIdx
     );
 
     return NextResponse.json({
@@ -87,7 +87,7 @@ async function handleTaskToggle(request: Request) {
       userStatusId: targetDoc._id,
       eventName: targetDoc.eventName,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return safeErrorResponse(error, "Internal server error updating task");
   }
 }
@@ -131,7 +131,7 @@ export async function GET(request: Request) {
     }
 
     const tasks = doc.prepCalendarTasks || [];
-    const completedCount = tasks.filter((t: any) => Boolean(t.isCompleted)).length;
+    const completedCount = tasks.filter((t: { isCompleted?: boolean }) => Boolean(t.isCompleted)).length;
 
     return NextResponse.json({
       success: true,
@@ -141,7 +141,7 @@ export async function GET(request: Request) {
       completedCount,
       prepCalendarTasks: tasks,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return safeErrorResponse(error, "Failed to fetch tasks");
   }
 }

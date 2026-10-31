@@ -335,7 +335,7 @@ export default function Home() {
     guestCount,
     eventDate,
     eventTier,
-    activeUser?.name,
+    activeUser,
     planningItems,
     selectedPlan,
     activeEvent,

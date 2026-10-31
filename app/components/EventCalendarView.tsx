@@ -9,7 +9,6 @@ import {
   Calendar as CalendarIcon,
   Clock,
   IndianRupee,
-  Tag,
   ArrowLeft,
   Sparkles,
   CheckCircle2,
@@ -20,17 +19,13 @@ import {
   ShoppingCart,
   Wrench,
   AlertTriangle,
-  Circle,
   ListChecks,
   Filter,
   Search,
-  ExternalLink,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   TrendingUp,
-  Users,
-  ShieldAlert,
   X,
   Star,
   Zap,
@@ -40,7 +35,6 @@ import {
   Check,
   CheckCheck,
   Copy,
-  FileText,
   CalendarDays,
   ShieldCheck,
   UtensilsCrossed,
@@ -49,11 +43,7 @@ import {
   Layers,
   Columns,
   Maximize2,
-  Minimize2,
   CalendarRange,
-  Flame,
-  LayoutGrid,
-  Lock,
   Loader2,
   Menu,
   ArrowUpRight,
@@ -234,7 +224,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   selectedPlan,
   tier = "Starter",
   guestCount = 100,
-  organizerName,
+  organizerName: _organizerName,
   prepCalendarTasks: initialTasks,
   dayOfRunOfShow: initialRunOfShow,
   budgetBreakdown: initialBudget,
@@ -243,8 +233,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   onBackToStepper,
   onNewEvent,
 }) => {
-  const { data: session, status: authStatus } = useSession();
-  const isAuthenticated = authStatus === "authenticated";
+  const { status: _authStatus } = useSession();
 
   const [currentView, setCurrentView] = useState<View>("month");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
@@ -271,6 +260,21 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const [activeEventDate, setActiveEventDate] = useState<string>(eventDate);
   const [activeTier, setActiveTier] = useState<string | undefined>(tier);
   const [activeGuestCount, setActiveGuestCount] = useState<number | string | undefined>(guestCount);
+
+  // Compute the parsed event Date using centralized calendar utils
+  const parsedEventDate = useMemo(() => {
+    return parseTargetEventDate(activeEventDate || eventDate);
+  }, [activeEventDate, eventDate]);
+
+  // Controlled date state so Next, Back, and Today buttons work properly
+  const [currentDate, setCurrentDate] = useState<Date>(parsedEventDate);
+
+  // Sync internal calendar date if parsedEventDate changes
+  useEffect(() => {
+    if (parsedEventDate && !isNaN(parsedEventDate.getTime())) {
+      setCurrentDate(parsedEventDate);
+    }
+  }, [parsedEventDate.getTime()]);
 
   // Keep active event properties in sync if initial props change
   useEffect(() => {
@@ -704,21 +708,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     window.addEventListener("mousedown", handleClickOutside);
     return () => window.removeEventListener("mousedown", handleClickOutside);
   }, [isEventDropdownOpen]);
-
-  // Compute the parsed event Date using centralized calendar utils
-  const parsedEventDate = useMemo(() => {
-    return parseTargetEventDate(activeEventDate || eventDate);
-  }, [activeEventDate, eventDate]);
-
-  // Controlled date state so Next, Back, and Today buttons work properly
-  const [currentDate, setCurrentDate] = useState<Date>(parsedEventDate);
-
-  // Sync internal calendar date if parsedEventDate changes
-  useEffect(() => {
-    if (parsedEventDate && !isNaN(parsedEventDate.getTime())) {
-      setCurrentDate(parsedEventDate);
-    }
-  }, [parsedEventDate.getTime()]);
 
   // Days until target event countdown using centralized calendar utils
   const daysUntilEvent = useMemo(() => {
@@ -1381,6 +1370,19 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             </button>
           )}
 
+          <button
+            type="button"
+            onClick={() => setIsAiChatOpen(true)}
+            className="h-10 px-4 rounded-full bg-[#D44372] hover:bg-[#BE335E] text-white transition-all cursor-pointer flex items-center gap-2 shrink-0 shadow-xs font-bold text-xs group"
+            title="Open AI Calendar Copilot (Ctrl+J)"
+            aria-label="Open AI Calendar Copilot"
+          >
+            <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            <span>Ask AI Copilot</span>
+            <span className="hidden sm:inline-block text-[9px] font-mono bg-white/20 px-1.5 py-0.5 rounded-md border border-white/20 text-white">
+              Ctrl+J
+            </span>
+          </button>
         </div>
       </div>
 

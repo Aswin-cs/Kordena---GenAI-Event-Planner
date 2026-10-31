@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { signIn } from "next-auth/react";
-import { Sparkles, ShieldCheck, X, Loader2, ArrowRight, AlertCircle } from "lucide-react";
+import { ShieldCheck, X, Loader2, ArrowRight, AlertCircle } from "lucide-react";
 
 interface AuthModalProps {
   isOpen: boolean;

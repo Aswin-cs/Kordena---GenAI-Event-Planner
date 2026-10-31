@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { DollarSign, Plus, Sparkles, PieChart, TrendingUp, AlertCircle, CheckCircle2, Sliders } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 import { BudgetItem, EventPlan } from "../types";
 
 interface BudgetSectionProps {

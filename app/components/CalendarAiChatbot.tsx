@@ -11,7 +11,6 @@ import {
   Maximize2,
   Minimize2,
   Clock,
-  Flame,
   ArrowRight,
   CheckCircle2,
   Lock,
@@ -51,6 +50,13 @@ export interface CalendarAiChatbotProps {
     requirements?: string[];
   }) => void;
   onFocusDate?: (date: Date) => void;
+}
+
+function createChatMsgId(): string {
+  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+function getChatTimestamp(): string {
+  return getChatTimestamp();
 }
 
 interface ChatMessage {
@@ -118,9 +124,8 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
   onClose,
   eventContext,
   onEventStatusUpdated,
-  onFocusDate,
 }) => {
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const isAuthenticated = authStatus === "authenticated";
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
@@ -203,7 +208,6 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
   // Animated multi-step thinking indicator
   useEffect(() => {
     if (!loading) {
-      setThinkingStep(0);
       return;
     }
     const interval = setInterval(() => {
@@ -238,10 +242,10 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
     }
 
     const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: createChatMsgId(),
       sender: "user",
       text: textToSend,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: getChatTimestamp(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -250,7 +254,7 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
     // Frontend Check: Guard against unauthenticated invocation before dispatching network request
     if (!isAuthenticated) {
       const lockMsg: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: createChatMsgId(),
         sender: "kordena",
         text: "Kordena AI Copilot is currently locked for unauthorized sessions. Please sign in to ask questions, optimize dates, or modify blueprints.",
         timestamp: "Just now",
@@ -287,7 +291,7 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
 
       if (res.status === 401 || data.code === "UNAUTHORIZED") {
         const unauthMsg: ChatMessage = {
-          id: `msg-${Date.now() + 1}`,
+          id: createChatMsgId(),
           sender: "kordena",
           text: data.message || "Unauthorized: You must be signed in to converse with Kordena AI Copilot.",
           timestamp: "Just now",
@@ -302,12 +306,12 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
       }
 
       const botMsg: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: createChatMsgId(),
         sender: "kordena",
         text:
           data.reply ||
           "I have reviewed your production schedule. Let me know which milestone or budget item you wish to fine-tune.",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: getChatTimestamp(),
         actionType,
         isEditApplied: Boolean(data.isEditApplied),
         savedToDb: Boolean(data.savedToDb),
@@ -317,7 +321,7 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
     } catch (err) {
       console.error("Calendar chat error:", err);
       const errorMsg: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: createChatMsgId(),
         sender: "kordena",
         text: "I experienced a brief synchronization delay with the intelligence server. Let me re-examine your calendar parameters.",
         timestamp: "Just now",
@@ -337,7 +341,7 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
   const handleResetChat = () => {
     setMessages([
       {
-        id: `msg-${Date.now()}`,
+        id: createChatMsgId(),
         sender: "kordena",
         text: `Workspace restarted. Ready to inspect milestones, buffer strategies, and budgets for **${
           eventContext.title || "your event"
@@ -422,8 +426,8 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
         >
           {/* Header */}
           <header className="kchat-head">
-            <span className="kchat-mark overflow-hidden" aria-hidden="true">
-              <img src="/kordena-mark-reversed.svg" alt="Kordena Logo" className="w-full h-full object-contain p-1" />
+            <span className="kchat-mark overflow-hidden">
+              <img src="/kordena-mark-reversed.svg" alt="Kordena Logo" width={24} height={24} className="w-full h-full object-contain p-1" />
             </span>
             <div className="kchat-headtext">
               <h3>Copilot</h3>
@@ -493,8 +497,8 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                 {messages.map((msg) => (
                   <article key={msg.id} className={`kchat-msg ${msg.sender === "user" ? "kchat-msg--user" : "kchat-msg--bot"}`}>
                     {msg.sender === "kordena" && (
-                      <span className="kchat-avatar overflow-hidden" aria-hidden="true">
-                        <img src="/kordena-mark-reversed.svg" alt="Kordena" className="w-full h-full object-contain p-0.5" />
+                      <span className="kchat-avatar overflow-hidden">
+                        <img src="/kordena-mark-reversed.svg" alt="" width={20} height={20} className="w-full h-full object-contain p-0.5" />
                       </span>
                     )}
                     <div className="kchat-body">

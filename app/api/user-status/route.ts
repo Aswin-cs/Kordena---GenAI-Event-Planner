@@ -4,10 +4,8 @@ import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import UserStatus, { EventType, VALID_EVENT_TYPES } from "@/models/UserStatus.model";
-import User from "@/models/User";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
-  escapeRegex,
   sanitizeString,
   clampNumber,
   safeErrorResponse,
@@ -65,17 +63,12 @@ export async function POST(request: Request) {
       plannedItems,
       endDate,
       eventDate,
-      selectedPlan,
       tier,
       evaluationSummary,
       budgetBreakdown,
       prepCalendarTasks,
       dayOfRunOfShow,
-      mediatorStarterPrompts,
-      decorations,
-      arrangements,
       requirements,
-      aiSummary,
       aiResponse,
       userId: explicitUserId,
     } = body;
@@ -210,7 +203,7 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     return safeErrorResponse(error, "Failed to store user status");
   }
 }
@@ -243,7 +236,7 @@ export async function GET(request: Request) {
       count: userStatuses.length,
       userStatuses,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return safeErrorResponse(error, "Failed to fetch user statuses");
   }
 }
@@ -302,7 +295,7 @@ export async function DELETE(request: Request) {
       success: true,
       message: "Blueprint removed successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return safeErrorResponse(error, "Failed to delete user status");
   }
 }
@@ -372,7 +365,7 @@ export async function PATCH(request: Request) {
         prepCalendarTasks: targetDoc.prepCalendarTasks,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return safeErrorResponse(error, "Failed to update budget breakdown");
   }
 }

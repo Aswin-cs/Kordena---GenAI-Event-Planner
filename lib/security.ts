@@ -26,6 +26,21 @@ export function sanitizeString(val: any, maxLength = 255): string {
 }
 
 /**
+ * Sanitizes user input before embedding into AI prompts.
+ * Neutralizes prompt injection patterns (system overrides, instruction breaks, tag spoofing)
+ * and truncates to a safe token limit.
+ */
+export function sanitizePromptInput(val: any, maxLength = 4000): string {
+  if (typeof val !== "string") return "";
+  return val
+    .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]/g, "")
+    .replace(/<\/?(?:system|instruction|user_input|user_prompt|assistant|override)[^>]*>/gi, "")
+    .replace(/(?:\b|^)(?:ignore\s+all\s+previous\s+instructions|system\s+override|disregard\s+all\s+previous\s+directives|you\s+are\s+now\s+dan)(?:\b|$)/gi, "[filtered]")
+    .trim()
+    .slice(0, maxLength);
+}
+
+/**
  * Validates and constrains numeric inputs within safe operational ranges.
  */
 export function clampNumber(

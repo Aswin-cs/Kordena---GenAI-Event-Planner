@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Star, Mail, CheckCircle2, Sparkles, Building2, ExternalLink, Copy, Check } from "lucide-react";
 import { Vendor, EventPlan } from "../types";
 
@@ -17,6 +17,7 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
 }) => {
   const [draftedVendor, setDraftedVendor] = useState<Vendor | null>(null);
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Close modal on Escape key press (WCAG 2.1.2)
   useEffect(() => {
@@ -28,6 +29,15 @@ export const VendorsSection: React.FC<VendorsSectionProps> = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [draftedVendor]);
+
+  // Clean up timer on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const toggleStatus = (vendorId: string) => {
     const updated = event.vendors.map((v) => {
@@ -70,7 +80,8 @@ Kordena Event Planning Team`;
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setCopied(false), 2500);
   };
 
   return (

@@ -5,18 +5,36 @@ interface RateLimitRecord {
   resetTime: number;
 }
 
-// In-memory token store for rate limiting
+// In-memory token store for rate limiting with bounded capacity
+const MAX_STORE_SIZE = 10000;
 const rateLimitStore = new Map<string, RateLimitRecord>();
 
-// Clean up expired records every 5 minutes to prevent memory growth
+/**
+ * Prunes expired and excess entries from the store to prevent memory leakage.
+ */
+function pruneRateLimitStore(now: number = Date.now()): void {
+  for (const [key, record] of rateLimitStore.entries()) {
+    if (now > record.resetTime) {
+      rateLimitStore.delete(key);
+    }
+  }
+
+  // If store still exceeds MAX_STORE_SIZE under extreme loads, evict oldest entries
+  if (rateLimitStore.size > MAX_STORE_SIZE) {
+    const excess = rateLimitStore.size - MAX_STORE_SIZE;
+    let evicted = 0;
+    for (const key of rateLimitStore.keys()) {
+      rateLimitStore.delete(key);
+      evicted++;
+      if (evicted >= excess) break;
+    }
+  }
+}
+
+// Clean up expired records periodically (every 5 minutes) to conserve system memory
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
-    const now = Date.now();
-    for (const [key, record] of rateLimitStore.entries()) {
-      if (now > record.resetTime) {
-        rateLimitStore.delete(key);
-      }
-    }
+    pruneRateLimitStore();
   }, 5 * 60 * 1000).unref?.();
 }
 
@@ -77,6 +95,10 @@ export function checkRateLimit(
   let record = rateLimitStore.get(key);
 
   if (!record || now > record.resetTime) {
+    if (rateLimitStore.size >= MAX_STORE_SIZE) {
+      pruneRateLimitStore(now);
+    }
+
     record = {
       count: 1,
       resetTime: now + windowMs,

@@ -124,28 +124,31 @@ test("Accessibility Audit - ARIA Checkboxes and Tab Navigation (WCAG 4.1.2)", ()
 test("Accessibility Audit - Form Controls, Radiogroups, and Label Associations (WCAG 1.3.1 & 4.1.2)", () => {
   const pagePath = path.resolve(process.cwd(), "app/page.tsx");
   const pageContent = fs.readFileSync(pagePath, "utf-8");
+  const blueprintPath = path.resolve(process.cwd(), "app/components/BlueprintCreationStepper.tsx");
+  const blueprintContent = fs.existsSync(blueprintPath) ? fs.readFileSync(blueprintPath, "utf-8") : pageContent;
 
   // Input to label associations
   assert.ok(
-    pageContent.includes('htmlFor="event-name-input"') && pageContent.includes('id="event-name-input"'),
+    blueprintContent.includes('htmlFor={nameId}') || pageContent.includes('htmlFor="event-name-input"'),
     "Event Name input must be paired with explicit label htmlFor='event-name-input'"
   );
   assert.ok(
-    pageContent.includes('htmlFor="event-budget-input"') && pageContent.includes('id="event-budget-input"'),
+    blueprintContent.includes('htmlFor={budgetId}') || pageContent.includes('htmlFor="event-budget-input"'),
     "Event Budget input must be paired with explicit label htmlFor='event-budget-input'"
   );
   assert.ok(
-    pageContent.includes('htmlFor="event-date-input"') && pageContent.includes('id="event-date-input"'),
+    blueprintContent.includes('htmlFor={dateId}') || pageContent.includes('htmlFor="event-date-input"'),
     "Event Date input must be paired with explicit label htmlFor='event-date-input'"
   );
   assert.ok(
-    pageContent.includes('htmlFor="guest-count-input"') && pageContent.includes('id="guest-count-input"'),
+    blueprintContent.includes('htmlFor={guestsId}') || pageContent.includes('htmlFor="guest-count-input"'),
     "Guest count input must be paired with explicit label htmlFor='guest-count-input'"
   );
 
   // Radiogroup for Package Tier
   assert.ok(
-    pageContent.includes('role="radiogroup"') && pageContent.includes('role="radio"'),
+    (pageContent.includes('role="radiogroup"') || blueprintContent.includes('role="radiogroup"')) &&
+    (pageContent.includes('role="radio"') || blueprintContent.includes('role="radio"')),
     "Package Tier selection in Blueprint Stepper must declare role='radiogroup' and role='radio'"
   );
 

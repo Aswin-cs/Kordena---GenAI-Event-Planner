@@ -311,6 +311,26 @@ export function createGeminiConfig(
     config.stopSequences = options.stopSequences;
   }
 
+  // Responsible AI: Enforce strict safety thresholds against harmful content
+  config.safetySettings = [
+    {
+      category: "HARM_CATEGORY_HARASSMENT" as any,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+    },
+    {
+      category: "HARM_CATEGORY_HATE_SPEECH" as any,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+    },
+    {
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as any,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+    },
+    {
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT" as any,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+    },
+  ];
+
   return {
     model,
     contents,

@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
-import UserStatus, { IPrepCalendarTask } from "@/models/UserStatus.model";
-import User from "@/models/User";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
-  escapeRegex,
   sanitizeString,
   safeErrorResponse,
   resolveDbUserId,
@@ -61,31 +57,8 @@ async function handleTaskToggle(request: Request) {
       );
     }
 
-    // Find the task inside prepCalendarTasks
-    const tasks: IPrepCalendarTask[] = targetDoc.prepCalendarTasks || [];
-    let taskFound = false;
-    let newCompletedState = false;
-    let updatedTaskObj: any = null;
-
-    // Check if taskId matches directly, or matches index pattern (e.g. "task-0", "task-1")
-    const indexMatch = String(sanitizedTaskId).match(/^task-(\d+)$/i);
-    const parsedIdx = indexMatch ? parseInt(indexMatch[1], 10) : -1;
-
-    for (let i = 0; i < tasks.length; i++) {
-      const t = tasks[i];
-      const matchById = t.id && t.id === sanitizedTaskId;
-      const matchByIndex = i === parsedIdx;
-
-      if (matchById || matchByIndex) {
-        newCompletedState =
-          isCompleted !== undefined ? Boolean(isCompleted) : !Boolean(t.isCompleted);
-        t.isCompleted = newCompletedState;
-        updatedTaskObj = t;
-        taskFound = true;
-        break;
-      }
-    }
-
+    // Use optimized model instance method toggleTask
+    const taskFound = targetDoc.toggleTask(sanitizedTaskId, isCompleted);
     if (!taskFound) {
       return NextResponse.json(
         {
@@ -96,15 +69,19 @@ async function handleTaskToggle(request: Request) {
       );
     }
 
-    // Mark modified and persist to MongoDB
-    targetDoc.markModified("prepCalendarTasks");
     await targetDoc.save();
+
+    const indexMatch = String(sanitizedTaskId).match(/^task-(\d+)$/i);
+    const parsedIdx = indexMatch ? parseInt(indexMatch[1], 10) : -1;
+    const updatedTaskObj = (targetDoc.prepCalendarTasks || []).find(
+      (t: any, idx: number) => t.id === sanitizedTaskId || idx === parsedIdx
+    );
 
     return NextResponse.json({
       success: true,
-      message: `Task '${updatedTaskObj.title || sanitizedTaskId}' status updated to ${newCompletedState ? "completed" : "pending"}`,
+      message: `Task '${updatedTaskObj?.title || sanitizedTaskId}' status updated to ${updatedTaskObj?.isCompleted ? "completed" : "pending"}`,
       taskId: sanitizedTaskId,
-      isCompleted: newCompletedState,
+      isCompleted: updatedTaskObj?.isCompleted,
       updatedTask: updatedTaskObj,
       userStatusId: targetDoc._id,
       eventName: targetDoc.eventName,
@@ -137,28 +114,14 @@ export async function GET(request: Request) {
     const userStatusId = searchParams.get("userStatusId");
 
     const session = await getServerSession(authOptions);
-    let userId: any = null;
-    if (session?.user?.email) {
-      const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
-      if (dbUser) userId = dbUser._id;
-    } else {
-      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
-      if (guestUser) userId = guestUser._id;
-    }
+    const userId = await resolveDbUserId(session?.user?.email);
 
-    let filter: Record<string, any> = {};
-    if (userStatusId && mongoose.Types.ObjectId.isValid(userStatusId)) {
-      filter._id = userStatusId;
-      if (userId) filter.userId = userId;
-    } else if (eventName) {
-      const safeEventName = escapeRegex(sanitizeString(eventName, 120));
-      filter.eventName = { $regex: new RegExp(`^${safeEventName}$`, "i") };
-      if (userId) filter.userId = userId;
-    } else if (userId) {
-      filter.userId = userId;
-    }
+    const doc = await findUserStatusBlueprint({
+      userStatusId,
+      eventName,
+      userId,
+    });
 
-    const doc = await UserStatus.findOne(filter).sort({ updatedAt: -1 }).lean();
     if (!doc) {
       return NextResponse.json(
         { success: false, message: "Event not found" },
@@ -166,13 +129,13 @@ export async function GET(request: Request) {
       );
     }
 
-    const tasks = (doc as any).prepCalendarTasks || [];
+    const tasks = doc.prepCalendarTasks || [];
     const completedCount = tasks.filter((t: any) => Boolean(t.isCompleted)).length;
 
     return NextResponse.json({
       success: true,
-      eventName: (doc as any).eventName,
-      userStatusId: (doc as any)._id,
+      eventName: doc.eventName,
+      userStatusId: doc._id,
       totalTasks: tasks.length,
       completedCount,
       prepCalendarTasks: tasks,

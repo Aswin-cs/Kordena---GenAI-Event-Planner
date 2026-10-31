@@ -1367,10 +1367,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           </button>
         </div>
 
-        {/* Subtitle - hidden on mobile */}
-        <p className="hidden sm:block text-xs text-[#8A6775] -mt-2">
-          Master schedule synchronized across {tasks.length} countdown milestones & {runOfShow.length} day-of execution items.
-        </p>
 
         {/* Action Button Cluster - hidden on mobile */}
         <div className="hidden sm:flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
@@ -1385,27 +1381,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => setIsAiChatOpen(true)}
-            className="h-10 px-4 rounded-full bg-[#D44372] hover:bg-[#BE335E] text-white transition-all cursor-pointer flex items-center gap-2 shrink-0 shadow-md font-bold text-xs group"
-            title={isAuthenticated ? "Open AI Calendar Copilot (Ctrl+J)" : "AI Calendar Copilot (Sign In Required)"}
-          >
-            {isAuthenticated ? (
-              <Sparkles className="w-4 h-4 text-white animate-pulse" />
-            ) : (
-              <Lock className="w-4 h-4 text-amber-200" />
-            )}
-            <span>Ask AI Copilot</span>
-            {!isAuthenticated && (
-              <span className="inline-flex items-center text-[10px] bg-amber-500/90 text-white font-extrabold px-1.5 py-0.5 rounded-full">
-                Locked
-              </span>
-            )}
-            <span className="hidden sm:inline-block text-[9px] font-mono bg-white/10 px-1.5 py-0.5 rounded-md border border-white/15 text-white">
-              Ctrl+J
-            </span>
-          </button>
         </div>
       </div>
 
@@ -2911,23 +2886,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   Quick Actions
                 </p>
                 <div className="grid grid-cols-1 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      setIsAiChatOpen(true);
-                    }}
-                    className="w-full py-2.5 px-4 rounded-2xl bg-[#D44372] hover:bg-[#BE335E] active:scale-[0.98] text-white font-bold text-xs shadow-md transition-all duration-200 flex items-center justify-between cursor-pointer"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-white animate-pulse" />
-                      <span>Ask AI Copilot</span>
-                    </span>
-                    <span className="text-[10px] font-mono bg-white/20 px-2 py-0.5 rounded-md text-white">
-                      Chat
-                    </span>
-                  </button>
-
                   {onNewEvent && (
                     <button
                       type="button"
@@ -3087,9 +3045,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-[#8A6775] leading-relaxed">
-                  Master schedule synchronized across {tasks.length} countdown milestones & {runOfShow.length} day-of execution items.
-                </p>
               </div>
 
               {/* Executive Horizon Telemetry Cards */}

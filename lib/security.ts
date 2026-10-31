@@ -145,8 +145,8 @@ export async function resolveDbUserId(
 ): Promise<mongoose.Types.ObjectId | null> {
   if (sessionEmail) {
     const email = sessionEmail.toLowerCase().trim();
-    const dbUser = await User.findOne({ email });
-    if (dbUser) return dbUser._id;
+    const dbUser = await User.findOne({ email }).select("_id").lean();
+    if (dbUser) return dbUser._id as mongoose.Types.ObjectId;
     if (options?.createIfMissing) {
       const newUser = await User.create({
         name: sanitizeString(options?.userName, 100) || "Event Planner",
@@ -158,12 +158,12 @@ export async function resolveDbUserId(
   }
 
   if (explicitUserId && mongoose.Types.ObjectId.isValid(explicitUserId)) {
-    const existing = await User.findById(explicitUserId);
-    if (existing) return existing._id;
+    const existing = await User.findById(explicitUserId).select("_id").lean();
+    if (existing) return existing._id as mongoose.Types.ObjectId;
   }
 
-  const guest = await User.findOne({ email: "planner@kordena.ai" });
-  if (guest) return guest._id;
+  const guest = await User.findOne({ email: "planner@kordena.ai" }).select("_id").lean();
+  if (guest) return guest._id as mongoose.Types.ObjectId;
 
   if (options?.createIfMissing) {
     const fallbackUser = await User.create({
@@ -218,4 +218,59 @@ export async function findUserStatusBlueprint(params: {
   }
 
   return null;
+}
+
+/**
+ * Common update payload for event blueprints across API routes (chat, user-status PATCH).
+ */
+export interface BlueprintUpdateData {
+  budgetBreakdown?: any[];
+  prepCalendarTasks?: any[];
+  dayOfRunOfShow?: any[];
+  requirements?: string[];
+  budget?: number;
+  guestCount?: number;
+}
+
+/**
+ * Efficiently applies blueprint field updates to an active UserStatus Mongoose document.
+ * Eliminates duplicate array assignment and modified-flag boilerplate across API routes.
+ */
+export function applyBlueprintUpdates(
+  targetDoc: any,
+  updates: BlueprintUpdateData
+): boolean {
+  if (!targetDoc || !updates) return false;
+  let modified = false;
+
+  if (Array.isArray(updates.budgetBreakdown)) {
+    targetDoc.budgetBreakdown = updates.budgetBreakdown;
+    targetDoc.markModified("budgetBreakdown");
+    modified = true;
+  }
+  if (Array.isArray(updates.prepCalendarTasks)) {
+    targetDoc.prepCalendarTasks = updates.prepCalendarTasks;
+    targetDoc.markModified("prepCalendarTasks");
+    modified = true;
+  }
+  if (Array.isArray(updates.dayOfRunOfShow)) {
+    targetDoc.dayOfRunOfShow = updates.dayOfRunOfShow;
+    targetDoc.markModified("dayOfRunOfShow");
+    modified = true;
+  }
+  if (Array.isArray(updates.requirements)) {
+    targetDoc.requirements = updates.requirements;
+    targetDoc.markModified("requirements");
+    modified = true;
+  }
+  if (typeof updates.budget === "number" && !isNaN(updates.budget)) {
+    targetDoc.budget = clampNumber(updates.budget, 0, 1_000_000_000, targetDoc.budget);
+    modified = true;
+  }
+  if (typeof updates.guestCount === "number" && !isNaN(updates.guestCount) && updates.guestCount >= 1) {
+    targetDoc.guestCount = clampNumber(updates.guestCount, 1, 1_000_000, targetDoc.guestCount);
+    modified = true;
+  }
+
+  return modified;
 }

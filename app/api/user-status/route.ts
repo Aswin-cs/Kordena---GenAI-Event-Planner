@@ -13,6 +13,7 @@ import {
   safeErrorResponse,
   resolveDbUserId,
   findUserStatusBlueprint,
+  applyBlueprintUpdates,
 } from "@/lib/security";
 import { validateEventParameters } from "@/lib/calendar-utils";
 
@@ -235,13 +236,7 @@ export async function GET(request: Request) {
     if (!userId) {
       return NextResponse.json({ success: true, count: 0, userStatuses: [] });
     }
-    const filter = { userId };
-
-    const userStatuses = await UserStatus.find(filter)
-      .populate("userId", "name email image")
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .lean();
+    const userStatuses = await UserStatus.findActiveByUser(userId, 50);
 
     return NextResponse.json({
       success: true,
@@ -278,15 +273,7 @@ export async function DELETE(request: Request) {
     }
 
     const session = await getServerSession(authOptions);
-    let authUserId: mongoose.Types.ObjectId | null = null;
-
-    if (session?.user?.email) {
-      const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
-      if (dbUser) authUserId = dbUser._id;
-    } else {
-      const guestUser = await User.findOne({ email: "planner@kordena.ai" });
-      if (guestUser) authUserId = guestUser._id;
-    }
+    const authUserId = await resolveDbUserId(session?.user?.email);
 
     if (!authUserId) {
       return NextResponse.json(
@@ -295,23 +282,21 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const targetDoc = await UserStatus.findById(id);
-    if (!targetDoc) {
+    // Atomic deletion enforcing tenant isolation
+    const deleted = await UserStatus.findOneAndDelete({ _id: id, userId: authUserId });
+    if (!deleted) {
+      const exists = await UserStatus.exists({ _id: id });
+      if (exists) {
+        return NextResponse.json(
+          { success: false, message: "Forbidden: You do not have permission to delete this blueprint" },
+          { status: 403 }
+        );
+      }
       return NextResponse.json(
         { success: false, message: "Blueprint not found" },
         { status: 404 }
       );
     }
-
-    // Verify ownership: only the owner or assigned guest user may delete
-    if (!targetDoc.userId.equals(authUserId)) {
-      return NextResponse.json(
-        { success: false, message: "Forbidden: You do not have permission to delete this blueprint" },
-        { status: 403 }
-      );
-    }
-
-    await UserStatus.findByIdAndDelete(id);
 
     return NextResponse.json({
       success: true,
@@ -362,32 +347,16 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (Array.isArray(budgetBreakdown)) {
-      targetDoc.budgetBreakdown = budgetBreakdown;
-    }
-    if (typeof budget === "number" && !isNaN(budget)) {
-      targetDoc.budget = clampNumber(budget, 0, 1_000_000_000, targetDoc.budget);
-    }
+    // Apply updates cleanly via shared helper
+    applyBlueprintUpdates(targetDoc, {
+      budgetBreakdown,
+      budget,
+      prepCalendarTasks,
+    });
 
-    // Support updating prepCalendarTasks array directly
-    if (Array.isArray(prepCalendarTasks)) {
-      targetDoc.prepCalendarTasks = prepCalendarTasks;
-      targetDoc.markModified("prepCalendarTasks");
-    }
-
-    // Support single task toggle by taskId
-    if (taskId && Array.isArray(targetDoc.prepCalendarTasks)) {
-      const indexMatch = String(taskId).match(/^task-(\d+)$/i);
-      const parsedIdx = indexMatch ? parseInt(indexMatch[1], 10) : -1;
-
-      for (let i = 0; i < targetDoc.prepCalendarTasks.length; i++) {
-        const t = targetDoc.prepCalendarTasks[i];
-        if (t.id === taskId || i === parsedIdx) {
-          t.isCompleted = isCompleted !== undefined ? Boolean(isCompleted) : !Boolean(t.isCompleted);
-          break;
-        }
-      }
-      targetDoc.markModified("prepCalendarTasks");
+    // Support single task toggle by taskId using model method
+    if (taskId) {
+      targetDoc.toggleTask(taskId, isCompleted);
     }
 
     await targetDoc.save();

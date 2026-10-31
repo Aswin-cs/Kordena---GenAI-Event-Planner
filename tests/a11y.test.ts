@@ -121,3 +121,62 @@ test("Accessibility Audit - ARIA Checkboxes and Tab Navigation (WCAG 4.1.2)", ()
   );
 });
 
+test("Accessibility Audit - Form Controls, Radiogroups, and Label Associations (WCAG 1.3.1 & 4.1.2)", () => {
+  const pagePath = path.resolve(process.cwd(), "app/page.tsx");
+  const pageContent = fs.readFileSync(pagePath, "utf-8");
+
+  // Input to label associations
+  assert.ok(
+    pageContent.includes('htmlFor="event-name-input"') && pageContent.includes('id="event-name-input"'),
+    "Event Name input must be paired with explicit label htmlFor='event-name-input'"
+  );
+  assert.ok(
+    pageContent.includes('htmlFor="event-budget-input"') && pageContent.includes('id="event-budget-input"'),
+    "Event Budget input must be paired with explicit label htmlFor='event-budget-input'"
+  );
+  assert.ok(
+    pageContent.includes('htmlFor="event-date-input"') && pageContent.includes('id="event-date-input"'),
+    "Event Date input must be paired with explicit label htmlFor='event-date-input'"
+  );
+  assert.ok(
+    pageContent.includes('htmlFor="guest-count-input"') && pageContent.includes('id="guest-count-input"'),
+    "Guest count input must be paired with explicit label htmlFor='guest-count-input'"
+  );
+
+  // Radiogroup for Package Tier
+  assert.ok(
+    pageContent.includes('role="radiogroup"') && pageContent.includes('role="radio"'),
+    "Package Tier selection in Blueprint Stepper must declare role='radiogroup' and role='radio'"
+  );
+
+  // Dialog semantics for AI Evaluation Overlay
+  assert.ok(
+    pageContent.includes('aria-labelledby="ai-eval-modal-title"') && pageContent.includes('id="ai-eval-modal-title"'),
+    "AI Evaluation modal overlay must have accessible title via aria-labelledby"
+  );
+
+  // AiEvaluationStepper component accessibility
+  const stepperPath = path.resolve(process.cwd(), "app/components/AiEvaluationStepper.tsx");
+  const stepperContent = fs.readFileSync(stepperPath, "utf-8");
+  assert.ok(
+    stepperContent.includes('role="radiogroup"') && stepperContent.includes('role="radio"'),
+    "AiEvaluationStepper tier selection must declare role='radiogroup' and role='radio'"
+  );
+  assert.ok(
+    stepperContent.includes('role="checkbox"') && stepperContent.includes("aria-checked="),
+    "AiEvaluationStepper options must declare role='checkbox' and aria-checked for assistive technology"
+  );
+
+  // Navbar accessible dropdowns
+  const navbarPath = path.resolve(process.cwd(), "app/components/Navbar.tsx");
+  const navbarContent = fs.readFileSync(navbarPath, "utf-8");
+  assert.ok(
+    navbarContent.includes('aria-haspopup="listbox"') && navbarContent.includes('aria-expanded='),
+    "Navbar event blueprint switcher must declare aria-haspopup='listbox' and aria-expanded state"
+  );
+  assert.ok(
+    navbarContent.includes('aria-haspopup="menu"') && navbarContent.includes('aria-expanded='),
+    "Navbar user profile menu must declare aria-haspopup='menu' and aria-expanded state"
+  );
+});
+

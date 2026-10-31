@@ -8,16 +8,15 @@ import UserStatus, {
   IDayOfRunOfShowItem,
   IBudgetBreakdownItem,
 } from "@/models/UserStatus.model";
-import User from "@/models/User";
 import { geminiConfig } from "@/config/gemini";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
-  escapeRegex,
   sanitizeString,
   safeErrorResponse,
   requireAuthSession,
   resolveDbUserId,
   findUserStatusBlueprint,
+  applyBlueprintUpdates,
 } from "@/lib/security";
 import {
   geminiBudgetBreakdownSchema,
@@ -197,19 +196,7 @@ CLASSIFICATION RULES:
 
         // Enforce ownership: only mutate if the target blueprint belongs to the caller
         if (targetDoc && authUserId && targetDoc.userId.equals(authUserId)) {
-          if (Array.isArray(replyData.updatedFields.budgetBreakdown)) {
-            targetDoc.budgetBreakdown = replyData.updatedFields.budgetBreakdown;
-          }
-          if (Array.isArray(replyData.updatedFields.prepCalendarTasks)) {
-            targetDoc.prepCalendarTasks = replyData.updatedFields.prepCalendarTasks;
-          }
-          if (Array.isArray(replyData.updatedFields.dayOfRunOfShow)) {
-            targetDoc.dayOfRunOfShow = replyData.updatedFields.dayOfRunOfShow;
-          }
-          if (Array.isArray(replyData.updatedFields.requirements)) {
-            targetDoc.requirements = replyData.updatedFields.requirements;
-          }
-
+          applyBlueprintUpdates(targetDoc, replyData.updatedFields);
           await targetDoc.save();
           savedToDb = true;
           savedDocId = targetDoc._id.toString();

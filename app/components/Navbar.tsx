@@ -28,6 +28,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
   const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
+  // Keyboard navigation: Escape key closes active popovers (WCAG 2.1.1)
+  React.useEffect(() => {
+    if (!dropdownOpen && !userMenuOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDropdownOpen(false);
+        setUserMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [dropdownOpen, userMenuOpen]);
+
   return (
     <header className="sticky top-0 z-40 w-full bg-white/90 backdrop-blur-md border-b border-[#F7D6DF] shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
@@ -57,24 +70,35 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="relative">
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
+            aria-haspopup="listbox"
+            aria-expanded={dropdownOpen}
+            aria-controls="event-selector-listbox"
+            aria-label={`Active blueprint: ${activeEvent.title}. Click to switch blueprint.`}
             className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#FDF0F4]/60 border border-[#F7D6DF] text-sm font-medium text-[#2E131E] hover:border-[#D44372] hover:bg-[#FDF0F4] transition-all cursor-pointer shadow-2xs"
             id="event-selector-dropdown-btn"
           >
-            <Calendar className="w-4 h-4 text-[#D44372]" />
+            <Calendar className="w-4 h-4 text-[#D44372]" aria-hidden="true" />
             <span className="max-w-[140px] sm:max-w-[200px] truncate font-bold text-xs text-[#2E131E]">
               {activeEvent.title}
             </span>
-            <ChevronDown className="w-3.5 h-3.5 text-[#8A6775]" />
+            <ChevronDown className="w-3.5 h-3.5 text-[#8A6775]" aria-hidden="true" />
           </button>
 
           {dropdownOpen && (
-            <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-72 rounded-2xl bg-white border border-[#F7D6DF] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8A6775] border-b border-[#F7D6DF] mb-1">
+            <div
+              id="event-selector-listbox"
+              role="listbox"
+              aria-label="Available Event Blueprints"
+              className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-72 rounded-2xl bg-white border border-[#F7D6DF] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100"
+            >
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8A6775] border-b border-[#F7D6DF] mb-1" id="blueprint-list-header">
                 Your Event Blueprints
               </div>
               {events.map((ev) => (
                 <button
                   key={ev.id}
+                  role="option"
+                  aria-selected={ev.id === activeEvent.id}
                   onClick={() => {
                     onSelectEvent(ev);
                     setDropdownOpen(false);
@@ -90,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <p className="text-[10px] text-[#8A6775]">{ev.eventType} • {ev.date}</p>
                   </div>
                   {ev.id === activeEvent.id && (
-                    <CheckCircle2 className="w-4 h-4 text-[#D44372] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#D44372] shrink-0" aria-hidden="true" />
                   )}
                 </button>
               ))}
@@ -100,9 +124,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setDropdownOpen(false);
                     onOpenGenerator();
                   }}
+                  aria-label="Create New AI Blueprint"
                   className="w-full text-left px-2.5 py-2 text-xs font-bold text-[#9F224E] hover:bg-[#FDF0F4] rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Create New AI Blueprint
+                  <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Create New AI Blueprint
                 </button>
               </div>
             </div>
@@ -114,32 +139,35 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Ask Kordena Copilot */}
           <button
             onClick={onOpenAssistant}
+            aria-label="Ask Kordena AI Copilot"
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-[#F7D6DF] text-xs font-bold text-[#2E131E] hover:border-[#D44372] hover:text-[#2E131E] hover:bg-[#FDF0F4] transition-all cursor-pointer shadow-2xs"
             id="open-assistant-btn"
             title="Ask Kordena Copilot"
           >
-            <Bot className="w-4 h-4 text-[#D44372]" />
+            <Bot className="w-4 h-4 text-[#D44372]" aria-hidden="true" />
             <span className="hidden md:inline">Ask AI</span>
           </button>
 
           {/* Export Brief */}
           <button
             onClick={onOpenExport}
+            aria-label="Export Event Brief"
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white border border-[#F7D6DF] text-xs font-bold text-[#8A6775] hover:text-[#2E131E] hover:bg-[#FDF0F4] transition-all cursor-pointer shadow-2xs"
             id="export-brief-btn"
             title="Export Event Brief"
           >
-            <Download className="w-4 h-4 text-[#8A6775]" />
+            <Download className="w-4 h-4 text-[#8A6775]" aria-hidden="true" />
             <span className="hidden sm:inline">Export</span>
           </button>
 
           {/* Generate New */}
           <button
             onClick={onOpenGenerator}
+            aria-label="Create New AI Event Plan"
             className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#D44372] text-white text-xs font-bold hover:bg-[#163830] active:scale-98 transition-all cursor-pointer shadow-sm"
             id="generate-new-plan-btn"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">New Plan</span>
           </button>
 
@@ -147,6 +175,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="relative pl-1 sm:pl-2 border-l border-[#F7D6DF]">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen}
+              aria-controls="user-account-menu"
+              aria-label={`User Account Menu for ${user?.name || "Active Planner"}`}
               className="flex items-center gap-2 p-1.5 rounded-full hover:bg-[#FDF0F4] border border-transparent hover:border-[#F7D6DF] transition-all cursor-pointer"
               title="User Account Menu"
               id="user-profile-menu-btn"
@@ -159,15 +191,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="w-8 h-8 rounded-full object-cover border border-[#D44372]/40 shadow-2xs"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold text-xs">
+                <div className="w-8 h-8 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold text-xs" aria-hidden="true">
                   {user?.name ? user.name[0].toUpperCase() : "U"}
                 </div>
               )}
-              <ChevronDown className="w-3.5 h-3.5 text-[#8A6775] hidden sm:block" />
+              <ChevronDown className="w-3.5 h-3.5 text-[#8A6775] hidden sm:block" aria-hidden="true" />
             </button>
 
             {userMenuOpen && (
-              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white border border-[#F7D6DF] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div
+                id="user-account-menu"
+                role="menu"
+                aria-label="User Account Options"
+                className="absolute right-0 mt-2 w-64 rounded-2xl bg-white border border-[#F7D6DF] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100"
+              >
                 <div className="px-4 py-2.5 border-b border-[#F7D6DF]">
                   <div className="flex items-center gap-2.5 mb-1.5">
                     {user?.image ? (
@@ -178,7 +215,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         className="w-9 h-9 rounded-full object-cover border border-[#D44372]/40"
                       />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold text-xs">
+                      <div className="w-9 h-9 rounded-full bg-[#D44372] text-white flex items-center justify-center font-bold text-xs" aria-hidden="true">
                         {user?.name ? user.name[0].toUpperCase() : "U"}
                       </div>
                     )}
@@ -192,18 +229,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                   </div>
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#D44372]" /> Connected via NextAuth
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D44372]" aria-hidden="true" /> Connected via NextAuth
                   </span>
                 </div>
                 <div className="p-1.5">
                   <button
+                    role="menuitem"
                     onClick={() => {
                       setUserMenuOpen(false);
                       onLogout();
                     }}
                     className="w-full text-left px-3 py-2 text-xs font-medium text-[#B5473C] hover:bg-[#FDF2F0] rounded-xl flex items-center gap-2 transition-colors cursor-pointer"
                   >
-                    <LogOut className="w-3.5 h-3.5" /> Sign Out
+                    <LogOut className="w-3.5 h-3.5" aria-hidden="true" /> Sign Out
                   </button>
                 </div>
               </div>

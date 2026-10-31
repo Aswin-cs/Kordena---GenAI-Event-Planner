@@ -214,19 +214,21 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
             {/* Package Tier Selector */}
             <div className="p-4 rounded-2xl bg-white border border-[#F7D6DF] shadow-2xs space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[#2E131E] text-xs font-bold">
-                  <Sparkles className="w-3.5 h-3.5 text-[#D44372]" />
+                <div id="ai-stepper-tier-label" className="flex items-center gap-1.5 text-[#2E131E] text-xs font-bold">
+                  <Sparkles className="w-3.5 h-3.5 text-[#D44372]" aria-hidden="true" />
                   <span>Package Tier</span>
                 </div>
                 <span className="text-[10px] font-bold text-[#9F224E] bg-[#FDF0F4] px-2.5 py-0.5 rounded-full border border-[#D44372]/40">
                   {selectedTier} Selected
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div role="radiogroup" aria-labelledby="ai-stepper-tier-label" className="grid grid-cols-3 gap-2">
                 {(["Starter", "Basic", "Professional"] as const).map((tierOption) => (
                   <button
                     key={tierOption}
                     type="button"
+                    role="radio"
+                    aria-checked={selectedTier === tierOption}
                     onClick={() => setSelectedTier(tierOption)}
                     className={`py-2 px-3 rounded-full text-xs font-bold border transition-all text-center cursor-pointer ${
                       selectedTier === tierOption
@@ -270,13 +272,16 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
             </div>
 
             {/* Selection Options List */}
-            <div className="space-y-2 pt-1 max-h-[300px] overflow-y-auto pr-1">
+            <div role="group" aria-label="Decorations options" className="space-y-2 pt-1 max-h-[300px] overflow-y-auto pr-1">
               {questions.decorations.options.map((opt) => {
                 const isSelected = selectedDecorations.includes(opt.label);
                 return (
                   <button
                     key={opt.id}
                     type="button"
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    aria-label={`${opt.label}: ${opt.description}${opt.recommended ? " (AI Recommended)" : ""}`}
                     onClick={() =>
                       toggleItem(
                         selectedDecorations,
@@ -306,7 +311,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                       </p>
                     </div>
 
-                    <div className="shrink-0 mt-0.5">
+                    <div className="shrink-0 mt-0.5" aria-hidden="true">
                       {isSelected ? (
                         <CheckCircle2 className="w-5 h-5 text-[#2E131E]" />
                       ) : (
@@ -321,8 +326,10 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
             {/* Custom Input */}
             <div className="pt-2 flex items-center gap-2">
               <input
+                id="custom-decor-input"
                 type="text"
                 placeholder="Add other decoration item..."
+                aria-label="Add custom decoration item"
                 value={customDecor}
                 onChange={(e) => setCustomDecor(e.target.value)}
                 onKeyDown={(e) => {
@@ -340,6 +347,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
               />
               <button
                 type="button"
+                aria-label="Add custom decoration"
                 onClick={() =>
                   handleAddCustom(
                     customDecor,
@@ -350,7 +358,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                 }
                 className="px-4 py-2.5 rounded-full text-xs font-bold bg-[#D44372] text-white hover:bg-[#BE335E] transition-colors cursor-pointer flex items-center gap-1 shrink-0 shadow-2xs"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Add</span>
               </button>
             </div>
@@ -378,13 +386,16 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
             </div>
 
             {/* Selection Options List */}
-            <div className="space-y-2 pt-1 max-h-[300px] overflow-y-auto pr-1">
+            <div role="group" aria-label="Arrangements options" className="space-y-2 pt-1 max-h-[300px] overflow-y-auto pr-1">
               {questions.arrangements.options.map((opt) => {
                 const isSelected = selectedArrangements.includes(opt.label);
                 return (
                   <button
                     key={opt.id}
                     type="button"
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    aria-label={`${opt.label}: ${opt.description}${opt.status ? ` (${opt.status})` : ""}`}
                     onClick={() =>
                       toggleItem(
                         selectedArrangements,
@@ -422,7 +433,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                       </p>
                     </div>
 
-                    <div className="shrink-0 mt-0.5">
+                    <div className="shrink-0 mt-0.5" aria-hidden="true">
                       {isSelected ? (
                         <CheckCircle2 className="w-5 h-5 text-[#2E131E]" />
                       ) : (
@@ -437,8 +448,10 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
             {/* Custom Input */}
             <div className="pt-2 flex items-center gap-2">
               <input
+                id="custom-arrangement-input"
                 type="text"
                 placeholder="Add other arrangement done..."
+                aria-label="Add custom arrangement item"
                 value={customArrangement}
                 onChange={(e) => setCustomArrangement(e.target.value)}
                 onKeyDown={(e) => {
@@ -456,6 +469,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
               />
               <button
                 type="button"
+                aria-label="Add custom arrangement"
                 onClick={() =>
                   handleAddCustom(
                     customArrangement,
@@ -466,7 +480,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                 }
                 className="px-4 py-2.5 rounded-full text-xs font-bold bg-[#D44372] text-white hover:bg-[#BE335E] transition-colors cursor-pointer flex items-center gap-1 shrink-0 shadow-2xs"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Add</span>
               </button>
             </div>
@@ -494,13 +508,16 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
             </div>
 
             {/* Selection Options List */}
-            <div className="space-y-2 pt-1 max-h-[300px] overflow-y-auto pr-1">
+            <div role="group" aria-label="Requirements options" className="space-y-2 pt-1 max-h-[300px] overflow-y-auto pr-1">
               {questions.requirements.options.map((opt) => {
                 const isSelected = selectedRequirements.includes(opt.label);
                 return (
                   <button
                     key={opt.id}
                     type="button"
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    aria-label={`${opt.label}: ${opt.description}${opt.tag ? ` (${opt.tag})` : ""}`}
                     onClick={() =>
                       toggleItem(
                         selectedRequirements,
@@ -538,7 +555,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                       </p>
                     </div>
 
-                    <div className="shrink-0 mt-0.5">
+                    <div className="shrink-0 mt-0.5" aria-hidden="true">
                       {isSelected ? (
                         <CheckCircle2 className="w-5 h-5 text-[#2E131E]" />
                       ) : (
@@ -553,8 +570,10 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
             {/* Custom Input */}
             <div className="pt-2 flex items-center gap-2">
               <input
+                id="custom-requirement-input"
                 type="text"
                 placeholder="Add other requirement..."
+                aria-label="Add custom requirement item"
                 value={customRequirement}
                 onChange={(e) => setCustomRequirement(e.target.value)}
                 onKeyDown={(e) => {
@@ -572,6 +591,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
               />
               <button
                 type="button"
+                aria-label="Add custom requirement"
                 onClick={() =>
                   handleAddCustom(
                     customRequirement,
@@ -582,7 +602,7 @@ export const AiEvaluationStepper: React.FC<AiEvaluationStepperProps> = ({
                 }
                 className="px-4 py-2.5 rounded-full text-xs font-bold bg-[#D44372] text-white hover:bg-[#BE335E] transition-colors cursor-pointer flex items-center gap-1 shrink-0 shadow-2xs"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Add</span>
               </button>
             </div>

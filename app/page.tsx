@@ -608,9 +608,15 @@ export default function Home() {
               </div>
             )}
 
-            {/* AI Evaluation Loading Overlay Modal */}
+            {/* AI Evaluation Loading Overlay Modal (WCAG 2.1.2 & 4.1.2) */}
             {isAiEvaluating && (
-              <div className="fixed inset-0 z-50 bg-[#2E131E]/40 backdrop-blur-xs flex items-center justify-center p-4">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="ai-eval-modal-title"
+                aria-describedby="ai-eval-modal-desc"
+                className="fixed inset-0 z-50 bg-[#2E131E]/40 backdrop-blur-xs flex items-center justify-center p-4"
+              >
                 <div className="bg-white rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-2xl border border-[#F7D6DF] flex flex-col items-center text-center space-y-4 animate-in fade-in zoom-in-95">
                   <img
                     src="/kordena-mark-reversed.svg"
@@ -618,17 +624,17 @@ export default function Home() {
                     className="w-14 h-14 rounded-2xl shadow-lg shadow-[#D44372]/20 object-contain animate-pulse"
                   />
                   <div>
-                    <h3 className="font-[family-name:var(--font-display)] text-xl font-medium text-[#2E131E]">
+                    <h3 id="ai-eval-modal-title" className="font-[family-name:var(--font-display)] text-xl font-medium text-[#2E131E]">
                       Kordena AI is Evaluating Your Event
                     </h3>
-                    <p className="text-xs sm:text-sm text-[#8A6775] mt-1.5 leading-relaxed">
+                    <p id="ai-eval-modal-desc" className="text-xs sm:text-sm text-[#8A6775] mt-1.5 leading-relaxed">
                       Analyzing parameters for <strong className="text-[#2E131E]">{eventName || "your event"}</strong> ({eventType}, {guestCount} guests, ₹{Number(eventBudget || 250000).toLocaleString("en-IN")})...
                     </p>
                   </div>
-                  <div className="w-full bg-[#F7D6DF] h-2 rounded-full overflow-hidden border border-[#F7D6DF]">
+                  <div className="w-full bg-[#F7D6DF] h-2 rounded-full overflow-hidden border border-[#F7D6DF]" role="progressbar" aria-label="Evaluation progress" aria-valuemin={0} aria-valuemax={100}>
                     <div className="h-full bg-gradient-to-r from-[#D44372] to-[#E05A87] rounded-full animate-pulse w-3/4" />
                   </div>
-                  <p className="text-[11px] text-[#2E131E] font-semibold flex items-center gap-1.5">
+                  <p className="text-[11px] text-[#2E131E] font-semibold flex items-center gap-1.5" aria-live="polite">
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-[#D44372]" />
                     Synthesizing production schedule, countdown milestones & budget breakdown...
                   </p>
@@ -690,14 +696,18 @@ export default function Home() {
                     <div className="space-y-3.5 pt-1">
                       {/* 1. Event Name */}
                       <div>
-                        <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
-                          Event Name <span className="text-[#B5473C]">*</span>
+                        <label htmlFor="event-name-input" className="block text-xs font-bold text-[#2E131E] mb-1.5">
+                          Event Name <span className="text-[#B5473C]" aria-hidden="true">*</span>
+                          <span className="sr-only">(required)</span>
                         </label>
                         <input
+                          id="event-name-input"
                           type="text"
                           placeholder="e.g. Annual Global Tech Summit 2026"
                           value={eventName}
                           onChange={(e) => setEventName(e.target.value)}
+                          aria-required="true"
+                          aria-invalid={!eventName.trim() || eventName.trim() === "Untitled Event"}
                           className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
                           required
                         />
@@ -705,12 +715,15 @@ export default function Home() {
 
                       {/* 2. Event Type */}
                       <div>
-                        <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
-                          Event Type <span className="text-[#B5473C]">*</span>
+                        <label htmlFor="event-type-select" className="block text-xs font-bold text-[#2E131E] mb-1.5">
+                          Event Type <span className="text-[#B5473C]" aria-hidden="true">*</span>
+                          <span className="sr-only">(required)</span>
                         </label>
                         <select
+                          id="event-type-select"
                           value={eventType}
                           onChange={(e) => setEventType(e.target.value)}
+                          aria-required="true"
                           className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all cursor-pointer shadow-2xs"
                         >
                           <option value="Conference">Conference / Summit</option>
@@ -726,18 +739,23 @@ export default function Home() {
 
                       {/* 3. Budget */}
                       <div>
-                        <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
-                          Estimated Budget (₹) <span className="text-[#B5473C]">*</span>
+                        <label htmlFor="event-budget-input" className="block text-xs font-bold text-[#2E131E] mb-1.5">
+                          Estimated Budget (₹) <span className="text-[#B5473C]" aria-hidden="true">*</span>
+                          <span className="sr-only">(required)</span>
                         </label>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8A6775] text-xs font-bold">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8A6775] text-xs font-bold" aria-hidden="true">
                             ₹
                           </span>
                           <input
+                            id="event-budget-input"
                             type="number"
                             placeholder="e.g. 500000"
                             value={eventBudget}
                             onChange={(e) => setEventBudget(e.target.value)}
+                            aria-required="true"
+                            aria-invalid={eventBudget !== "" && Number(eventBudget) <= 0}
+                            aria-describedby={eventBudget !== "" && Number(eventBudget) <= 0 ? "event-budget-error" : undefined}
                             className="w-full pl-8 pr-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
                             min="1"
                             step="5000"
@@ -745,7 +763,7 @@ export default function Home() {
                           />
                         </div>
                         {eventBudget !== "" && Number(eventBudget) <= 0 && (
-                          <p className="text-[11px] text-[#B5473C] mt-1 font-semibold">
+                          <p id="event-budget-error" role="alert" className="text-[11px] text-[#B5473C] mt-1 font-semibold">
                             Budget must be greater than ₹0
                           </p>
                         )}
@@ -753,19 +771,24 @@ export default function Home() {
 
                       {/* 4. Date of the Event */}
                       <div>
-                        <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
-                          Date of the Event <span className="text-[#B5473C]">*</span>
+                        <label htmlFor="event-date-input" className="block text-xs font-bold text-[#2E131E] mb-1.5">
+                          Date of the Event <span className="text-[#B5473C]" aria-hidden="true">*</span>
+                          <span className="sr-only">(required)</span>
                         </label>
                         <input
+                          id="event-date-input"
                           type="date"
                           value={eventDate}
                           min={tomorrowStr}
                           onChange={(e) => setEventDate(e.target.value)}
+                          aria-required="true"
+                          aria-invalid={Boolean(eventDate && validation.errors.eventDate)}
+                          aria-describedby={eventDate && validation.errors.eventDate ? "event-date-error" : undefined}
                           className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all cursor-pointer shadow-2xs"
                           required
                         />
                         {eventDate && validation.errors.eventDate && (
-                          <p className="text-[11px] text-[#B5473C] mt-1 font-semibold">
+                          <p id="event-date-error" role="alert" className="text-[11px] text-[#B5473C] mt-1 font-semibold">
                             {validation.errors.eventDate}
                           </p>
                         )}
@@ -773,14 +796,18 @@ export default function Home() {
 
                       {/* 5. Estimated Guest Count */}
                       <div>
-                        <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
-                          Estimated Guest Count <span className="text-[#B5473C]">*</span>
+                        <label htmlFor="guest-count-input" className="block text-xs font-bold text-[#2E131E] mb-1.5">
+                          Estimated Guest Count <span className="text-[#B5473C]" aria-hidden="true">*</span>
+                          <span className="sr-only">(required)</span>
                         </label>
                         <input
+                          id="guest-count-input"
                           type="number"
                           placeholder="e.g. 150"
                           value={guestCount}
                           onChange={(e) => setGuestCount(e.target.value)}
+                          aria-required="true"
+                          aria-invalid={Number(guestCount) < 1}
                           className="w-full px-4 py-2.5 rounded-full border border-[#F7D6DF] bg-white text-xs sm:text-sm text-[#2E131E] placeholder:text-[#8A6775]/60 focus:outline-none focus:border-[#D44372] focus:ring-1 focus:ring-[#D44372] transition-all shadow-2xs"
                           min="1"
                           step="10"
@@ -789,14 +816,16 @@ export default function Home() {
 
                       {/* 6. Package Tier */}
                       <div>
-                        <label className="block text-xs font-bold text-[#2E131E] mb-1.5">
+                        <label id="tier-selection-label" className="block text-xs font-bold text-[#2E131E] mb-1.5">
                           Package Tier <span className="text-[#D44372] font-normal">(Starter, Basic, Professional)</span>
                         </label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div role="radiogroup" aria-labelledby="tier-selection-label" className="grid grid-cols-3 gap-2">
                           {(["Starter", "Basic", "Professional"] as const).map((t) => (
                             <button
                               key={t}
                               type="button"
+                              role="radio"
+                              aria-checked={eventTier === t}
                               onClick={() => setEventTier(t)}
                               className={`py-2 px-3 rounded-full text-xs font-bold border transition-all text-center cursor-pointer ${
                                 eventTier === t
@@ -829,8 +858,9 @@ export default function Home() {
                       {/* Input Box */}
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-bold text-[#2E131E]">
-                            What are things that be need for these <span className="text-[#B5473C]">*</span>
+                          <label htmlFor="planning-item-input" className="block text-xs font-bold text-[#2E131E]">
+                            What are things that be need for these <span className="text-[#B5473C]" aria-hidden="true">*</span>
+                            <span className="sr-only">(required)</span>
                           </label>
                           <span className="text-[10.5px] text-[#9F224E] font-bold bg-[#FDF0F4] px-2.5 py-0.5 rounded-full border border-[#D44372]/30">
                             Press Enter ↵ to add
@@ -839,6 +869,7 @@ export default function Home() {
 
                         <div className="relative flex items-center">
                           <input
+                            id="planning-item-input"
                             type="text"
                             placeholder="Type a word or sentence and press Enter (e.g. Photography & Drone Video)"
                             value={currentPlanningInput}
@@ -855,9 +886,10 @@ export default function Home() {
                             type="button"
                             onClick={handleAddPlanningItem}
                             disabled={!currentPlanningInput.trim()}
+                            aria-label="Add planning requirement"
                             className="absolute right-1.5 px-3.5 py-1.5 rounded-full bg-[#D44372] hover:bg-[#BE335E] disabled:bg-[#F7D6DF] disabled:text-[#8A6775] text-white text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs flex items-center gap-1"
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>Add</span>
                           </button>
                         </div>
@@ -868,10 +900,10 @@ export default function Home() {
 
                       {/* Suggested Quick Add Chips */}
                       <div>
-                        <span className="text-[11px] font-bold text-[#2E131E] block mb-1.5">
+                        <span id="quick-suggestions-label" className="text-[11px] font-bold text-[#2E131E] block mb-1.5">
                           Quick suggestions:
                         </span>
-                        <div className="flex flex-wrap gap-1.5">
+                        <div role="group" aria-labelledby="quick-suggestions-label" className="flex flex-wrap gap-1.5">
                           {[
                             "Stage & Audio Setup",
                             "Catering & Refreshments",
@@ -888,9 +920,10 @@ export default function Home() {
                                   setPlanningItems((prev) => [...prev, suggestion]);
                                 }
                               }}
+                              aria-label={`Add suggestion: ${suggestion}`}
                               className="text-[11px] px-3 py-1.5 rounded-full bg-white border border-[#F7D6DF] text-[#2E131E] hover:border-[#D44372] hover:text-[#2E131E] hover:bg-[#FDF0F4] transition-all cursor-pointer font-medium flex items-center gap-1.5 shadow-2xs"
                             >
-                              <Plus className="w-3 h-3 text-[#D44372]" />
+                              <Plus className="w-3 h-3 text-[#D44372]" aria-hidden="true" />
                               <span>{suggestion}</span>
                             </button>
                           ))}
@@ -900,7 +933,7 @@ export default function Home() {
                       {/* Bullet Points / Sub parts display */}
                       <div className="pt-2">
                         <div className="flex items-center justify-between mb-2">
-                          <label className="text-xs font-bold text-[#2E131E] flex items-center gap-2">
+                          <label id="planning-points-heading" className="text-xs font-bold text-[#2E131E] flex items-center gap-2">
                             <span>Planning Points</span>
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30">
                               {planningItems.length} {planningItems.length === 1 ? "item" : "items"}
@@ -910,6 +943,7 @@ export default function Home() {
                             <button
                               type="button"
                               onClick={() => setPlanningItems([])}
+                              aria-label="Clear all planning points"
                               className="text-[11px] text-[#B5473C] hover:text-[#9B3C33] font-semibold cursor-pointer"
                             >
                               Clear All
@@ -918,7 +952,7 @@ export default function Home() {
                         </div>
 
                         {planningItems.length === 0 ? (
-                          <div className="p-4 rounded-2xl border border-dashed border-[#F7D6DF] bg-[#FDF0F4]/30 text-center space-y-1.5">
+                          <div role="status" className="p-4 rounded-2xl border border-dashed border-[#F7D6DF] bg-[#FDF0F4]/30 text-center space-y-1.5">
                             <p className="text-xs font-semibold text-[#2E131E]">
                               No planning points added yet
                             </p>
@@ -926,11 +960,11 @@ export default function Home() {
                               Type in the input box above and press Enter, or choose from quick suggestions.
                             </p>
                             <p className="text-[11px] font-semibold text-[#B5473C] bg-[#FFF4F6] border border-[#F7C4D2] px-3 py-1 rounded-full inline-flex items-center gap-1.5 mt-1">
-                              <AlertCircle className="w-3.5 h-3.5 shrink-0" /> At least 1 planning point is required to continue.
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> At least 1 planning point is required to continue.
                             </p>
                           </div>
                         ) : (
-                          <ul className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                          <ul aria-labelledby="planning-points-heading" className="space-y-2 max-h-56 overflow-y-auto pr-1">
                             {planningItems.map((item, index) => (
                               <li
                                 key={index}
@@ -938,7 +972,7 @@ export default function Home() {
                               >
                                 <div className="flex items-start gap-2.5 flex-1 min-w-0">
                                   {/* Stylized bullet point */}
-                                  <span className="w-2 h-2 rounded-full bg-[#D44372] mt-1.5 shrink-0 shadow-2xs group-hover:scale-125 transition-transform" />
+                                  <span className="w-2 h-2 rounded-full bg-[#D44372] mt-1.5 shrink-0 shadow-2xs group-hover:scale-125 transition-transform" aria-hidden="true" />
                                   <span className="text-xs text-[#2E131E] font-medium leading-relaxed break-words">
                                     {item}
                                   </span>
@@ -947,9 +981,10 @@ export default function Home() {
                                   type="button"
                                   onClick={() => handleRemovePlanningItem(index)}
                                   className="opacity-60 group-hover:opacity-100 hover:text-[#B5473C] text-[#8A6775] p-1 rounded-full transition-colors cursor-pointer shrink-0"
-                                  title="Remove point"
+                                  title={`Remove point: ${item}`}
+                                  aria-label={`Remove planning point: ${item}`}
                                 >
-                                  <X className="w-3.5 h-3.5" />
+                                  <X className="w-3.5 h-3.5" aria-hidden="true" />
                                 </button>
                               </li>
                             ))}
@@ -973,8 +1008,8 @@ export default function Home() {
                     </div>
 
                     {!validation.isValid && (
-                      <div className="bg-[#FFF4F6] border border-[#F7C4D2] rounded-2xl p-4 text-xs flex items-start gap-2.5 text-[#B5473C] animate-in fade-in">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#B5473C]" />
+                      <div role="alert" aria-live="assertive" className="bg-[#FFF4F6] border border-[#F7C4D2] rounded-2xl p-4 text-xs flex items-start gap-2.5 text-[#B5473C] animate-in fade-in">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#B5473C]" aria-hidden="true" />
                         <div className="space-y-1">
                           <p className="font-bold">Cannot Submit: Missing Required Details</p>
                           <p className="text-[11.5px] text-[#8A6775] leading-relaxed">

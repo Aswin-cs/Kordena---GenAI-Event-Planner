@@ -15,7 +15,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "google" && user.email) {
         try {
           await connectToDatabase();
-          await User.findOneAndUpdate(
+          const dbUser = await User.findOneAndUpdate(
             { email: user.email.toLowerCase() },
             {
               $set: {
@@ -26,6 +26,9 @@ export const authOptions: NextAuthOptions = {
             },
             { new: true, upsert: true, setDefaultsOnInsert: true }
           );
+          if (dbUser) {
+            (user as any).id = dbUser._id.toString();
+          }
         } catch (error) {
           console.error("MongoDB User save error in NextAuth signIn callback:", error);
         }
@@ -33,20 +36,27 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async session({ session, token }) {
-      if (session.user && session.user.email) {
-        try {
-          await connectToDatabase();
-          const dbUser = await User.findOne({ email: session.user.email.toLowerCase() });
-          if (dbUser) {
-            (session.user as any).id = dbUser._id.toString();
+      if (session.user) {
+        if (token.userId) {
+          (session.user as any).id = token.userId as string;
+        } else if (session.user.email) {
+          try {
+            await connectToDatabase();
+            const dbUser = await User.findOne({ email: session.user.email.toLowerCase() }).lean();
+            if (dbUser) {
+              (session.user as any).id = dbUser._id.toString();
+            }
+          } catch (error) {
+            console.error("Error attaching MongoDB ID to session:", error);
           }
-        } catch (error) {
-          console.error("Error attaching MongoDB ID to session:", error);
         }
       }
       return session;
     },
     async jwt({ token, user, account }) {
+      if (user && (user as any).id) {
+        token.userId = (user as any).id;
+      }
       if (account && user) {
         token.sub = user.id || account.providerAccountId;
       }

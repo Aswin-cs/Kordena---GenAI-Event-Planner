@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { validateEventParameters } from "../lib/calendar-utils";
 import { POST as evaluateHandler } from "../app/api/ai-evaluate/route";
 import { POST as toggleHandler } from "../app/api/tasks/toggle/route";
@@ -290,8 +292,6 @@ test("Functional Validation - Backend API Route Parameter & Auth Enforcement", a
 });
 
 test("Chat Route - Temporal Anchoring & Today's Date Integration", () => {
-  const fs = require("node:fs");
-  const path = require("node:path");
   const chatRoutePath = path.resolve(process.cwd(), "app/api/chat/route.ts");
   const chatRouteContent = fs.readFileSync(chatRoutePath, "utf-8");
 
@@ -313,5 +313,22 @@ test("Chat Route - Temporal Anchoring & Today's Date Integration", () => {
     chatRouteContent.includes("scheduledDate") &&
     chatRouteContent.includes("daysBeforeEvent"),
     "Chat copilot must require scheduledDate and daysBeforeEvent for newly added tasks"
+  );
+});
+
+test("Security & Privacy - Event Histories Restricted for Unauthenticated Users", () => {
+  const landingPath = path.resolve(process.cwd(), "app/components/LandingPage.tsx");
+  const landingContent = fs.readFileSync(landingPath, "utf-8");
+
+  // EventHistories must only render when isAuthenticated is true
+  assert.ok(
+    landingContent.includes("isAuthenticated && events.length > 0"),
+    "LandingPage must guard EventHistories with isAuthenticated check"
+  );
+
+  // Database fetch for blueprints must only run when isAuthenticated is true
+  assert.ok(
+    landingContent.includes("if (!isAuthenticated)"),
+    "LandingPage must bypass fetching user statuses when user is not authenticated"
   );
 });

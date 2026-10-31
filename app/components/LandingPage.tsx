@@ -97,8 +97,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
   const [events, setEvents] = useState<EventPlan[]>([]);
   const [activeEventId, setActiveEventId] = useState<string>("");
 
-  // Fetch real saved event blueprints from database if available
+  // Fetch real saved event blueprints from database only for authenticated users
   React.useEffect(() => {
+    if (!isAuthenticated) {
+      setEvents([]);
+      return;
+    }
     let isMounted = true;
     fetch("/api/user-status")
       .then((res) => res.json())
@@ -154,7 +158,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // Redirect state to Calendar UI
   const [showCalendar, setShowCalendar] = useState(false);
@@ -652,8 +656,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
           </button>
         </div>
 
-        {/* Event Histories Section under Blueprint Stepper */}
-        {events.length > 0 && (
+        {/* Event Histories Section under Blueprint Stepper (authenticated users only) */}
+        {isAuthenticated && events.length > 0 && (
           <div className="w-full">
             <EventHistories
               events={events}

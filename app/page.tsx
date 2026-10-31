@@ -687,8 +687,8 @@ export default function Home() {
               leadOrganizerName={activeUser?.name || "Planner"}
             />
 
-            {/* Event Histories Section under Blueprint Stepper */}
-            {events.length > 0 && (
+            {/* Event Histories Section under Blueprint Stepper (authenticated users only) */}
+            {isAuthenticated && events.length > 0 && (
               <div className="w-full">
                 <EventHistories
                   events={events}

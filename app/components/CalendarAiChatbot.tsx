@@ -422,8 +422,8 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
         >
           {/* Header */}
           <header className="kchat-head">
-            <span className="kchat-mark" aria-hidden="true">
-              <Sparkles className="w-4 h-4" />
+            <span className="kchat-mark overflow-hidden" aria-hidden="true">
+              <img src="/kordena-mark-reversed.svg" alt="Kordena Logo" className="w-full h-full object-contain p-1" />
             </span>
             <div className="kchat-headtext">
               <h3>Copilot</h3>
@@ -493,8 +493,8 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                 {messages.map((msg) => (
                   <article key={msg.id} className={`kchat-msg ${msg.sender === "user" ? "kchat-msg--user" : "kchat-msg--bot"}`}>
                     {msg.sender === "kordena" && (
-                      <span className="kchat-avatar" aria-hidden="true">
-                        <Sparkles className="w-3 h-3" />
+                      <span className="kchat-avatar overflow-hidden" aria-hidden="true">
+                        <img src="/kordena-mark-reversed.svg" alt="Kordena" className="w-full h-full object-contain p-0.5" />
                       </span>
                     )}
                     <div className="kchat-body">
@@ -593,7 +593,7 @@ export const CalendarAiChatbot: React.FC<CalendarAiChatbotProps> = ({
                   aria-label="Send message"
                   title={!isAuthenticated ? "Sign in required" : "Send"}
                 >
-                  {!isAuthenticated ? <Lock className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                  {!isAuthenticated ? <Lock className="w-4 h-4 text-white" /> : <Send className="w-4 h-4 text-white" />}
                 </button>
               </form>
             </section>

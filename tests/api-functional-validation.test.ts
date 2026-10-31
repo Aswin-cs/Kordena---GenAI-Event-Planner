@@ -288,3 +288,30 @@ test("Functional Validation - Backend API Route Parameter & Auth Enforcement", a
     assert.strictEqual(body.success, false);
   });
 });
+
+test("Chat Route - Temporal Anchoring & Today's Date Integration", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const chatRoutePath = path.resolve(process.cwd(), "app/api/chat/route.ts");
+  const chatRouteContent = fs.readFileSync(chatRoutePath, "utf-8");
+
+  // Injects today's date
+  assert.ok(
+    chatRouteContent.includes("todayDateStr") && chatRouteContent.includes('new Date().toISOString().split("T")[0]'),
+    "Chat route must compute today's date in YYYY-MM-DD format as an anchor"
+  );
+
+  // System instruction mentions today's date and scheduling rules
+  assert.ok(
+    chatRouteContent.includes("Today's Date (Current Anchor Date)") &&
+    chatRouteContent.includes("TASK SCHEDULING & TEMPORAL ANCHORING"),
+    "Chat system instruction must explicitly anchor tasks to today's date"
+  );
+
+  // Scheduled date format and boundaries
+  assert.ok(
+    chatRouteContent.includes("scheduledDate") &&
+    chatRouteContent.includes("daysBeforeEvent"),
+    "Chat copilot must require scheduledDate and daysBeforeEvent for newly added tasks"
+  );
+});

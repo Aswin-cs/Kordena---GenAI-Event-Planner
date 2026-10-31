@@ -4,7 +4,6 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import {
   sanitizeString,
   clampNumber,
-  safeErrorResponse,
   requireAuthSession,
 } from "@/lib/security";
 import {
@@ -115,7 +114,6 @@ export async function POST(request: Request) {
       eventDate,
       endDate,
       tier = "Starter",
-      leadOrganizer = "",
       planningItems = [],
       plannedItems = [],
     } = body;

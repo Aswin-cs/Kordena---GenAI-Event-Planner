@@ -1665,10 +1665,15 @@ select option:checked {
   display: grid;
   place-items: center;
   background: var(--k-ink);
-  color: var(--k-gold);
+  color: #ffffff;
   cursor: pointer;
   transition: transform .15s, opacity .15s;
   outline: none;
+}
+
+.kchat-composer button svg {
+  color: #ffffff;
+  stroke: #ffffff;
 }
 
 .kchat-composer button:focus-visible {

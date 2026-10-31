@@ -183,3 +183,26 @@ test("Accessibility Audit - Form Controls, Radiogroups, and Label Associations (
   );
 });
 
+test("Accessibility & Branding Audit - CalendarAiChatbot Header Logo and Controls", () => {
+  const chatbotPath = path.resolve(process.cwd(), "app/components/CalendarAiChatbot.tsx");
+  const chatbotContent = fs.readFileSync(chatbotPath, "utf-8");
+
+  // Logo branding in header
+  assert.ok(
+    chatbotContent.includes('src="/kordena-mark-reversed.svg"') && chatbotContent.includes('alt="Kordena Logo"'),
+    "Chatbot header must display the official Kordena logo (/kordena-mark-reversed.svg)"
+  );
+
+  // Send button accessibility
+  assert.ok(
+    chatbotContent.includes('aria-label="Send message"'),
+    "Chatbot composer send button must declare explicit aria-label='Send message'"
+  );
+
+  // Dialog semantics
+  assert.ok(
+    chatbotContent.includes('role="dialog"') && chatbotContent.includes('aria-modal="true"'),
+    "Chatbot container must declare role='dialog' and aria-modal='true'"
+  );
+});
+

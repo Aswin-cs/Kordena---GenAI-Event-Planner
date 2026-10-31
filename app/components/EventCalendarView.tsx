@@ -1734,15 +1734,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
               {/* Operations Deck Header & Micro-Tabs */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F7D6DF] gap-2.5">
                 <div className="flex items-center gap-2.5">
-                  <div className="hidden sm:flex w-8 h-8 rounded-full bg-[#FDF0F4] text-[#9F224E] border border-[#D44372]/30 items-center justify-center font-bold">
-                    {splitCompanionTab === "budget" ? (
-                      <SlidersHorizontal className="w-4 h-4" />
-                    ) : splitCompanionTab === "tasks" ? (
-                      <ListChecks className="w-4 h-4" />
-                    ) : (
-                      <Zap className="w-4 h-4" />
-                    )}
-                  </div>
                   <div>
                     <h2 className="font-[family-name:var(--font-display)] text-lg font-medium text-[#2E131E]">Operations Deck</h2>
                     <p className="text-[11px] text-[#8A6775]">

@@ -56,7 +56,7 @@ function createChatMsgId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 function getChatTimestamp(): string {
-  return getChatTimestamp();
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 interface ChatMessage {

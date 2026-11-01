@@ -138,7 +138,7 @@ export interface IUserStatus extends Document, IUserStatusMethods {
 /**
  * Static query helper interface on the UserStatus Mongoose Model.
  */
-export interface IUserStatusModel extends Model<IUserStatus, {}, IUserStatusMethods> {
+export interface IUserStatusModel extends Model<IUserStatus, Record<string, never>, IUserStatusMethods> {
   /**
    * Retrieves active blueprints for a user with lean projection and reverse chronological sorting.
    */

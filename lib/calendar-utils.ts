@@ -4,7 +4,7 @@
  * task filtering, and budget telemetry.
  */
 
-import { IPrepCalendarTask, IBudgetBreakdownItem } from "@/models/UserStatus.model";
+import { IPrepCalendarTask } from "@/models/UserStatus.model";
 
 /**
  * Formats a date string (ISO or arbitrary) into YYYY-MM-DD for HTML date inputs.

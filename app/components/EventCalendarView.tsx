@@ -269,12 +269,12 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   // Controlled date state so Next, Back, and Today buttons work properly
   const [currentDate, setCurrentDate] = useState<Date>(parsedEventDate);
 
-  // Sync internal calendar date if parsedEventDate changes
-  useEffect(() => {
-    if (parsedEventDate && !isNaN(parsedEventDate.getTime())) {
-      setCurrentDate(parsedEventDate);
-    }
-  }, [parsedEventDate.getTime()]);
+  // Adjust currentDate during render if parsedEventDate prop changes (eliminates cascading renders)
+  const [prevParsedDateMs, setPrevParsedDateMs] = useState<number>(() => parsedEventDate.getTime());
+  if (parsedEventDate.getTime() !== prevParsedDateMs) {
+    setPrevParsedDateMs(parsedEventDate.getTime());
+    setCurrentDate(parsedEventDate);
+  }
 
   // Keep active event properties in sync if initial props change
   useEffect(() => {

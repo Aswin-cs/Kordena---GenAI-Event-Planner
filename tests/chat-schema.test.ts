@@ -236,3 +236,21 @@ test("Chat API Response Schema Validation", async (t) => {
   });
 });
 
+test("Chat Components - Timestamp & MsgId Generator Integrity", async (t) => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+
+  await t.test("CalendarAiChatbot defines safe non-recursive getChatTimestamp", () => {
+    const file = fs.readFileSync(path.resolve(process.cwd(), "app/components/CalendarAiChatbot.tsx"), "utf-8");
+    assert.ok(file.includes("function getChatTimestamp(): string"), "getChatTimestamp must be defined");
+    assert.ok(!file.includes("return getChatTimestamp();"), "getChatTimestamp must never call itself recursively");
+    assert.ok(file.includes("toLocaleTimeString"), "getChatTimestamp must format current time safely");
+  });
+
+  await t.test("AiAssistantModal defines safe non-recursive getTimestamp", () => {
+    const file = fs.readFileSync(path.resolve(process.cwd(), "app/components/AiAssistantModal.tsx"), "utf-8");
+    assert.ok(file.includes("function getTimestamp(): string"), "getTimestamp must be defined");
+    assert.ok(!file.includes("return getTimestamp();"), "getTimestamp must never call itself recursively");
+    assert.ok(file.includes("toLocaleTimeString"), "getTimestamp must format current time safely");
+  });
+});

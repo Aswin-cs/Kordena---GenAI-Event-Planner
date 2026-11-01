@@ -27,7 +27,7 @@ export const authOptions: NextAuthOptions = {
             { new: true, upsert: true, setDefaultsOnInsert: true }
           );
           if (dbUser) {
-            (user as any).id = dbUser._id.toString();
+            (user as { id?: string }).id = dbUser._id.toString();
           }
         } catch (error) {
           console.error("MongoDB User save error in NextAuth signIn callback:", error);
@@ -37,14 +37,15 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
+        const userWithId = session.user as { id?: string; name?: string | null; email?: string | null; image?: string | null };
         if (token.userId) {
-          (session.user as any).id = token.userId as string;
+          userWithId.id = token.userId as string;
         } else if (session.user.email) {
           try {
             await connectToDatabase();
             const dbUser = await User.findOne({ email: session.user.email.toLowerCase() }).lean();
             if (dbUser) {
-              (session.user as any).id = dbUser._id.toString();
+              userWithId.id = dbUser._id.toString();
             }
           } catch (error) {
             console.error("Error attaching MongoDB ID to session:", error);
@@ -54,8 +55,9 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user, account }) {
-      if (user && (user as any).id) {
-        token.userId = (user as any).id;
+      const userObj = user as { id?: string } | undefined;
+      if (userObj?.id) {
+        token.userId = userObj.id;
       }
       if (account && user) {
         token.sub = user.id || account.providerAccountId;

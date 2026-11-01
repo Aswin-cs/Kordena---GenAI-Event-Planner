@@ -1,43 +1,44 @@
 import { GoogleGenAI, type GenerateContentConfig } from "@google/genai";
 
+type SafetySetting = NonNullable<GenerateContentConfig["safetySettings"]>[number];
+
 /**
  * Uploaded content specification. Supports base64 data, buffers, file URIs,
  * nested file objects, and plain text prompts.
  */
-export type UploadedContent =
-  | {
+export interface UploadedContentObject {
+  mimeType?: string;
+  data?: string | Buffer;
+  inlineData?: {
     mimeType: string;
-    data: string | Buffer;
-    [key: string]: any;
-  }
-  | {
-    inlineData: {
-      mimeType: string;
-      data: string;
-    };
-    [key: string]: any;
-  }
-  | {
+    data: string;
+  };
+  fileUri?: string;
+  fileData?: {
     fileUri: string;
     mimeType?: string;
-    [key: string]: any;
-  }
-  | {
-    fileData: {
-      fileUri: string;
-      mimeType?: string;
-    };
-    [key: string]: any;
-  }
-  | {
-    text?: string;
-    prompt?: string;
-    files?: UploadedContent[];
-    file?: UploadedContent;
-    [key: string]: any;
-  }
-  | Record<string, any>
-  | string;
+  };
+  text?: string;
+  prompt?: string;
+  files?: UploadedContent[];
+  file?: UploadedContent;
+  [key: string]: unknown;
+}
+
+export type UploadedContent = UploadedContentObject | string;
+
+export interface GeminiContentPart {
+  text?: string;
+  inlineData?: {
+    mimeType: string;
+    data: string;
+  };
+  fileData?: {
+    fileUri: string;
+    mimeType?: string;
+  };
+  [key: string]: unknown;
+}
 
 /**
  * Additional options for Gemini API execution and configuration.
@@ -99,9 +100,9 @@ export interface GeminiConfigOptions extends GeminiExecutionOptions {
   /** Alias for uploadedContents */
   uploadedContent?: UploadedContent;
   /** Response schema object defining structured JSON output */
-  responseSchema?: Record<string, any>;
+  responseSchema?: Record<string, unknown>;
   /** Alias for responseSchema */
-  schema?: Record<string, any>;
+  schema?: Record<string, unknown>;
 }
 
 /**
@@ -109,13 +110,14 @@ export interface GeminiConfigOptions extends GeminiExecutionOptions {
  */
 export interface GeminiConfigPayload {
   model: string;
-  contents: any[];
+  contents: GeminiContentPart[];
   config: GenerateContentConfig;
 }
 
 /**
  * Structured response returned when calling the Gemini API.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface GeminiExecutionResponse<T = any> {
   success: boolean;
   text: string;
@@ -124,7 +126,7 @@ export interface GeminiExecutionResponse<T = any> {
   modelUsed?: string;
   /** Record of attempted models and errors if fallbacks were triggered */
   fallbackAttempts?: Array<{ model: string; error: string }>;
-  rawResponse: any;
+  rawResponse: unknown;
   error?: string;
 }
 
@@ -160,7 +162,7 @@ export function getGeminiClient(apiKey?: string): GoogleGenAI {
  * Normalizes uploaded content objects into valid @google/genai content parts.
  * Handles base64 data, inline data, file URIs, buffers, and text.
  */
-export function formatUploadedContents(uploadedContents?: UploadedContent | UploadedContent[]): any[] {
+export function formatUploadedContents(uploadedContents?: UploadedContent | UploadedContent[]): GeminiContentPart[] {
   if (!uploadedContents) return [];
 
   // Array of items: flatten and recursively process
@@ -211,7 +213,7 @@ export function formatUploadedContents(uploadedContents?: UploadedContent | Uplo
   }
 
   // Composite object containing text, prompt, and/or nested files
-  const parts: any[] = [];
+  const parts: GeminiContentPart[] = [];
   if (uploadedContents.text) {
     parts.push({ text: uploadedContents.text });
   }
@@ -219,7 +221,7 @@ export function formatUploadedContents(uploadedContents?: UploadedContent | Uplo
     parts.push({ text: uploadedContents.prompt });
   }
   if (Array.isArray(uploadedContents.files)) {
-    parts.push(...uploadedContents.files.flatMap((f: any) => formatUploadedContents(f)));
+    parts.push(...uploadedContents.files.flatMap((f: UploadedContent) => formatUploadedContents(f)));
   }
   if (uploadedContents.file) {
     parts.push(...formatUploadedContents(uploadedContents.file));
@@ -246,13 +248,13 @@ export function formatUploadedContents(uploadedContents?: UploadedContent | Uplo
 export function createGeminiConfig(
   systemInstructions?: string | GeminiConfigOptions,
   uploadedContents?: UploadedContent,
-  responseSchema?: Record<string, any>,
+  responseSchema?: Record<string, unknown>,
   extraOptions?: GeminiExecutionOptions
 ): GeminiConfigPayload {
   // Support both object parameter and positional parameters
   let resolvedSystemInstructions = "";
   let resolvedUploadedContents: UploadedContent | undefined;
-  let resolvedResponseSchema: Record<string, any> | undefined;
+  let resolvedResponseSchema: Record<string, unknown> | undefined;
   let options: GeminiExecutionOptions = {};
 
   if (typeof systemInstructions === "object" && systemInstructions !== null) {
@@ -272,7 +274,7 @@ export function createGeminiConfig(
   const model = options.model || "gemini-3.8-flash";
 
   // Build content parts
-  const contents: any[] = formatUploadedContents(resolvedUploadedContents);
+  const contents: GeminiContentPart[] = formatUploadedContents(resolvedUploadedContents);
 
   // If extra prompt was provided, append it to contents
   if (options.prompt && !contents.some((c) => c.text === options.prompt)) {
@@ -316,20 +318,20 @@ export function createGeminiConfig(
   // Responsible AI: Enforce strict safety thresholds against harmful content
   config.safetySettings = [
     {
-      category: "HARM_CATEGORY_HARASSMENT" as any,
-      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+      category: "HARM_CATEGORY_HARASSMENT" as SafetySetting["category"],
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as SafetySetting["threshold"],
     },
     {
-      category: "HARM_CATEGORY_HATE_SPEECH" as any,
-      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+      category: "HARM_CATEGORY_HATE_SPEECH" as SafetySetting["category"],
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as SafetySetting["threshold"],
     },
     {
-      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as any,
-      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as SafetySetting["category"],
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as SafetySetting["threshold"],
     },
     {
-      category: "HARM_CATEGORY_DANGEROUS_CONTENT" as any,
-      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any,
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT" as SafetySetting["category"],
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as SafetySetting["threshold"],
     },
   ];
 
@@ -372,10 +374,11 @@ export function createGeminiConfig(
  * console.log(response.data?.title);
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function geminiConfig<T = any>(
   systemInstructions?: string | GeminiConfigOptions,
   uploadedContents?: UploadedContent,
-  responseSchema?: Record<string, any>,
+  responseSchema?: Record<string, unknown>,
   extraOptions?: GeminiExecutionOptions
 ): Promise<GeminiExecutionResponse<T>> {
   try {
@@ -404,7 +407,7 @@ export async function geminiConfig<T = any>(
       ? [primaryModel]
       : Array.from(new Set([primaryModel, ...customFallbacks]));
 
-    let lastError: any = null;
+    let lastError: unknown = null;
     const fallbackAttempts: Array<{ model: string; error: string }> = [];
 
     for (let i = 0; i < modelsToTry.length; i++) {
@@ -419,7 +422,7 @@ export async function geminiConfig<T = any>(
         const timeoutMs = typeof resolvedOptions.timeout === "number" ? resolvedOptions.timeout : 12000;
         const generatePromise = ai.models.generateContent({
           model: candidateModel,
-          contents: payload.contents,
+          contents: payload.contents as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
           config: payload.config,
         });
 
@@ -485,8 +488,8 @@ export async function geminiConfig<T = any>(
           fallbackAttempts: fallbackAttempts.length > 0 ? fallbackAttempts : undefined,
           rawResponse: result,
         };
-      } catch (err: any) {
-        const errMsg = err?.message || String(err);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
         fallbackAttempts.push({ model: candidateModel, error: errMsg });
         lastError = err;
 
@@ -511,17 +514,18 @@ export async function geminiConfig<T = any>(
       fallbackAttempts,
       rawResponse: null,
       error:
-        lastError?.message ||
-        `All attempted Gemini models failed (${modelsToTry.join(", ")})`,
+        lastError instanceof Error
+          ? lastError.message
+          : `All attempted Gemini models failed (${modelsToTry.join(", ")})`,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Gemini Config] Error executing Gemini API call:", error);
     return {
       success: false,
       text: "",
       data: null,
       rawResponse: null,
-      error: error?.message || String(error),
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }

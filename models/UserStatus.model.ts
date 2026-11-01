@@ -137,7 +137,7 @@ export interface IUserStatus extends Document, IUserStatusMethods {
   prepCalendarTasks: IPrepCalendarTask[];
   dayOfRunOfShow: IDayOfRunOfShowItem[];
   requirements: string[];
-  aiResponse?: Record<string, any>;
+  aiResponse?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
   // Computed virtual properties
@@ -269,7 +269,7 @@ const UserStatusSchema = new Schema<IUserStatus, IUserStatusModel, IUserStatusMe
       type: Date,
       required: [true, "endDate is required"],
       validate: {
-        validator: (v: any) => v instanceof Date && !isNaN(v.getTime()),
+        validator: (v: unknown) => v instanceof Date && !isNaN(v.getTime()),
         message: "endDate must be a valid calendar date",
       },
     },
@@ -352,7 +352,7 @@ UserStatusSchema.methods.toggleTask = function (
   const indexMatch = String(taskId).match(/^task-(\d+)$/i);
   let taskFound = false;
 
-  const updatedTasks = this.prepCalendarTasks.map((task: any, index: number) => {
+  const updatedTasks = this.prepCalendarTasks.map((task: IPrepCalendarTask, index: number) => {
     const isTarget =
       task.id === taskId ||
       (indexMatch && parseInt(indexMatch[1], 10) === index);
@@ -377,7 +377,7 @@ UserStatusSchema.methods.toggleTask = function (
 UserStatusSchema.methods.getCompletionMetrics = function () {
   const tasks = this.prepCalendarTasks || [];
   const totalCount = tasks.length;
-  const completedCount = tasks.filter((t: any) => Boolean(t.isCompleted)).length;
+  const completedCount = tasks.filter((t: IPrepCalendarTask) => Boolean(t.isCompleted)).length;
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   return { completedCount, totalCount, percentage };
 };
@@ -398,17 +398,17 @@ UserStatusSchema.methods.deleteBudgetCategory = function (categoryName: string) 
   const initialRosCount = (this.dayOfRunOfShow || []).length;
 
   // Filter budgetBreakdown items
-  const remainingBudget = (this.budgetBreakdown || []).filter((item: any) => {
+  const remainingBudget = (this.budgetBreakdown || []).filter((item: IBudgetBreakdownItem) => {
     return String(item?.category || "").trim().toLowerCase() !== normCat;
   });
 
   // Re-calculate percentages across remaining budget breakdown items
   const newTotalAllocated = remainingBudget.reduce(
-    (sum: number, item: any) => sum + (Number(item?.allocatedAmount) || 0),
+    (sum: number, item: IBudgetBreakdownItem) => sum + (Number(item?.allocatedAmount) || 0),
     0
   );
   if (newTotalAllocated > 0) {
-    remainingBudget.forEach((item: any) => {
+    remainingBudget.forEach((item: IBudgetBreakdownItem) => {
       item.percentage = Math.round(((Number(item.allocatedAmount) || 0) / newTotalAllocated) * 100);
     });
   }
@@ -428,7 +428,7 @@ UserStatusSchema.methods.deleteBudgetCategory = function (categoryName: string) 
   };
 
   // Filter out prepCalendarTasks related to this category/department
-  const remainingTasks = (this.prepCalendarTasks || []).filter((task: any) => {
+  const remainingTasks = (this.prepCalendarTasks || []).filter((task: IPrepCalendarTask) => {
     const depMatch = isRelated(task.department || "");
     const titleMatch = isRelated(task.title || "");
     const briefMatch = isRelated(task.actionBrief || "");
@@ -436,7 +436,7 @@ UserStatusSchema.methods.deleteBudgetCategory = function (categoryName: string) 
   });
 
   // Filter out dayOfRunOfShow related to this category/department
-  const remainingRos = (this.dayOfRunOfShow || []).filter((ros: any) => {
+  const remainingRos = (this.dayOfRunOfShow || []).filter((ros: IDayOfRunOfShowItem) => {
     const depMatch = isRelated(ros.departmentInCharge || "");
     const actMatch = isRelated(ros.activity || "");
     return !(depMatch || actMatch);

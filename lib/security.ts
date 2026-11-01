@@ -3,7 +3,12 @@ import { getServerSession } from "next-auth/next";
 import mongoose from "mongoose";
 import { authOptions } from "./auth";
 import User, { IUser } from "../models/User";
-import UserStatus from "../models/UserStatus.model";
+import UserStatus, {
+  IUserStatus,
+  IBudgetBreakdownItem,
+  IPrepCalendarTask,
+  IDayOfRunOfShowItem,
+} from "../models/UserStatus.model";
 
 /**
  * Escapes special characters in a string to safely use inside a RegExp
@@ -17,7 +22,7 @@ export function escapeRegex(str: string): string {
 /**
  * Strips dangerous control characters and truncates strings to a maximum safe length.
  */
-export function sanitizeString(val: any, maxLength = 255): string {
+export function sanitizeString(val: unknown, maxLength = 255): string {
   if (typeof val !== "string") return "";
   return val
     .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]/g, "")
@@ -30,7 +35,7 @@ export function sanitizeString(val: any, maxLength = 255): string {
  * Neutralizes prompt injection patterns (system overrides, instruction breaks, tag spoofing)
  * and truncates to a safe token limit.
  */
-export function sanitizePromptInput(val: any, maxLength = 4000): string {
+export function sanitizePromptInput(val: unknown, maxLength = 4000): string {
   if (typeof val !== "string") return "";
   return val
     .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F]/g, "")
@@ -44,7 +49,7 @@ export function sanitizePromptInput(val: any, maxLength = 4000): string {
  * Validates and constrains numeric inputs within safe operational ranges.
  */
 export function clampNumber(
-  val: any,
+  val: unknown,
   min: number,
   max: number,
   defaultValue: number
@@ -85,9 +90,10 @@ export async function requireAuthSession(
       userName: session.user.name || "Event Planner",
       response: null,
     };
-  } catch (err: any) {
-    if (!err?.message?.includes("outside a request scope")) {
-      console.warn("[Security] Auth session check failed:", err?.message || err);
+  } catch (err: unknown) {
+    const errorObj = err instanceof Error ? err : new Error(String(err));
+    if (!errorObj.message.includes("outside a request scope")) {
+      console.warn("[Security] Auth session check failed:", errorObj.message);
     }
     return {
       authorized: false as const,
@@ -128,7 +134,7 @@ export async function getAuthenticatedUser(): Promise<IUser | null> {
  * preventing stack traces, internal paths, and DB infrastructure details from leaking.
  */
 export function safeErrorResponse(
-  error: any,
+  error: unknown,
   clientMessage = "An unexpected error occurred",
   status = 500
 ): NextResponse {
@@ -136,7 +142,7 @@ export function safeErrorResponse(
   console.error(`[Server Error ${status}]:`, error);
 
   const isDev = process.env.NODE_ENV === "development";
-  const errorMessage = isDev && error?.message ? error.message : clientMessage;
+  const errorMessage = isDev && error instanceof Error ? error.message : clientMessage;
 
   return NextResponse.json(
     {
@@ -214,7 +220,7 @@ export async function findUserStatusBlueprint(params: {
   // 2. By eventName
   if (eventName) {
     const safeName = escapeRegex(sanitizeString(eventName, 120));
-    const query: Record<string, any> = {
+    const query: Record<string, unknown> = {
       eventName: { $regex: new RegExp(`^${safeName}$`, "i") },
     };
     if (userId) query.userId = userId;
@@ -239,9 +245,9 @@ export async function findUserStatusBlueprint(params: {
  * Common update payload for event blueprints across API routes (chat, user-status PATCH).
  */
 export interface BlueprintUpdateData {
-  budgetBreakdown?: any[];
-  prepCalendarTasks?: any[];
-  dayOfRunOfShow?: any[];
+  budgetBreakdown?: IBudgetBreakdownItem[];
+  prepCalendarTasks?: IPrepCalendarTask[];
+  dayOfRunOfShow?: IDayOfRunOfShowItem[];
   requirements?: string[];
   budget?: number;
   guestCount?: number;
@@ -252,7 +258,7 @@ export interface BlueprintUpdateData {
  * Eliminates duplicate array assignment and modified-flag boilerplate across API routes.
  */
 export function applyBlueprintUpdates(
-  targetDoc: any,
+  targetDoc: IUserStatus | null | undefined,
   updates: BlueprintUpdateData
 ): boolean {
   if (!targetDoc || !updates) return false;

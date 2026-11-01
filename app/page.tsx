@@ -18,6 +18,7 @@ import { BlueprintCreationStepper } from "./components/BlueprintCreationStepper"
 import { EventHistories } from "./components/EventHistories";
 import { AiEvaluationResponse } from "./api/ai-evaluate/route";
 import { parseDateForInput, normalizeEventType, validateEventParameters } from "@/lib/calendar-utils";
+import type { IPrepCalendarTask, IDayOfRunOfShowItem, IBudgetBreakdownItem, IEvaluationSummary } from "@/models/UserStatus.model";
 
 // Optimize initial bundle size and memory by code-splitting heavy components
 const EventCalendarView = dynamic(
@@ -42,7 +43,19 @@ export default function Home() {
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
-  const [authNotice, setAuthNotice] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const errorParam = params.get("error");
+      if (errorParam) {
+        if (errorParam === "OAuthSignin" || errorParam === "OAuthCallback") {
+          return "Google sign-in was cancelled or encountered an OAuth handshake issue. Please try signing in again.";
+        }
+        return `NextAuth status: ${errorParam}`;
+      }
+    }
+    return null;
+  });
 
   // View state: 'stepper' or 'calendar'
   const [viewMode, setViewMode] = useState<"stepper" | "calendar">("stepper");
@@ -85,10 +98,10 @@ export default function Home() {
   const [aiEvaluationData, setAiEvaluationData] = useState<AiEvaluationResponse | null>(null);
   const [aiEvalError, setAiEvalError] = useState<string | null>(null);
   const [savedOperations, setSavedOperations] = useState<{
-    prepCalendarTasks?: any[];
-    dayOfRunOfShow?: any[];
-    budgetBreakdown?: any[];
-    evaluationSummary?: any;
+    prepCalendarTasks?: IPrepCalendarTask[];
+    dayOfRunOfShow?: IDayOfRunOfShowItem[];
+    budgetBreakdown?: IBudgetBreakdownItem[];
+    evaluationSummary?: IEvaluationSummary;
     plannedItems?: string[];
   } | null>(null);
 
@@ -121,23 +134,6 @@ export default function Home() {
     setViewMode("stepper");
   }, []);
 
-  // Check URL query parameters for NextAuth status/errors on load
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const errorParam = params.get("error");
-      if (errorParam) {
-        if (errorParam === "OAuthSignin" || errorParam === "OAuthCallback") {
-          setAuthNotice(
-            "Google sign-in was cancelled or encountered an OAuth handshake issue. Please try signing in again."
-          );
-        } else {
-          setAuthNotice(`NextAuth status: ${errorParam}`);
-        }
-      }
-    }
-  }, []);
-
   // Workspace state (initialized empty so no unwanted static mock data is shown)
   const [events, setEvents] = useState<EventPlan[]>([]);
   const [activeEventId, setActiveEventId] = useState<string>("");
@@ -167,7 +163,36 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => {
         if (!isMounted || !data.success || !Array.isArray(data.userStatuses)) return;
-        const loadedPlans: EventPlan[] = data.userStatuses.map((us: any) => ({
+        interface DbTask {
+          id?: string;
+          title?: string;
+          priority?: string;
+        }
+        interface DbBudget {
+          category?: string;
+          allocatedAmount?: number;
+          spendStrategy?: string;
+        }
+        interface DbRos {
+          timeSlot?: string;
+          activity?: string;
+          departmentInCharge?: string;
+        }
+        interface DbUserStatus {
+          _id?: string;
+          eventName?: string;
+          evaluationSummary?: { eventVibe?: string };
+          aiSummary?: string;
+          eventType?: string;
+          endDate?: string | Date;
+          guestCount?: number;
+          budget?: number;
+          prepCalendarTasks?: DbTask[];
+          budgetBreakdown?: DbBudget[];
+          dayOfRunOfShow?: DbRos[];
+        }
+
+        const loadedPlans: EventPlan[] = (data.userStatuses as DbUserStatus[]).map((us: DbUserStatus) => ({
           id: us._id || `event-${Date.now()}-${Math.random()}`,
           title: us.eventName || "Untitled Event",
           tagline:
@@ -181,7 +206,7 @@ export default function Home() {
           totalBudget: us.budget || 50000,
           aiVibeSummary: us.evaluationSummary?.eventVibe || us.aiSummary || "",
           paletteDescription: "",
-          tasks: (us.prepCalendarTasks || []).map((t: any, idx: number) => ({
+          tasks: (us.prepCalendarTasks || []).map((t: DbTask, idx: number) => ({
             id: t.id || `t-${idx}`,
             title: t.title || "Task",
             category: "Program",
@@ -189,16 +214,16 @@ export default function Home() {
             completed: false,
             priority: t.priority === "high" ? "High" : t.priority === "medium" ? "Medium" : "Low",
           })),
-          budget: (us.budgetBreakdown || []).map((b: any, idx: number) => ({
+          budget: (us.budgetBreakdown || []).map((b: DbBudget, idx: number) => ({
             id: `b-${idx}`,
-            category: b.category,
+            category: b.category || "General",
             allocated: b.allocatedAmount || 0,
             spent: 0,
             notes: b.spendStrategy || "",
           })),
           alerts: [],
           vendors: [],
-          schedule: (us.dayOfRunOfShow || []).map((s: any, idx: number) => ({
+          schedule: (us.dayOfRunOfShow || []).map((s: DbRos, idx: number) => ({
             id: `s-${idx}`,
             time: s.timeSlot || "",
             title: s.activity || "",
@@ -320,11 +345,10 @@ export default function Home() {
       setIsCompleted(true);
       setViewMode("calendar");
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("AI Evaluation error:", err);
-      setAiEvalError(
-        err?.message || "Could not complete AI evaluation. Please verify your inputs and try again."
-      );
+      const msg = err instanceof Error ? err.message : "Could not complete AI evaluation. Please verify your inputs and try again.";
+      setAiEvalError(msg);
     } finally {
       setIsAiEvaluating(false);
     }

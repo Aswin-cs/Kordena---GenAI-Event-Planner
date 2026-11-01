@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
-import { Calendar, dateFnsLocalizer, View } from "react-big-calendar";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
+import { Calendar, dateFnsLocalizer, View, EventProps } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -161,6 +161,20 @@ export function getActionMeta(actionType?: string) {
   }
 }
 
+export interface IUserEventStatusDoc {
+  _id?: string;
+  eventName?: string;
+  eventType?: string;
+  budget?: number;
+  endDate?: string | Date;
+  tier?: string;
+  guestCount?: number | string;
+  prepCalendarTasks?: IPrepCalendarTask[];
+  dayOfRunOfShow?: IDayOfRunOfShowItem[];
+  budgetBreakdown?: IBudgetBreakdownItem[];
+  evaluationSummary?: IEvaluationSummary;
+}
+
 export function getPriorityMeta(priority?: string) {
   switch (priority?.toLowerCase()) {
     case "high":
@@ -249,7 +263,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const [isMobileMenuVisible, setIsMobileMenuVisible] = useState<boolean>(false);
 
   // User events list fetched from UserStatus model (/api/user-status)
-  const [allUserEvents, setAllUserEvents] = useState<any[]>([]);
+  const [allUserEvents, setAllUserEvents] = useState<IUserEventStatusDoc[]>([]);
   const [currentEventIndex, setCurrentEventIndex] = useState<number>(0);
   const [isEventDropdownOpen, setIsEventDropdownOpen] = useState<boolean>(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(true);
@@ -277,48 +291,57 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     setCurrentDate(parsedEventDate);
   }
 
-  // Keep active event properties in sync if initial props change
-  useEffect(() => {
+  // Keep active event properties in sync if initial props change (render-time synchronization)
+  const [prevProps, setPrevProps] = useState({ eventName, eventType, eventBudget, eventDate, tier, guestCount });
+  if (
+    prevProps.eventName !== eventName ||
+    prevProps.eventType !== eventType ||
+    prevProps.eventBudget !== eventBudget ||
+    prevProps.eventDate !== eventDate ||
+    prevProps.tier !== tier ||
+    prevProps.guestCount !== guestCount
+  ) {
+    setPrevProps({ eventName, eventType, eventBudget, eventDate, tier, guestCount });
     setActiveEventName(eventName);
     setActiveEventType(eventType);
     setActiveEventBudget(eventBudget);
     setActiveEventDate(eventDate);
     setActiveTier(tier);
     setActiveGuestCount(guestCount);
-  }, [eventName, eventType, eventBudget, eventDate, tier, guestCount]);
+  }
 
   // Smooth left pop-up drawer animation lifecycle
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (selectedEvent) {
-      setActiveDrawerEvent(selectedEvent);
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
+        setActiveDrawerEvent(selectedEvent);
         setIsDrawerOpen(true);
-      }, 20);
-      return () => clearTimeout(timer);
+      }, 10);
     } else {
-      setIsDrawerOpen(false);
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
+        setIsDrawerOpen(false);
         setActiveDrawerEvent(null);
-      }, 300);
-      return () => clearTimeout(timer);
+      }, 10);
     }
+    return () => clearTimeout(timer);
   }, [selectedEvent]);
 
   // Smooth mobile slide-over right menu animation lifecycle
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (isMobileMenuOpen) {
-      setIsMobileMenuMounted(true);
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
+        setIsMobileMenuMounted(true);
         setIsMobileMenuVisible(true);
-      }, 20);
-      return () => clearTimeout(timer);
+      }, 10);
     } else {
-      setIsMobileMenuVisible(false);
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
+        setIsMobileMenuVisible(false);
         setIsMobileMenuMounted(false);
-      }, 320);
-      return () => clearTimeout(timer);
+      }, 10);
     }
+    return () => clearTimeout(timer);
   }, [isMobileMenuOpen]);
 
   // Loaded tasks & run of show state (with fallback to GET /api/user-status if props are empty)
@@ -381,7 +404,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         spendStrategy: "Emergency operational reserves & municipal compliance.",
       },
     ];
-  }, [eventBudget]);
+  }, [activeEventBudget, eventBudget]);
 
   const targetBudget = Number(activeEventBudget || eventBudget) || 100000;
 
@@ -416,12 +439,14 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Sync editable budget if budgetList updates from database or parent
-  useEffect(() => {
+  // Sync editable budget if budgetList updates from database or parent (render-time synchronization)
+  const [prevBudgetList, setPrevBudgetList] = useState(budgetList);
+  if (budgetList !== prevBudgetList) {
+    setPrevBudgetList(budgetList);
     if (budgetList && budgetList.length > 0) {
       setEditableBudget(normalizeBudgetItems(budgetList));
     }
-  }, [budgetList, targetBudget]);
+  }
 
   // Target budget and total allocated calculations
   const totalAllocated = useMemo(() => {
@@ -477,9 +502,10 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       } else {
         setSaveError(data.message || "Failed to save budget breakdown");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error saving budget breakdown:", err);
-      setSaveError(err?.message || "Failed to save budget breakdown");
+      const msg = err instanceof Error ? err.message : "Failed to save budget breakdown";
+      setSaveError(msg);
     } finally {
       setIsSavingBudget(false);
     }
@@ -584,16 +610,33 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Sync if props update
-  useEffect(() => {
+  // Sync if props update (render-time synchronization)
+  const [prevInitialData, setPrevInitialData] = useState({
+    tasks: initialTasks,
+    ros: initialRunOfShow,
+    summary: initialSummary,
+    budget: initialBudget,
+  });
+  if (
+    prevInitialData.tasks !== initialTasks ||
+    prevInitialData.ros !== initialRunOfShow ||
+    prevInitialData.summary !== initialSummary ||
+    prevInitialData.budget !== initialBudget
+  ) {
+    setPrevInitialData({
+      tasks: initialTasks,
+      ros: initialRunOfShow,
+      summary: initialSummary,
+      budget: initialBudget,
+    });
     if (initialTasks && initialTasks.length > 0) setTasks(initialTasks);
     if (initialRunOfShow && initialRunOfShow.length > 0) setRunOfShow(initialRunOfShow);
     if (initialSummary) setEvalSummary(initialSummary);
     if (initialBudget && initialBudget.length > 0) setBudgetList(initialBudget);
-  }, [initialTasks, initialRunOfShow, initialSummary, initialBudget]);
+  }
 
   // Apply event document data to active calendar view
-  const applyEventData = (eventDoc: any) => {
+  const applyEventData = (eventDoc: IUserEventStatusDoc) => {
     if (!eventDoc) return;
     setActiveEventName(eventDoc.eventName || "Untitled Event");
     setActiveEventType(eventDoc.eventType || "Conference");
@@ -665,6 +708,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     if (!hasCurrent && (activeEventName || eventName)) {
       return [
         {
+          _id: undefined,
           eventName: activeEventName || eventName,
           eventType: activeEventType || eventType,
           budget: Number(activeEventBudget || eventBudget),
@@ -675,7 +719,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
           dayOfRunOfShow: runOfShow,
           budgetBreakdown: budgetList,
           evaluationSummary: evalSummary,
-        },
+        } as IUserEventStatusDoc,
         ...allUserEvents,
       ];
     }
@@ -703,7 +747,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   // Fetch all user events from UserStatus collection on mount
   useEffect(() => {
     let isMounted = true;
-    setIsLoadingEvents(true);
     const minDelay = new Promise((resolve) => setTimeout(resolve, 550));
 
     Promise.all([
@@ -717,13 +760,13 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     ])
       .then(([data]) => {
         if (!isMounted || !data?.success || !Array.isArray(data?.userStatuses)) return;
-        const list = data.userStatuses;
+        const list = data.userStatuses as IUserEventStatusDoc[];
         setAllUserEvents(list);
 
         // Find index matching current eventName
         const targetName = (activeEventName || eventName || "").trim().toLowerCase();
         const foundIdx = list.findIndex(
-          (us: any) => us.eventName?.trim().toLowerCase() === targetName
+          (us: IUserEventStatusDoc) => us.eventName?.trim().toLowerCase() === targetName
         );
 
         if (foundIdx !== -1) {
@@ -741,30 +784,30 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [eventName]);
+  }, [eventName, activeEventName]);
 
   // Event Switcher Navigation Handlers
-  const handleSelectEventIndex = (index: number) => {
+  const handleSelectEventIndex = useCallback((index: number) => {
     const list = effectiveEvents;
     if (index < 0 || index >= list.length) return;
     setCurrentEventIndex(index);
     applyEventData(list[index]);
     setIsEventDropdownOpen(false);
-  };
+  }, [effectiveEvents]);
 
-  const handlePrevEvent = () => {
+  const handlePrevEvent = useCallback(() => {
     const list = effectiveEvents;
     if (list.length <= 1) return;
     const nextIdx = currentEventIndex > 0 ? currentEventIndex - 1 : list.length - 1;
     handleSelectEventIndex(nextIdx);
-  };
+  }, [effectiveEvents, currentEventIndex, handleSelectEventIndex]);
 
-  const handleNextEvent = () => {
+  const handleNextEvent = useCallback(() => {
     const list = effectiveEvents;
     if (list.length <= 1) return;
     const nextIdx = currentEventIndex < list.length - 1 ? currentEventIndex + 1 : 0;
     handleSelectEventIndex(nextIdx);
-  };
+  }, [effectiveEvents, currentEventIndex, handleSelectEventIndex]);
 
   // Keyboard shortcut to switch between events: Alt + ArrowLeft / Alt + ArrowRight
   useEffect(() => {
@@ -788,7 +831,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [effectiveEvents, currentEventIndex]);
+  }, [handlePrevEvent, handleNextEvent]);
 
   // Close event selector dropdown when clicking outside
   useEffect(() => {
@@ -809,9 +852,9 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   }, [parsedEventDate]);
 
   // Calendar Header Navigation Handlers
-  const handleCalendarToday = () => {
+  const handleCalendarToday = useCallback(() => {
     setCurrentDate(new Date(parsedEventDate));
-  };
+  }, [parsedEventDate]);
 
   const handleCalendarPrev = () => {
     const newDate = new Date(currentDate);
@@ -838,7 +881,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   };
 
   // Toggle task completion with instant optimistic UI + backend MongoDB persistence
-  const handleToggleTaskCompleted = async (taskId: string, e?: React.MouseEvent) => {
+  const handleToggleTaskCompleted = useCallback(async (taskId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const nextVal = !completedTaskIds[taskId];
 
@@ -862,7 +905,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     setAllUserEvents((prev) =>
       prev.map((ev, idx) => {
         if (idx === currentEventIndex) {
-          const updatedPrep = (ev.prepCalendarTasks || []).map((t: any, tIdx: number) => {
+          const updatedPrep = (ev.prepCalendarTasks || []).map((t: IPrepCalendarTask, tIdx: number) => {
             const id = t.id || `task-${tIdx}`;
             if (id === taskId) {
               return { ...t, isCompleted: nextVal };
@@ -897,7 +940,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     } catch (err) {
       console.error("[Task Toggle] Failed to sync task completion with backend:", err);
     }
-  };
+  }, [completedTaskIds, effectiveEvents, currentEventIndex, activeEventName, eventName]);
 
   // Build calendar events list: Main Event + Prep Calendar Tasks + Day-of-Run-of-Show
   const eventsList: CalendarEventItem[] = useMemo(() => {
@@ -934,7 +977,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         taskEndDate.setHours(12, 0, 0, 0);
 
         const meta = getActionMeta(task.actionType);
-        const isDone = completedTaskIds[task.id || `task-${idx}`];
 
         items.push({
           id: task.id || `task-${idx}`,
@@ -988,7 +1030,6 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     tasks,
     runOfShow,
     evalSummary,
-    completedTaskIds,
   ]);
 
   // Pop-up bar UI/UX helper states and actions
@@ -999,7 +1040,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     return eventsList.findIndex((e) => e.id === activeDrawerEvent.id);
   }, [eventsList, activeDrawerEvent]);
 
-  const handleNavigateEvent = (direction: "prev" | "next") => {
+  const handleNavigateEvent = useCallback((direction: "prev" | "next") => {
     if (currentEventIdx === -1) return;
     const nextIdx = direction === "prev" ? currentEventIdx - 1 : currentEventIdx + 1;
     if (nextIdx >= 0 && nextIdx < eventsList.length) {
@@ -1007,7 +1048,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       setSelectedEvent(nextEvent);
       setCurrentDate(nextEvent.start);
     }
-  };
+  }, [currentEventIdx, eventsList]);
 
   const handleCopyTask = (event: CalendarEventItem) => {
     const textToCopy = `Event Task: ${event.title}\nDate: ${format(event.start, "EEE, MMM dd, yyyy")}\nTimeline: ${
@@ -1048,7 +1089,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedEvent, currentEventIdx, eventsList, isMobileMenuOpen]);
+  }, [selectedEvent, currentEventIdx, eventsList, isMobileMenuOpen, handleNavigateEvent]);
 
   // Custom event styles for React-Big-Calendar
   const eventPropGetter = (event: CalendarEventItem) => {
@@ -1098,7 +1139,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
   const completionPercent = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
 
   // Jump to specific task on calendar
-  const handleJumpToTask = (task: IPrepCalendarTask) => {
+  const handleJumpToTask = useCallback((task: IPrepCalendarTask) => {
     const days = Number(task.daysBeforeEvent) || 0;
     const taskDate = computeTaskDate(task, parsedEventDate);
 
@@ -1120,7 +1161,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       actionBrief: task.actionBrief,
       isMainEvent: false,
     });
-  };
+  }, [parsedEventDate]);
 
   // Convert filtered prep tasks to MagicBento items with interactive card content
   const bentoTaskItems: MagicBentoItem[] = useMemo(() => {
@@ -1223,7 +1264,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
         ),
       };
     });
-  }, [filteredTasks, completedTaskIds, parsedEventDate]);
+  }, [filteredTasks, completedTaskIds, parsedEventDate, handleJumpToTask, handleToggleTaskCompleted]);
 
   // Custom Event component rendering Lucide icons inside React-Big-Calendar cells
   const CustomCalendarEvent = ({ event }: { event: CalendarEventItem }) => {
@@ -1752,7 +1793,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                     <button type="button" onClick={handleCalendarPrev} aria-label="Previous" className="kcal-icon-btn">
                       <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <button type="button" onClick={() => setCurrentDate(new Date())} className="kcal-text-btn">
+                    <button type="button" onClick={handleCalendarToday} className="kcal-text-btn">
                       Today
                     </button>
                     <button type="button" onClick={handleCalendarNext} aria-label="Next" className="kcal-icon-btn">
@@ -1809,7 +1850,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                   weekdayFormat: (date: Date) => format(date, "EEE"),
                 }}
                 components={{
-                  event: CustomCalendarEvent as any,
+                  event: CustomCalendarEvent as unknown as React.ComponentType<EventProps<CalendarEventItem>>,
                   toolbar: () => null,
                 }}
               />
@@ -2079,6 +2120,11 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                         </>
                       )}
                     </button>
+                    {saveError && (
+                      <p className="text-[11px] text-[#B5473C] font-semibold text-center mt-2 animate-in fade-in">
+                        {saveError}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -2144,7 +2190,7 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                             </div>
 
                             <p className="text-[10px] text-[#8A6775] line-clamp-1">
-                              {task.actionBrief || (task as any).description}
+                              {task.actionBrief || (task as unknown as { description?: string }).description}
                             </p>
 
                             <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[#8A6775]">

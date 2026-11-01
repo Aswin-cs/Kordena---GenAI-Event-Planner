@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sparkles, MapPin, Calendar, Users, DollarSign, Lightbulb, CheckCircle2, ArrowRight } from "lucide-react";
+import { Sparkles, MapPin, Calendar, Users, DollarSign, Lightbulb, ArrowRight } from "lucide-react";
 import { EventPlan } from "../types";
 
 interface OverviewSectionProps {
@@ -15,11 +15,6 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
   onNavigateTab,
   onOpenAssistant,
 }) => {
-  const completedTasks = event.tasks.filter((t) => t.completed).length;
-  const totalTasks = event.tasks.length;
-  const totalSpent = event.budget.reduce((acc, b) => acc + b.spent, 0);
-  const totalAllocated = event.budget.reduce((acc, b) => acc + b.allocated, 0);
-
   return (
     <div className="space-y-6">
       {/* Hero Banner Card */}

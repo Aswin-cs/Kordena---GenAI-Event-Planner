@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Calendar, Plus, Download, Bot, ChevronDown, CheckCircle2, LogOut, User } from "lucide-react";
+import { Calendar, Plus, Download, Bot, ChevronDown, CheckCircle2, LogOut } from "lucide-react";
 import { EventPlan } from "../types";
 
 interface NavbarProps {

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Download, Copy, Check, Printer, FileText, X } from "lucide-react";
+import { Copy, Check, Printer, FileText, X } from "lucide-react";
 import { EventPlan } from "../types";
 
 interface ExportModalProps {

@@ -92,7 +92,7 @@ export interface MagicBentoItem {
   colSpan?: number;
   rowSpan?: number;
   onClick?: (event?: React.MouseEvent) => void;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface MagicBentoProps {
@@ -136,7 +136,7 @@ const DEFAULT_ITEMS: MagicBentoItem[] = [
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const vars = (values: Record<string, any>) => values as any;
+const vars = (values: Record<string, string | number | undefined>) => values as React.CSSProperties;
 
 const parseRgb = (value?: string): [number, number, number] | null => {
   if (!value) return null;
@@ -513,7 +513,29 @@ const finite = (animation: Animation) => {
   return timing ? timing.iterations !== Infinity : false;
 };
 
-const nameOf = (animation: Animation) => (animation as any).animationName || '';
+const nameOf = (animation: Animation) => (animation as unknown as { animationName?: string }).animationName || '';
+
+interface BentoCardState {
+  hot: number;
+  rx: number;
+  ry: number;
+  tx: number;
+  ty: number;
+  vrx: number;
+  vry: number;
+  vtx: number;
+  vty: number;
+  press: number;
+  vpress: number;
+  stars: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  particles: any;
+  active: boolean;
+  written: Record<string, string>;
+  drawn?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
 
 export const MagicBento: React.FC<MagicBentoProps> = ({
   items = DEFAULT_ITEMS,
@@ -547,25 +569,46 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
 
   const palette = theme === 'dark' ? 'dark' : 'light';
   const glow = parseRgb(glowColor) ?? INK[palette];
-  const settings = {
-    items,
-    columns: Math.max(1, Math.round(columns)),
-    gap: Math.max(0, gap),
-    enableBorderGlow,
-    enableSpotlight,
-    spotlightRadius: Math.max(40, spotlightRadius),
-    enableStars,
-    particleCount: clamp(Math.round(particleCount), 0, 120),
-    enableTilt,
-    enableMagnetism,
-    clickEffect,
-    intro,
-    disableAnimations,
-    onItemClick,
-    glow
-  };
+  const settings = useMemo(
+    () => ({
+      items,
+      columns: Math.max(1, Math.round(columns)),
+      gap: Math.max(0, gap),
+      enableBorderGlow,
+      enableSpotlight,
+      spotlightRadius: Math.max(40, spotlightRadius),
+      enableStars,
+      particleCount: clamp(Math.round(particleCount), 0, 120),
+      enableTilt,
+      enableMagnetism,
+      clickEffect,
+      intro,
+      disableAnimations,
+      onItemClick,
+      glow,
+    }),
+    [
+      items,
+      columns,
+      gap,
+      enableBorderGlow,
+      enableSpotlight,
+      spotlightRadius,
+      enableStars,
+      particleCount,
+      enableTilt,
+      enableMagnetism,
+      clickEffect,
+      intro,
+      disableAnimations,
+      onItemClick,
+      glow,
+    ]
+  );
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   useIsomorphicLayoutEffect(() => {
     const root = rootRef.current;
@@ -581,7 +624,7 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
 
     const pointer = { x: -1e5, y: -1e5, inside: false, down: -1 };
     const light = { x: -1e5, y: -1e5, near: 0, ready: false };
-    const states: any[] = [];
+    const states: BentoCardState[] = [];
     const wave = { x: 0, y: 0, t: -1, duration: 1.1, reach: 800 };
     let rects: (DOMRect | null)[] = [];
     let bounds: DOMRect | null = null;
@@ -617,7 +660,7 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
       return states[index];
     };
 
-    const write = (element: HTMLElement, state: any, name: string, value: string) => {
+    const write = (element: HTMLElement, state: BentoCardState, name: string, value: string) => {
       if (state.written[name] === value) return;
       state.written[name] = value;
       element.style.setProperty(name, value);
@@ -659,7 +702,7 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
     const drawStars = (
       index: number,
       rect: DOMRect,
-      state: any,
+      state: BentoCardState,
       lx: number,
       ly: number,
       dt: number,
@@ -1016,7 +1059,7 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
     window.addEventListener('pointercancel', release, { passive: true });
     window.addEventListener('scroll', onScroll, { passive: true, capture: true });
     window.addEventListener('resize', onScroll, { passive: true });
-    document.addEventListener('pointerout', onPointerOut as any);
+    document.addEventListener('pointerout', onPointerOut as EventListener);
     root.addEventListener('click', onClick);
     root.addEventListener('keydown', onKeyDown);
 
@@ -1047,7 +1090,7 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
       window.removeEventListener('pointercancel', release);
       window.removeEventListener('scroll', onScroll, { capture: true });
       window.removeEventListener('resize', onScroll);
-      document.removeEventListener('pointerout', onPointerOut as any);
+      document.removeEventListener('pointerout', onPointerOut as EventListener);
       root.removeEventListener('click', onClick);
       root.removeEventListener('keydown', onKeyDown);
       engineRef.current = null;
@@ -1063,9 +1106,11 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
   const corner = Math.max(0, radius);
   const span = Math.max(1, cols);
 
-  cellRefs.current.length = items.length;
-  cardRefs.current.length = items.length;
-  starRefs.current.length = items.length;
+  useEffect(() => {
+    cellRefs.current.length = items.length;
+    cardRefs.current.length = items.length;
+    starRefs.current.length = items.length;
+  }, [items.length]);
 
   return (
     <div
@@ -1165,7 +1210,7 @@ export const MagicBento: React.FC<MagicBentoProps> = ({
             }}
           >
             {entry.href ? (
-              <a {...(cardProps as any)} href={entry.href} target={entry.target} rel={entry.rel}>
+              <a {...(cardProps as React.AnchorHTMLAttributes<HTMLAnchorElement>)} href={entry.href} target={entry.target} rel={entry.rel}>
                 {body}
               </a>
             ) : (

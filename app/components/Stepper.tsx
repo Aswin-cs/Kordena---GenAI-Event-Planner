@@ -10,7 +10,6 @@ import React, {
   ReactNode,
   CSSProperties,
   ButtonHTMLAttributes,
-  ComponentProps,
 } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
@@ -224,7 +223,9 @@ export default function Stepper({
   const heightRef = useRef<number>(0);
   const labelWidths = useRef<number[]>([]);
   const tightRef = useRef<boolean>(false);
-  tightRef.current = tight;
+  useEffect(() => {
+    tightRef.current = tight;
+  }, [tight]);
   const placedRef = useRef<boolean>(false);
 
   const go = (target: number) => {

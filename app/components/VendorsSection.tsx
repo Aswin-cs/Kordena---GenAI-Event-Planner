@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Star, Mail, CheckCircle2, Sparkles, Building2, ExternalLink, Copy, Check } from "lucide-react";
+import { Star, Mail, Sparkles, Copy, Check } from "lucide-react";
 import { Vendor, EventPlan } from "../types";
 
 interface VendorsSectionProps {

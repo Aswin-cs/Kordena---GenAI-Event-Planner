@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bell, Clock, Calendar, AlertTriangle, CheckCircle2, Check, Sparkles, Plus } from "lucide-react";
+import { Bell, Clock, Calendar } from "lucide-react";
 import { CalendarAlert, TimelineScheduleItem, EventPlan } from "../types";
 
 interface TimelineSectionProps {
@@ -214,7 +214,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           </div>
 
           <div className="space-y-3">
-            {event.schedule.map((item, idx) => (
+            {event.schedule.map((item) => (
               <div
                 key={item.id}
                 onClick={() => toggleScheduleStatus(item.id)}

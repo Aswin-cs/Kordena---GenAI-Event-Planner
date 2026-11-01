@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sparkles, Wand2, Users, DollarSign, ArrowRight, Loader2, RefreshCw, Lock } from "lucide-react";
+import { Sparkles, Wand2, Users, DollarSign, Loader2, RefreshCw, Lock } from "lucide-react";
 import { useSession, signIn } from "next-auth/react";
 import { EventPlan } from "../types";
 
@@ -47,7 +47,7 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { data: session, status: authStatus } = useSession();
+  const { status: authStatus } = useSession();
   const isAuthenticated = authStatus === "authenticated";
 
   const [prompt, setPrompt] = useState("");
@@ -112,10 +112,11 @@ export const HeroGenerator: React.FC<HeroGeneratorProps> = ({
         setPrompt("");
         onClose();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Generation error:", err);
       clearInterval(interval);
-      setAuthError(err?.message || "Failed to generate event blueprint. Please try again.");
+      const msg = err instanceof Error ? err.message : "Failed to generate event blueprint. Please try again.";
+      setAuthError(msg);
     } finally {
       setLoading(false);
     }

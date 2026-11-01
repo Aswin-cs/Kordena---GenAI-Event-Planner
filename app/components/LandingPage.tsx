@@ -6,9 +6,10 @@ import { signIn, useSession } from "next-auth/react";
 import { BlueprintCreationStepper } from "./BlueprintCreationStepper";
 import { EventHistories } from "./EventHistories";
 import { EventPlan } from "../types";
-import { Sparkles, ArrowRight, Plus, IndianRupee, Loader2, AlertCircle, X, Lock } from "lucide-react";
+import { Sparkles, ArrowRight, Loader2, AlertCircle, Lock } from "lucide-react";
 import { AiEvaluationResponse } from "../api/ai-evaluate/route";
 import { parseDateForInput, normalizeEventType, validateEventParameters } from "@/lib/calendar-utils";
+import type { IPrepCalendarTask, IDayOfRunOfShowItem, IBudgetBreakdownItem, IEvaluationSummary } from "@/models/UserStatus.model";
 
 // Lazily load heavy modules to reduce initial landing bundle size and memory usage
 const EventCalendarView = dynamic(
@@ -23,16 +24,12 @@ const EventCalendarView = dynamic(
   }
 );
 
-const AiEvaluationStepper = dynamic(
-  () => import("./AiEvaluationStepper").then((m) => m.AiEvaluationStepper)
-);
-
 interface LandingPageProps {
   onOpenLogin?: () => void;
   onOpenSignup?: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSignup }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin: _onOpenLogin, onOpenSignup: _onOpenSignup }) => {
   const { data: session, status: authStatus } = useSession();
   const isAuthenticated = authStatus === "authenticated";
 
@@ -81,15 +78,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
 
   // AI Evaluation Stepper states
   const [isAiEvaluating, setIsAiEvaluating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showAiStepper, setShowAiStepper] = useState(false);
   const [aiEvaluationData, setAiEvaluationData] = useState<AiEvaluationResponse | null>(null);
   const [aiEvalError, setAiEvalError] = useState<string | null>(null);
   const [savedOperations, setSavedOperations] = useState<{
-    prepCalendarTasks?: any[];
-    dayOfRunOfShow?: any[];
-    budgetBreakdown?: any[];
-    evaluationSummary?: any;
+    prepCalendarTasks?: IPrepCalendarTask[];
+    dayOfRunOfShow?: IDayOfRunOfShowItem[];
+    budgetBreakdown?: IBudgetBreakdownItem[];
+    evaluationSummary?: IEvaluationSummary;
     plannedItems?: string[];
   } | null>(null);
 
@@ -99,16 +94,42 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
 
   // Fetch real saved event blueprints from database only for authenticated users
   React.useEffect(() => {
-    if (!isAuthenticated) {
-      setEvents([]);
-      return;
-    }
+    if (!isAuthenticated) return;
     let isMounted = true;
     fetch("/api/user-status")
       .then((res) => res.json())
       .then((data) => {
         if (!isMounted || !data.success || !Array.isArray(data.userStatuses)) return;
-        const loadedPlans: EventPlan[] = data.userStatuses.map((us: any) => ({
+        interface DbTask {
+          id?: string;
+          title?: string;
+          priority?: string;
+        }
+        interface DbBudget {
+          category?: string;
+          allocatedAmount?: number;
+          spendStrategy?: string;
+        }
+        interface DbRos {
+          timeSlot?: string;
+          activity?: string;
+          departmentInCharge?: string;
+        }
+        interface DbUserStatus {
+          _id?: string;
+          eventName?: string;
+          evaluationSummary?: { eventVibe?: string };
+          aiSummary?: string;
+          eventType?: string;
+          endDate?: string | Date;
+          guestCount?: number;
+          budget?: number;
+          prepCalendarTasks?: DbTask[];
+          budgetBreakdown?: DbBudget[];
+          dayOfRunOfShow?: DbRos[];
+        }
+
+        const loadedPlans: EventPlan[] = (data.userStatuses as DbUserStatus[]).map((us: DbUserStatus) => ({
           id: us._id || `event-${Date.now()}-${Math.random()}`,
           title: us.eventName || "Untitled Event",
           tagline:
@@ -122,7 +143,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
           totalBudget: us.budget || 50000,
           aiVibeSummary: us.evaluationSummary?.eventVibe || us.aiSummary || "",
           paletteDescription: "",
-          tasks: (us.prepCalendarTasks || []).map((t: any, idx: number) => ({
+          tasks: (us.prepCalendarTasks || []).map((t: DbTask, idx: number) => ({
             id: t.id || `t-${idx}`,
             title: t.title || "Task",
             category: "Program",
@@ -130,16 +151,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
             completed: false,
             priority: t.priority === "high" ? "High" : t.priority === "medium" ? "Medium" : "Low",
           })),
-          budget: (us.budgetBreakdown || []).map((b: any, idx: number) => ({
+          budget: (us.budgetBreakdown || []).map((b: DbBudget, idx: number) => ({
             id: `b-${idx}`,
-            category: b.category,
+            category: b.category || "General",
             allocated: b.allocatedAmount || 0,
             spent: 0,
             notes: b.spendStrategy || "",
           })),
           alerts: [],
           vendors: [],
-          schedule: (us.dayOfRunOfShow || []).map((s: any, idx: number) => ({
+          schedule: (us.dayOfRunOfShow || []).map((s: DbRos, idx: number) => ({
             id: `s-${idx}`,
             time: s.timeSlot || "",
             title: s.activity || "",
@@ -173,7 +194,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
     setEventTier("Starter");
     setPlanningItems([]);
     setCurrentPlanningInput("");
-    setShowAiStepper(false);
     setAiEvaluationData(null);
     setSavedOperations(null);
     setAiEvalError(null);
@@ -187,7 +207,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
     setEventType(normalizeEventType(ev.eventType));
     setEventBudget(ev.totalBudget ? String(ev.totalBudget) : "");
     setEventDate(parseDateForInput(ev.date));
-    setShowAiStepper(false);
     setAiEvaluationData(null);
     setAiEvalError(null);
     setStepperKey((prev) => prev + 1);
@@ -324,95 +343,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenLogin, onOpenSig
       }
 
       // Directly go to calendar UI
-      setShowAiStepper(false);
       setShowCalendar(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("AI Evaluation error on landing page:", err);
-      setAiEvalError(
-        err?.message || "Could not complete AI evaluation. Please verify your inputs and try again."
-      );
+      const msg = err instanceof Error ? err.message : "Could not complete AI evaluation. Please verify your inputs and try again.";
+      setAiEvalError(msg);
     } finally {
       setIsAiEvaluating(false);
     }
-  };
-
-  const handleFinalSaveWithAi = async (evalSelections: {
-    decorations: string[];
-    arrangements: string[];
-    requirements: string[];
-    aiSummary: string;
-    aiResponse?: any;
-    tier?: "Starter" | "Basic" | "Professional";
-  }) => {
-    const effectiveTier = evalSelections.tier || eventTier;
-    setIsSaving(true);
-    try {
-      await fetch("/api/user-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventName: eventName.trim() || "Untitled Event",
-          eventType,
-          tier: effectiveTier,
-          budget: Number(eventBudget) || 250000,
-          guestCount: Number(guestCount) || 100,
-          plannedItems: planningItems,
-          endDate: eventDate || new Date().toISOString().split("T")[0],
-          selectedPlan,
-          evaluationSummary: evalSelections.aiResponse?.evaluationSummary,
-          budgetBreakdown: evalSelections.aiResponse?.budgetBreakdown,
-          prepCalendarTasks: evalSelections.aiResponse?.prepCalendarTasks,
-          dayOfRunOfShow: evalSelections.aiResponse?.dayOfRunOfShow,
-          mediatorStarterPrompts: evalSelections.aiResponse?.mediatorStarterPrompts,
-          decorations: evalSelections.decorations,
-          arrangements: evalSelections.arrangements,
-          requirements: evalSelections.requirements,
-          aiSummary: evalSelections.aiSummary,
-          aiResponse: evalSelections.aiResponse,
-        }),
-      });
-
-      if (evalSelections.aiResponse) {
-        setSavedOperations({
-          prepCalendarTasks: evalSelections.aiResponse.prepCalendarTasks || [],
-          dayOfRunOfShow: evalSelections.aiResponse.dayOfRunOfShow || [],
-          budgetBreakdown: evalSelections.aiResponse.budgetBreakdown || [],
-          evaluationSummary: evalSelections.aiResponse.evaluationSummary,
-          plannedItems: planningItems,
-        });
-      }
-    } catch (err) {
-      console.error("Guest save error:", err);
-    } finally {
-      setIsSaving(false);
-    }
-
-    if (eventName.trim()) {
-      const activeEv = events.find((e) => e.id === activeEventId) || events[0];
-      const newPlan: EventPlan = {
-        id: `event-${Date.now()}`,
-        title: eventName,
-        tagline: evalSelections.aiSummary || `${eventType} architected with Kordena GenAI`,
-        eventType: eventType,
-        date: eventDate || new Date().toISOString().split("T")[0],
-        location: activeEv?.location || "Main Venue",
-        totalBudget: Number(eventBudget) || 250000,
-        guestCount: Number(guestCount) || 100,
-        aiVibeSummary: evalSelections.aiSummary || activeEv?.aiVibeSummary || "",
-        paletteDescription: activeEv?.paletteDescription || "",
-        tasks: activeEv?.tasks || [],
-        budget: activeEv?.budget || [],
-        alerts: activeEv?.alerts || [],
-        vendors: activeEv?.vendors || [],
-        schedule: activeEv?.schedule || [],
-        aiSuggestions: activeEv?.aiSuggestions || [],
-      };
-      setEvents((prev) => [newPlan, ...prev]);
-      setActiveEventId(newPlan.id);
-    }
-
-    setShowCalendar(true);
   };
 
   if (showCalendar) {

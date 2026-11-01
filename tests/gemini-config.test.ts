@@ -55,10 +55,10 @@ test("Gemini Config - formatUploadedContents Normalizer", async (t) => {
     });
     assert.strictEqual(parts.length, 1);
     assert.strictEqual(
-      parts[0].inlineData.data,
+      parts[0].inlineData?.data,
       buffer.toString("base64")
     );
-    assert.strictEqual(parts[0].inlineData.mimeType, "text/plain");
+    assert.strictEqual(parts[0].inlineData?.mimeType, "text/plain");
   });
 
   await t.test("normalizes fileUri into fileData part", () => {
@@ -83,7 +83,7 @@ test("Gemini Config - formatUploadedContents Normalizer", async (t) => {
     ]);
     assert.strictEqual(parts.length, 3);
     assert.strictEqual(parts[0].text, "First instruction");
-    assert.strictEqual(parts[1].fileData.fileUri, "uri://test.png");
+    assert.strictEqual(parts[1].fileData?.fileUri, "uri://test.png");
     assert.strictEqual(parts[2].text, "Second instruction");
   });
 

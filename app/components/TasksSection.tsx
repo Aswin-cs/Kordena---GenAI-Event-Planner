@@ -13,7 +13,7 @@ interface TasksSectionProps {
 export const TasksSection: React.FC<TasksSectionProps> = ({
   event,
   onUpdateTasks,
-  onOpenAssistant,
+  onOpenAssistant: _onOpenAssistant,
 }) => {
   const [activeFilter, setActiveFilter] = useState<string>("All");
   const [showAddModal, setShowAddModal] = useState(false);

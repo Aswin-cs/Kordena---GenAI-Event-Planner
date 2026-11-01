@@ -113,5 +113,46 @@ test("UserStatus Model Efficiency & Schema Optimization Audit", async (t) => {
     assert.strictEqual(finalMetrics.completedCount, 2);
     assert.strictEqual(finalMetrics.percentage, 100);
   });
+
+  await t.test("instance method deleteBudgetCategory removes category and related tasks, run of show, and requirements", () => {
+    const doc: any = new UserStatus({
+      userId: new mongoose.Types.ObjectId(),
+      eventName: "Tech Summit 2026",
+      eventType: "Conference",
+      budget: 100000,
+      guestCount: 100,
+      endDate: new Date(Date.now() + 86400000 * 5),
+      budgetBreakdown: [
+        { category: "Stage & Audio Setup", allocatedAmount: 12000, percentage: 55 },
+        { category: "Photography & Videography", allocatedAmount: 7000, percentage: 32 },
+        { category: "Contingency Reserve", allocatedAmount: 3000, percentage: 13 },
+      ],
+      prepCalendarTasks: [
+        { id: "t1", title: "Soundcheck & Mic Setup", department: "Audio/Visual", estimatedCost: 5000 },
+        { id: "t2", title: "Hire Event Photographer", department: "Media & Photography", estimatedCost: 7000 },
+        { id: "t3", title: "Emergency buffer review", department: "Contingency", estimatedCost: 1000 },
+      ],
+      dayOfRunOfShow: [
+        { timeSlot: "09:00 AM", activity: "Audio Check", departmentInCharge: "Audio/Visual", operationalNotes: "", dependency: "" },
+        { timeSlot: "10:00 AM", activity: "Photo Coverage", departmentInCharge: "Media & Photography", operationalNotes: "", dependency: "" },
+      ],
+      requirements: [
+        "Professional audio speakers",
+        "Dual camera setup for photography",
+      ],
+    });
+
+    const res = doc.deleteBudgetCategory("Photography & Videography");
+    assert.strictEqual(res.deletedCategory, "Photography & Videography");
+    assert.strictEqual(res.deletedTasksCount, 1);
+    assert.strictEqual(res.deletedRosCount, 1);
+    assert.strictEqual(doc.budgetBreakdown.length, 2);
+    assert.strictEqual(doc.prepCalendarTasks.length, 2);
+    assert.strictEqual(doc.dayOfRunOfShow.length, 1);
+    assert.strictEqual(doc.requirements.length, 1);
+    assert.strictEqual(doc.budgetBreakdown.some((b: any) => b.category.includes("Photography")), false);
+    assert.strictEqual(doc.prepCalendarTasks.some((t: any) => t.title.includes("Photographer")), false);
+    assert.strictEqual(doc.dayOfRunOfShow[0].activity, "Audio Check");
+  });
 });
 

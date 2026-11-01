@@ -246,6 +246,14 @@ test("Functional Validation - Backend API Route Parameter & Auth Enforcement", a
     assert.ok(routeFile.includes("checkRateLimit"), "generate route must protect against denial of service");
     assert.ok(routeFile.includes("prompt"), "generate route must require prompt input");
   });
+
+  await t.test("POST/DELETE /api/budget/delete enforces rate limiting, category validation, and ownership check", () => {
+    const routeFile = fs.readFileSync(path.resolve(process.cwd(), "app/api/budget/delete/route.ts"), "utf-8");
+    assert.ok(routeFile.includes("checkRateLimit"), "budget delete route must enforce sliding-window rate limiting");
+    assert.ok(routeFile.includes("A valid budget category name is required"), "budget delete route must require valid category");
+    assert.ok(routeFile.includes("deleteBudgetCategory"), "budget delete route must execute deleteBudgetCategory model method");
+    assert.ok(routeFile.includes("resolveDbUserId"), "budget delete route must verify user authentication and ownership");
+  });
 });
 
 test("Chat Route - Temporal Anchoring & Today's Date Integration", () => {

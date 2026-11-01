@@ -107,6 +107,17 @@ export interface IUserStatusMethods {
     totalCount: number;
     percentage: number;
   };
+  /**
+   * Deletes a budget breakdown category and all related tasks, run-of-show items, and requirements.
+   * Rebalances remaining budget percentages automatically.
+   */
+  deleteBudgetCategory(categoryName: string): {
+    deletedCategory: string;
+    deletedTasksCount: number;
+    deletedRosCount: number;
+    remainingTasksCount: number;
+    remainingBudgetCategoriesCount: number;
+  };
 }
 
 /**
@@ -369,6 +380,89 @@ UserStatusSchema.methods.getCompletionMetrics = function () {
   const completedCount = tasks.filter((t: any) => Boolean(t.isCompleted)).length;
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   return { completedCount, totalCount, percentage };
+};
+
+UserStatusSchema.methods.deleteBudgetCategory = function (categoryName: string) {
+  if (!categoryName) {
+    return {
+      deletedCategory: "",
+      deletedTasksCount: 0,
+      deletedRosCount: 0,
+      remainingTasksCount: (this.prepCalendarTasks || []).length,
+      remainingBudgetCategoriesCount: (this.budgetBreakdown || []).length,
+    };
+  }
+
+  const normCat = String(categoryName).trim().toLowerCase();
+  const initialTasksCount = (this.prepCalendarTasks || []).length;
+  const initialRosCount = (this.dayOfRunOfShow || []).length;
+
+  // Filter budgetBreakdown items
+  const remainingBudget = (this.budgetBreakdown || []).filter((item: any) => {
+    return String(item?.category || "").trim().toLowerCase() !== normCat;
+  });
+
+  // Re-calculate percentages across remaining budget breakdown items
+  const newTotalAllocated = remainingBudget.reduce(
+    (sum: number, item: any) => sum + (Number(item?.allocatedAmount) || 0),
+    0
+  );
+  if (newTotalAllocated > 0) {
+    remainingBudget.forEach((item: any) => {
+      item.percentage = Math.round(((Number(item.allocatedAmount) || 0) / newTotalAllocated) * 100);
+    });
+  }
+
+  // Tokenize category into keywords for broad related task detection
+  const tokens = normCat
+    .replace(/[&/\\,-]/g, " ")
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 3 && !["and", "the", "for", "with"].includes(t));
+
+  const isRelated = (text: string) => {
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    if (lower.includes(normCat) || normCat.includes(lower)) return true;
+    return tokens.some((token) => lower.includes(token));
+  };
+
+  // Filter out prepCalendarTasks related to this category/department
+  const remainingTasks = (this.prepCalendarTasks || []).filter((task: any) => {
+    const depMatch = isRelated(task.department || "");
+    const titleMatch = isRelated(task.title || "");
+    const briefMatch = isRelated(task.actionBrief || "");
+    return !(depMatch || titleMatch || briefMatch);
+  });
+
+  // Filter out dayOfRunOfShow related to this category/department
+  const remainingRos = (this.dayOfRunOfShow || []).filter((ros: any) => {
+    const depMatch = isRelated(ros.departmentInCharge || "");
+    const actMatch = isRelated(ros.activity || "");
+    return !(depMatch || actMatch);
+  });
+
+  // Filter out requirements containing this category
+  if (Array.isArray(this.requirements)) {
+    this.requirements = this.requirements.filter((req: string) => !isRelated(req));
+  }
+
+  this.budgetBreakdown = remainingBudget;
+  this.prepCalendarTasks = remainingTasks;
+  this.dayOfRunOfShow = remainingRos;
+
+  this.markModified("budgetBreakdown");
+  this.markModified("prepCalendarTasks");
+  this.markModified("dayOfRunOfShow");
+  this.markModified("requirements");
+
+  return {
+    deletedCategory: categoryName,
+    deletedTasksCount: initialTasksCount - remainingTasks.length,
+    deletedRosCount: initialRosCount - remainingRos.length,
+    remainingTasksCount: remainingTasks.length,
+    remainingBudgetCategoriesCount: remainingBudget.length,
+  };
 };
 
 // =========================================================================

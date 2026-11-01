@@ -275,6 +275,29 @@ export async function DELETE(request: Request) {
       );
     }
 
+    const category = searchParams.get("category");
+    if (category) {
+      const targetDoc = await UserStatus.findOne({ _id: id, userId: authUserId });
+      if (!targetDoc) {
+        return NextResponse.json(
+          { success: false, message: "Blueprint not found" },
+          { status: 404 }
+        );
+      }
+      const deleteMetrics = targetDoc.deleteBudgetCategory(category);
+      await targetDoc.save();
+      return NextResponse.json({
+        success: true,
+        message: `Deleted '${category}' allocation and ${deleteMetrics.deletedTasksCount} related task(s) successfully`,
+        deletedCategory: category,
+        deletedTasksCount: deleteMetrics.deletedTasksCount,
+        deletedRosCount: deleteMetrics.deletedRosCount,
+        budgetBreakdown: targetDoc.budgetBreakdown,
+        prepCalendarTasks: targetDoc.prepCalendarTasks,
+        dayOfRunOfShow: targetDoc.dayOfRunOfShow,
+      });
+    }
+
     // Atomic deletion enforcing tenant isolation
     const deleted = await UserStatus.findOneAndDelete({ _id: id, userId: authUserId });
     if (!deleted) {

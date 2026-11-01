@@ -47,6 +47,7 @@ import {
   Loader2,
   Menu,
   ArrowUpRight,
+  Trash2,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
@@ -481,6 +482,99 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
       setSaveError(err?.message || "Failed to save budget breakdown");
     } finally {
       setIsSavingBudget(false);
+    }
+  };
+
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
+
+  // Delete a specific budget category and its related tasks
+  const handleDeleteBudgetCategory = async (categoryToDelete: string) => {
+    if (!categoryToDelete) return;
+    setDeletingCategory(categoryToDelete);
+    setSaveError(null);
+
+    // Optimistically calculate remaining budget & re-normalize percentages
+    const remainingBudget = editableBudget.filter(
+      (b) => b.category.toLowerCase() !== categoryToDelete.toLowerCase()
+    );
+    const newTotal = remainingBudget.reduce(
+      (sum, item) => sum + (Number(item.allocatedAmount) || 0),
+      0
+    );
+    const normalizedRemaining = remainingBudget.map((b) => ({
+      ...b,
+      percentage: newTotal > 0 ? Math.round((Number(b.allocatedAmount) / newTotal) * 100) : 0,
+    }));
+
+    // Compute related task filtering
+    const normCat = categoryToDelete.toLowerCase();
+    const tokens = normCat
+      .replace(/[&/\\,-]/g, " ")
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3 && !["and", "the", "for", "with"].includes(t));
+
+    const isRelated = (text: string) => {
+      if (!text) return false;
+      const lower = text.toLowerCase();
+      if (lower.includes(normCat) || normCat.includes(lower)) return true;
+      return tokens.some((token) => lower.includes(token));
+    };
+
+    const remainingTasks = tasks.filter((t) => {
+      return !(isRelated(t.department || "") || isRelated(t.title || "") || isRelated(t.actionBrief || ""));
+    });
+    const remainingRos = runOfShow.filter((r) => {
+      return !(isRelated(r.departmentInCharge || "") || isRelated(r.activity || ""));
+    });
+
+    try {
+      const res = await fetch("/api/budget/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: categoryToDelete,
+          eventName: activeEventName || eventName,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setEditableBudget(data.budgetBreakdown || normalizedRemaining);
+        setBudgetList(data.budgetBreakdown || normalizedRemaining);
+        if (data.prepCalendarTasks) {
+          setTasks(data.prepCalendarTasks);
+        } else {
+          setTasks(remainingTasks);
+        }
+        if (data.dayOfRunOfShow) {
+          setRunOfShow(data.dayOfRunOfShow);
+        } else {
+          setRunOfShow(remainingRos);
+        }
+        setDeleteNotice(
+          `Removed "${categoryToDelete}" and ${data.deletedTasksCount ?? (tasks.length - remainingTasks.length)} related task(s).`
+        );
+        setTimeout(() => setDeleteNotice(null), 4500);
+      } else {
+        setEditableBudget(normalizedRemaining);
+        setBudgetList(normalizedRemaining);
+        setTasks(remainingTasks);
+        setRunOfShow(remainingRos);
+        setDeleteNotice(`Removed "${categoryToDelete}" from current view.`);
+        setTimeout(() => setDeleteNotice(null), 4000);
+      }
+    } catch (err: unknown) {
+      console.warn("Error deleting budget category:", err);
+      setEditableBudget(normalizedRemaining);
+      setBudgetList(normalizedRemaining);
+      setTasks(remainingTasks);
+      setRunOfShow(remainingRos);
+      setDeleteNotice(`Removed "${categoryToDelete}" locally.`);
+      setTimeout(() => setDeleteNotice(null), 4000);
+    } finally {
+      setDeletingCategory(null);
     }
   };
 
@@ -2342,14 +2436,22 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleResetBudget}
-              className="p-2 px-3.5 rounded-full text-[#8A6775] hover:text-[#2E131E] bg-white hover:bg-[#FDF0F4] border border-[#F7D6DF] transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Values</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {deleteNotice && (
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#E6F7F0] text-[#10B981] border border-[#A7F3D0] flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5" />
+                  {deleteNotice}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleResetBudget}
+                className="p-2 px-3.5 rounded-full text-[#8A6775] hover:text-[#2E131E] bg-white hover:bg-[#FDF0F4] border border-[#F7D6DF] transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Values</span>
+              </button>
+            </div>
           </div>
 
           {/* Full Width Grid for Budget Sliders */}
@@ -2375,11 +2477,27 @@ export const EventCalendarView: React.FC<EventCalendarViewProps> = ({
                         <span className="text-[10px] text-[#8A6775]">{item.spendStrategy}</span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-sm font-bold font-serif text-[#2E131E] block">
-                        ₹{Number(item.allocatedAmount).toLocaleString("en-IN")}
-                      </span>
-                      <span className="text-[10px] text-[#8A6775] font-semibold">{item.percentage}%</span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="text-right">
+                        <span className="text-sm font-bold font-serif text-[#2E131E] block">
+                          ₹{Number(item.allocatedAmount).toLocaleString("en-IN")}
+                        </span>
+                        <span className="text-[10px] text-[#8A6775] font-semibold">{item.percentage}%</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteBudgetCategory(item.category)}
+                        disabled={deletingCategory === item.category}
+                        title={`Delete ${item.category} allocation and related tasks`}
+                        aria-label={`Delete ${item.category} allocation and related tasks`}
+                        className="p-1.5 rounded-lg text-[#8A6775] hover:text-[#E11D48] hover:bg-[#FDF2F5] border border-transparent hover:border-[#F7D6DF] transition-all cursor-pointer disabled:opacity-40"
+                      >
+                        {deletingCategory === item.category ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E11D48]" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     </div>
                   </div>
 
